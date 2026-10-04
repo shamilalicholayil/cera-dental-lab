@@ -1,0 +1,25 @@
+{
+  "name": "cera-dental-lab",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names WEB,API \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=@cera/web",
+    "dev:api": "npm run dev --workspace=@cera/api",
+    "start:api": "npm run start --workspace=@cera/api",
+    "build:web": "npm run build --workspace=@cera/web",
+    "lint": "npm run lint:web && npm run lint:api",
+    "lint:web": "npm run lint --workspace=@cera/web",
+    "lint:api": "npm run lint --workspace=@cera/api",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "npm run test --workspace=@cera/api",
+    "test:web": "npm run test --workspace=@cera/web"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

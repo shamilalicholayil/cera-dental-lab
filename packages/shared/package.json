@@ -1,0 +1,10 @@
+{
+  "name": "@cera/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants/index.js"
+  }
+}
