@@ -4,17 +4,25 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SCAN_BOOKING_STATUS, USER_ROLES } from "@cera/shared";
-
-import { ScanBookingDetailPage } from "./ScanBookingDetailPage";
+import {
+  SCAN_BOOKING_STATUS,
+  SCAN_RESCHEDULE_STATUS,
+  USER_ROLES,
+} from "@cera/shared";
 
 import {
   acceptAlternateScanTime,
+  acceptScanReschedule,
   completeScanBooking,
   confirmScanBooking,
+  confirmScanReschedule,
   getScanBooking,
   getScanningStaff,
+  proposeScanReschedule,
+  requestScanReschedule,
 } from "../api/scanBookings";
+
+import { ScanBookingDetailPage } from "./ScanBookingDetailPage";
 
 const mocked = vi.hoisted(() => ({
   user: null,
@@ -35,6 +43,8 @@ vi.mock("../components/portal/PortalHeader", () => ({
 vi.mock("../api/scanBookings", () => ({
   acceptAlternateScanTime: vi.fn(),
 
+  acceptScanReschedule: vi.fn(),
+
   assignScanBooking: vi.fn(),
 
   cancelScanBooking: vi.fn(),
@@ -43,13 +53,19 @@ vi.mock("../api/scanBookings", () => ({
 
   confirmScanBooking: vi.fn(),
 
+  confirmScanReschedule: vi.fn(),
+
   getScanBooking: vi.fn(),
 
   getScanningStaff: vi.fn(),
 
   proposeAlternateScanTime: vi.fn(),
 
+  proposeScanReschedule: vi.fn(),
+
   rejectScanBooking: vi.fn(),
+
+  requestScanReschedule: vi.fn(),
 }));
 
 function bookingWith(patch = {}) {
@@ -94,6 +110,10 @@ function bookingWith(patch = {}) {
 
     confirmedStartAt: null,
 
+    reschedule: null,
+
+    rescheduleHistory: [],
+
     ...patch,
   };
 }
@@ -121,6 +141,10 @@ describe("ScanBookingDetailPage", () => {
       },
     });
   });
+
+  /*
+   * Existing 4B tests
+   */
 
   it("allows Cera Staff to confirm the requested time", async () => {
     mocked.user = {
@@ -262,5 +286,657 @@ describe("ScanBookingDetailPage", () => {
     });
 
     expect(await screen.findByText("Completed")).toBeInTheDocument();
+  });
+
+  /*
+   * Module 4C tests
+   */
+
+  it("allows a Doctor to request a reschedule", async () => {
+    mocked.user = {
+      id: "doctor-1",
+
+      role: USER_ROLES.DOCTOR,
+    };
+
+    const confirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    const initial = bookingWith({
+      status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+      confirmedStartAt,
+    });
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: initial,
+      },
+    });
+
+    const requestedLocalTime = "2099-10-12T10:30";
+
+    const requestedStartAt = new Date(requestedLocalTime).toISOString();
+
+    requestScanReschedule.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt,
+
+          reschedule: {
+            status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+            requestedStartAt,
+
+            proposedStartAt: null,
+
+            reason: "Patient unavailable",
+
+            requestedAt: "2099-10-09T05:00:00.000Z",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    fireEvent.change(
+      await screen.findByLabelText("Preferred new date & time"),
+      {
+        target: {
+          value: requestedLocalTime,
+        },
+      },
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "Why does this appointment need to be changed?",
+      ),
+      {
+        target: {
+          value: "Patient unavailable",
+        },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Request reschedule",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(requestScanReschedule).toHaveBeenCalledWith(
+        "scan-1",
+        requestedStartAt,
+        "Patient unavailable",
+      );
+    });
+
+    expect(
+      await screen.findByText("Current appointment remains confirmed"),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Reschedule requested")).toBeInTheDocument();
+  });
+
+  it("keeps the current confirmed time visible while a reschedule is pending", async () => {
+    mocked.user = {
+      id: "doctor-1",
+
+      role: USER_ROLES.DOCTOR,
+    };
+
+    const confirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt,
+
+          reschedule: {
+            status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+            requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+            proposedStartAt: null,
+
+            reason: "Patient unavailable",
+
+            requestedAt: "2099-10-09T05:00:00.000Z",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Current appointment remains confirmed"),
+    ).toBeInTheDocument();
+
+    const displayedConfirmedTime = new Date(confirmedStartAt).toLocaleString();
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(displayedConfirmedTime).length,
+      ).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("allows Cera Staff to confirm a requested reschedule", async () => {
+    mocked.user = {
+      id: "staff-1",
+
+      role: USER_ROLES.CERA_STAFF,
+    };
+
+    const oldConfirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    const requestedStartAt = "2099-10-12T05:00:00.000Z";
+
+    const initial = bookingWith({
+      status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+      confirmedStartAt: oldConfirmedStartAt,
+
+      reschedule: {
+        status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+        requestedStartAt,
+
+        proposedStartAt: null,
+
+        reason: "Patient unavailable",
+
+        requestedAt: "2099-10-09T05:00:00.000Z",
+      },
+    });
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: initial,
+      },
+    });
+
+    confirmScanReschedule.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt: requestedStartAt,
+
+          reschedule: null,
+
+          rescheduleHistory: [
+            {
+              previousConfirmedStartAt: oldConfirmedStartAt,
+
+              requestedStartAt,
+
+              proposedStartAt: null,
+
+              confirmedStartAt: requestedStartAt,
+
+              reason: "Patient unavailable",
+
+              confirmedAt: "2099-10-09T06:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    });
+
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Confirm requested time",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(confirmScanReschedule).toHaveBeenCalledWith("scan-1");
+    });
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reschedule history",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("Reschedule in progress"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("allows Cera Staff to propose a different reschedule time", async () => {
+    mocked.user = {
+      id: "staff-1",
+
+      role: USER_ROLES.CERA_STAFF,
+    };
+
+    const confirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    const requestedStartAt = "2099-10-12T05:00:00.000Z";
+
+    const initial = bookingWith({
+      status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+      confirmedStartAt,
+
+      reschedule: {
+        status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+        requestedStartAt,
+
+        proposedStartAt: null,
+
+        reason: "Patient unavailable",
+
+        requestedAt: "2099-10-09T05:00:00.000Z",
+      },
+    });
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: initial,
+      },
+    });
+
+    const proposedLocalTime = "2099-10-13T11:30";
+
+    const proposedStartAt = new Date(proposedLocalTime).toISOString();
+
+    proposeScanReschedule.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt,
+
+          reschedule: {
+            status: SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION,
+
+            requestedStartAt,
+
+            proposedStartAt,
+
+            reason: "Patient unavailable",
+
+            requestedAt: "2099-10-09T05:00:00.000Z",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Proposed date & time"), {
+      target: {
+        value: proposedLocalTime,
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Propose new time",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(proposeScanReschedule).toHaveBeenCalledWith(
+        "scan-1",
+        proposedStartAt,
+        "",
+      );
+    });
+
+    expect(
+      await screen.findByText("Waiting for Doctor / Clinic confirmation"),
+    ).toBeInTheDocument();
+  });
+
+  it("allows a Doctor to accept Cera's proposed reschedule", async () => {
+    mocked.user = {
+      id: "doctor-1",
+
+      role: USER_ROLES.DOCTOR,
+    };
+
+    const previousConfirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    const proposedStartAt = "2099-10-13T05:00:00.000Z";
+
+    const initial = bookingWith({
+      status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+      confirmedStartAt: previousConfirmedStartAt,
+
+      reschedule: {
+        status: SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION,
+
+        requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+        proposedStartAt,
+
+        reason: "Patient unavailable",
+
+        requestedAt: "2099-10-09T05:00:00.000Z",
+      },
+    });
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: initial,
+      },
+    });
+
+    acceptScanReschedule.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt: proposedStartAt,
+
+          reschedule: null,
+
+          rescheduleHistory: [
+            {
+              previousConfirmedStartAt,
+
+              requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+              proposedStartAt,
+
+              confirmedStartAt: proposedStartAt,
+
+              reason: "Patient unavailable",
+
+              confirmedAt: "2099-10-09T06:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    });
+
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Accept new time",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(acceptScanReschedule).toHaveBeenCalledWith("scan-1");
+    });
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reschedule history",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Accept new time",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps assigned Scanning Staff visible when an assigned booking is rescheduled", async () => {
+    mocked.user = {
+      id: "staff-1",
+
+      role: USER_ROLES.CERA_STAFF,
+    };
+
+    const oldConfirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    const requestedStartAt = "2099-10-12T05:00:00.000Z";
+
+    const assignedScanner = {
+      id: "scanner-1",
+
+      name: "Scanner One",
+    };
+
+    const initial = bookingWith({
+      status: SCAN_BOOKING_STATUS.ASSIGNED,
+
+      confirmedStartAt: oldConfirmedStartAt,
+
+      assignedScanningStaff: assignedScanner,
+
+      reschedule: {
+        status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+        requestedStartAt,
+
+        proposedStartAt: null,
+
+        reason: "Patient requested another day",
+
+        requestedAt: "2099-10-09T05:00:00.000Z",
+      },
+    });
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: initial,
+      },
+    });
+
+    confirmScanReschedule.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
+
+          confirmedStartAt: requestedStartAt,
+
+          assignedScanningStaff: assignedScanner,
+
+          reschedule: null,
+
+          rescheduleHistory: [
+            {
+              previousConfirmedStartAt: oldConfirmedStartAt,
+
+              requestedStartAt,
+
+              proposedStartAt: null,
+
+              confirmedStartAt: requestedStartAt,
+
+              reason: "Patient requested another day",
+
+              confirmedAt: "2099-10-09T06:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Scanner One")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Confirm requested time",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(confirmScanReschedule).toHaveBeenCalledWith("scan-1");
+    });
+
+    expect(screen.getByText("Scanner One")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Mark scan completed",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides scanning staff assignment while a reschedule is pending", async () => {
+    mocked.user = {
+      id: "staff-1",
+
+      role: USER_ROLES.CERA_STAFF,
+    };
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.CONFIRMED,
+
+          confirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+          reschedule: {
+            status: SCAN_RESCHEDULE_STATUS.REQUESTED,
+
+            requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+            proposedStartAt: null,
+
+            reason: "Patient unavailable",
+
+            requestedAt: "2099-10-09T05:00:00.000Z",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Reschedule requested")).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Assign scanning staff",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders completed reschedule history", async () => {
+    mocked.user = {
+      id: "doctor-1",
+
+      role: USER_ROLES.DOCTOR,
+    };
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.COMPLETED,
+
+          confirmedStartAt: "2099-10-13T05:00:00.000Z",
+
+          rescheduleHistory: [
+            {
+              previousConfirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+              requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+              proposedStartAt: "2099-10-13T05:00:00.000Z",
+
+              confirmedStartAt: "2099-10-13T05:00:00.000Z",
+
+              reason: "Patient unavailable",
+
+              confirmedAt: "2099-10-09T06:00:00.000Z",
+            },
+          ],
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reschedule history",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Previous time")).toBeInTheDocument();
+
+    expect(screen.getByText("Confirmed new time")).toBeInTheDocument();
+
+    expect(screen.getByText("Patient unavailable")).toBeInTheDocument();
+  });
+
+  it("does not show reschedule controls to Scanning Staff", async () => {
+    mocked.user = {
+      id: "scanner-1",
+
+      role: USER_ROLES.SCANNING_STAFF,
+    };
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
+
+          confirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+          assignedScanningStaff: {
+            id: "scanner-1",
+
+            name: "Scanner One",
+          },
+
+          reschedule: {
+            status: SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION,
+
+            requestedStartAt: "2099-10-12T05:00:00.000Z",
+
+            proposedStartAt: "2099-10-13T05:00:00.000Z",
+
+            reason: "Patient unavailable",
+
+            requestedAt: "2099-10-09T05:00:00.000Z",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Current appointment remains confirmed"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Mark scan completed",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Request reschedule",
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Accept new time",
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Reschedule management",
+      }),
+    ).not.toBeInTheDocument();
   });
 });

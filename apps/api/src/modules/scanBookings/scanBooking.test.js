@@ -10,6 +10,7 @@ import {
   SCAN_BOOKING_STATUS,
   USER_ROLES,
   USER_STATUS,
+  SCAN_RESCHEDULE_STATUS,
 } from "@cera/shared";
 
 import { app } from "../../app.js";
@@ -514,6 +515,82 @@ describe("Scan Bookings", () => {
     expect(updatedLabSlip.scanRequired).toBe(true);
   });
 
+  it("prevents a second non-terminal booking for the same Lab Slip", async () => {
+    const context = await createContext();
+
+    const labSlip = await createLabSlip({
+      clinic: context.clinicA,
+
+      doctor: context.doctorA,
+    });
+
+    const doctorAgent = await loginAgent(context.doctorA);
+
+    const first = await createBooking({
+      agent: doctorAgent,
+
+      labSlip,
+    });
+
+    expect(first.status).toBe(201);
+
+    const second = await createBooking({
+      agent: doctorAgent,
+
+      labSlip,
+
+      requestedStartAt: futureIso(48),
+    });
+
+    expect(second.status).toBe(409);
+
+    expect(second.body.error.code).toBe("SCAN_BOOKING_ALREADY_EXISTS");
+  });
+
+  it("does not allow a Doctor to create a booking for another Doctor's Lab Slip", async () => {
+    const context = await createContext();
+
+    const labSlip = await createLabSlip({
+      clinic: context.clinicB,
+
+      doctor: context.doctorB,
+    });
+
+    const doctorAAgent = await loginAgent(context.doctorA);
+
+    const response = await createBooking({
+      agent: doctorAAgent,
+
+      labSlip,
+    });
+
+    expect(response.status).toBe(404);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+  });
+
+  it("does not allow Clinic Staff to create a booking outside their clinic", async () => {
+    const context = await createContext();
+
+    const labSlip = await createLabSlip({
+      clinic: context.clinicB,
+
+      doctor: context.doctorB,
+    });
+
+    const staffAgent = await loginAgent(context.clinicStaffA);
+
+    const response = await createBooking({
+      agent: staffAgent,
+
+      labSlip,
+    });
+
+    expect(response.status).toBe(404);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+  });
+
   it("allows Cera Staff to confirm the requested scan time", async () => {
     const context = await createContext();
 
@@ -997,6 +1074,227 @@ describe("Scan Bookings", () => {
     expect(response.body.data.scanBookings[0].clinic.id).toBe(
       context.clinicA.id,
     );
+  });
+
+  it("allows a Doctor to request a reschedule while preserving the current confirmed time", async () => {
+    const context = await createContext();
+
+    const { booking, doctorAgent } = await createConfirmedBooking({
+      context,
+    });
+
+    const oldConfirmedStartAt = booking.confirmedStartAt;
+
+    const requestedStartAt = futureIso(72);
+
+    const response = await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt,
+
+        reason: "Patient unavailable",
+      });
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.CONFIRMED,
+    );
+
+    expect(response.body.data.scanBooking.reschedule.status).toBe(
+      SCAN_RESCHEDULE_STATUS.REQUESTED,
+    );
+
+    expect(
+      new Date(response.body.data.scanBooking.confirmedStartAt).toISOString(),
+    ).toBe(new Date(oldConfirmedStartAt).toISOString());
+
+    expect(
+      new Date(
+        response.body.data.scanBooking.reschedule.requestedStartAt,
+      ).toISOString(),
+    ).toBe(new Date(requestedStartAt).toISOString());
+  });
+
+  it("allows Cera Staff to confirm a requested reschedule and records history", async () => {
+    const context = await createContext();
+
+    const { booking, doctorAgent, ceraAgent } = await createConfirmedBooking({
+      context,
+    });
+
+    const previousTime = booking.confirmedStartAt;
+
+    const requestedStartAt = futureIso(72);
+
+    await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt,
+
+        reason: "Patient unavailable",
+      })
+      .expect(200);
+
+    const response = await ceraAgent.post(
+      `/api/v1/scan-bookings/${booking.id}/reschedule-confirm`,
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.CONFIRMED,
+    );
+
+    expect(response.body.data.scanBooking.reschedule).toBeNull();
+
+    expect(
+      new Date(response.body.data.scanBooking.confirmedStartAt).toISOString(),
+    ).toBe(new Date(requestedStartAt).toISOString());
+
+    expect(response.body.data.scanBooking.rescheduleHistory).toHaveLength(1);
+
+    expect(
+      new Date(
+        response.body.data.scanBooking.rescheduleHistory[0]
+          .previousConfirmedStartAt,
+      ).toISOString(),
+    ).toBe(new Date(previousTime).toISOString());
+  });
+
+  it("allows Cera Staff to propose a different reschedule time and the Doctor to accept it", async () => {
+    const context = await createContext();
+
+    const { booking, doctorAgent, ceraAgent } = await createConfirmedBooking({
+      context,
+    });
+
+    await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt: futureIso(72),
+
+        reason: "Patient unavailable",
+      })
+      .expect(200);
+
+    const proposedStartAt = futureIso(96);
+
+    const proposeResponse = await ceraAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-propose`)
+      .send({
+        proposedStartAt,
+      });
+
+    expect(proposeResponse.status).toBe(200);
+
+    expect(proposeResponse.body.data.scanBooking.reschedule.status).toBe(
+      SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION,
+    );
+
+    const acceptResponse = await doctorAgent.post(
+      `/api/v1/scan-bookings/${booking.id}/reschedule-accept`,
+    );
+
+    expect(acceptResponse.status).toBe(200);
+
+    expect(acceptResponse.body.data.scanBooking.reschedule).toBeNull();
+
+    expect(
+      new Date(
+        acceptResponse.body.data.scanBooking.confirmedStartAt,
+      ).toISOString(),
+    ).toBe(new Date(proposedStartAt).toISOString());
+
+    expect(acceptResponse.body.data.scanBooking.rescheduleHistory).toHaveLength(
+      1,
+    );
+  });
+
+  it("keeps the assigned Scanning Staff member when an assigned booking is rescheduled", async () => {
+    const context = await createContext();
+
+    const { booking, doctorAgent, ceraAgent } = await createAssignedBooking({
+      context,
+    });
+
+    const assignedScannerId = booking.assignedScanningStaff.id;
+
+    const requestedStartAt = futureIso(96);
+
+    await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt,
+
+        reason: "Patient requested another day",
+      })
+      .expect(200);
+
+    const response = await ceraAgent.post(
+      `/api/v1/scan-bookings/${booking.id}/reschedule-confirm`,
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.ASSIGNED,
+    );
+
+    expect(response.body.data.scanBooking.assignedScanningStaff.id).toBe(
+      assignedScannerId,
+    );
+
+    expect(
+      new Date(response.body.data.scanBooking.confirmedStartAt).toISOString(),
+    ).toBe(new Date(requestedStartAt).toISOString());
+  });
+
+  it("does not allow Scanning Staff to request a reschedule", async () => {
+    const context = await createContext();
+
+    const { booking } = await createAssignedBooking({
+      context,
+    });
+
+    const scannerAgent = await loginAgent(context.scannerA);
+
+    const response = await scannerAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt: futureIso(96),
+
+        reason: "Scanner request",
+      });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("does not allow a cancelled booking to be rescheduled", async () => {
+    const context = await createContext();
+
+    const { booking, doctorAgent } = await createConfirmedBooking({
+      context,
+    });
+
+    await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/cancel`)
+      .send({
+        reason: "Patient cancelled",
+      })
+      .expect(200);
+
+    const response = await doctorAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/reschedule-request`)
+      .send({
+        requestedStartAt: futureIso(96),
+
+        reason: "Trying again",
+      });
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("INVALID_SCAN_RESCHEDULE_TRANSITION");
   });
 
   it("allows Cera Staff to list all scan bookings", async () => {

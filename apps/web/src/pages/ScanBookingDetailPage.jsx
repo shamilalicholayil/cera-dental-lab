@@ -4,25 +4,33 @@ import { useSelector } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
 
-import { SCAN_BOOKING_STATUS, USER_ROLES } from "@cera/shared";
+import {
+  SCAN_BOOKING_STATUS,
+  SCAN_RESCHEDULE_STATUS,
+  USER_ROLES,
+} from "@cera/shared";
 
 import {
   acceptAlternateScanTime,
+  acceptScanReschedule,
   assignScanBooking,
   cancelScanBooking,
   completeScanBooking,
   confirmScanBooking,
+  confirmScanReschedule,
   getScanBooking,
   getScanningStaff,
   proposeAlternateScanTime,
+  proposeScanReschedule,
   rejectScanBooking,
+  requestScanReschedule,
 } from "../api/scanBookings";
 
 import { PortalHeader } from "../components/portal/PortalHeader";
 
-import { selectCurrentUser } from "../features/auth/authSelectors";
-
 import { SCAN_BOOKING_STATUS_LABELS } from "../constants/scanBookingDisplay";
+
+import { selectCurrentUser } from "../features/auth/authSelectors";
 
 function formatDateTime(value) {
   if (!value) {
@@ -49,6 +57,14 @@ export function ScanBookingDetailPage() {
 
   const [scanningStaffId, setScanningStaffId] = useState("");
 
+  const [rescheduleRequestedTime, setRescheduleRequestedTime] = useState("");
+
+  const [rescheduleReason, setRescheduleReason] = useState("");
+
+  const [rescheduleProposedTime, setRescheduleProposedTime] = useState("");
+
+  const [rescheduleProposalReason, setRescheduleProposalReason] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   const [actionBusy, setActionBusy] = useState(false);
@@ -65,6 +81,13 @@ export function ScanBookingDetailPage() {
   );
 
   const scanner = user?.role === USER_ROLES.SCANNING_STAFF;
+
+  const reschedulable = [
+    SCAN_BOOKING_STATUS.CONFIRMED,
+    SCAN_BOOKING_STATUS.ASSIGNED,
+  ].includes(booking?.status);
+
+  const activeReschedule = booking?.reschedule || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +129,7 @@ export function ScanBookingDetailPage() {
   async function runAction(action) {
     try {
       setActionBusy(true);
+
       setError(null);
 
       const response = await action();
@@ -156,6 +180,10 @@ export function ScanBookingDetailPage() {
         >
           ← Scan Bookings
         </Link>
+
+        {/* =========================================================
+            1. BOOKING SUMMARY
+        ========================================================= */}
 
         <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row">
@@ -253,6 +281,10 @@ export function ScanBookingDetailPage() {
           )}
         </section>
 
+        {/* =========================================================
+            2. ACTION ERROR
+        ========================================================= */}
+
         {error && booking && (
           <div
             role="alert"
@@ -261,6 +293,81 @@ export function ScanBookingDetailPage() {
             {error}
           </div>
         )}
+
+        {/* =========================================================
+            3. ACTIVE RESCHEDULE NOTICE
+        ========================================================= */}
+
+        {activeReschedule && (
+          <section className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                  Reschedule in progress
+                </p>
+
+                <h2 className="mt-1 text-lg font-semibold text-[var(--cera-navy-950)]">
+                  Current appointment remains confirmed
+                </h2>
+
+                <p className="mt-2 text-sm text-[var(--cera-text-muted)]">
+                  The existing confirmed scan time remains active until the new
+                  time is accepted.
+                </p>
+              </div>
+
+              <span className="self-start rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700">
+                {activeReschedule.status === SCAN_RESCHEDULE_STATUS.REQUESTED
+                  ? "Reschedule requested"
+                  : "Awaiting confirmation"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-[var(--cera-text-muted)]">
+                  Current confirmed time
+                </p>
+
+                <p className="mt-1 font-medium">
+                  {formatDateTime(booking.confirmedStartAt)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-[var(--cera-text-muted)]">
+                  Requested time
+                </p>
+
+                <p className="mt-1 font-medium">
+                  {formatDateTime(activeReschedule.requestedStartAt)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-[var(--cera-text-muted)]">
+                  Cera proposed time
+                </p>
+
+                <p className="mt-1 font-medium">
+                  {formatDateTime(activeReschedule.proposedStartAt)}
+                </p>
+              </div>
+            </div>
+
+            {activeReschedule.reason && (
+              <div className="mt-5 border-t border-sky-200 pt-4">
+                <p className="text-xs text-[var(--cera-text-muted)]">Reason</p>
+
+                <p className="mt-1 text-sm">{activeReschedule.reason}</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* =========================================================
+            4. NORMAL BOOKING WORKFLOW
+        ========================================================= */}
 
         {ceraOperations &&
           booking.status === SCAN_BOOKING_STATUS.PENDING_REVIEW && (
@@ -271,7 +378,7 @@ export function ScanBookingDetailPage() {
                 type="button"
                 disabled={actionBusy}
                 onClick={() => runAction(() => confirmScanBooking(booking.id))}
-                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white"
+                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 Confirm requested time
               </button>
@@ -305,7 +412,7 @@ export function ScanBookingDetailPage() {
                     ),
                   )
                 }
-                className="mt-4 h-11 rounded-xl border border-[var(--cera-border)] px-5 text-sm font-semibold"
+                className="mt-4 h-11 rounded-xl border border-[var(--cera-border)] px-5 text-sm font-semibold disabled:opacity-50"
               >
                 Propose time
               </button>
@@ -329,57 +436,9 @@ export function ScanBookingDetailPage() {
                 onClick={() =>
                   runAction(() => acceptAlternateScanTime(booking.id))
                 }
-                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white"
+                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 Accept proposed time
-              </button>
-            </section>
-          )}
-
-        {ceraOperations && booking.status === SCAN_BOOKING_STATUS.CONFIRMED && (
-          <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
-            <h2 className="text-lg font-semibold">Assign scanning staff</h2>
-
-            <select
-              aria-label="Scanning staff"
-              value={scanningStaffId}
-              onChange={(event) => setScanningStaffId(event.target.value)}
-              className="mt-4 h-11 w-full max-w-sm rounded-xl border border-[var(--cera-border)] bg-white px-4"
-            >
-              <option value="">Select scanning staff</option>
-
-              {scanningStaff.map((staff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.name}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              disabled={actionBusy || !scanningStaffId}
-              onClick={() =>
-                runAction(() => assignScanBooking(booking.id, scanningStaffId))
-              }
-              className="mt-4 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white"
-            >
-              Assign
-            </button>
-          </section>
-        )}
-
-        {(scanner || ceraOperations) &&
-          booking.status === SCAN_BOOKING_STATUS.ASSIGNED && (
-            <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
-              <h2 className="text-lg font-semibold">Scan visit</h2>
-
-              <button
-                type="button"
-                disabled={actionBusy}
-                onClick={() => runAction(() => completeScanBooking(booking.id))}
-                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white"
-              >
-                Mark scan completed
               </button>
             </section>
           )}
@@ -408,12 +467,282 @@ export function ScanBookingDetailPage() {
                     rejectScanBooking(booking.id, rejectionReason.trim()),
                   )
                 }
-                className="mt-4 h-11 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white"
+                className="mt-4 h-11 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 Reject request
               </button>
             </section>
           )}
+
+        {ceraOperations &&
+          booking.status === SCAN_BOOKING_STATUS.CONFIRMED &&
+          !activeReschedule && (
+            <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+              <h2 className="text-lg font-semibold">Assign scanning staff</h2>
+
+              <select
+                aria-label="Scanning staff"
+                value={scanningStaffId}
+                onChange={(event) => setScanningStaffId(event.target.value)}
+                className="mt-4 h-11 w-full max-w-sm rounded-xl border border-[var(--cera-border)] bg-white px-4"
+              >
+                <option value="">Select scanning staff</option>
+
+                {scanningStaff.map((staff) => (
+                  <option key={staff.id} value={staff.id}>
+                    {staff.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                disabled={actionBusy || !scanningStaffId}
+                onClick={() =>
+                  runAction(() =>
+                    assignScanBooking(booking.id, scanningStaffId),
+                  )
+                }
+                className="mt-4 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Assign
+              </button>
+            </section>
+          )}
+
+        {(scanner || ceraOperations) &&
+          booking.status === SCAN_BOOKING_STATUS.ASSIGNED && (
+            <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+              <h2 className="text-lg font-semibold">Scan visit</h2>
+
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() => runAction(() => completeScanBooking(booking.id))}
+                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Mark scan completed
+              </button>
+            </section>
+          )}
+
+        {/* =========================================================
+            5. RESCHEDULE ACTIONS
+        ========================================================= */}
+
+        {doctorOrClinic && reschedulable && !activeReschedule && (
+          <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+            <h2 className="text-lg font-semibold">Request reschedule</h2>
+
+            <p className="mt-2 text-sm text-[var(--cera-text-muted)]">
+              Your current confirmed appointment will remain active until Cera
+              confirms the new time.
+            </p>
+
+            <label
+              htmlFor="scan-reschedule-requested-time"
+              className="mt-5 block text-sm font-medium"
+            >
+              Preferred new date & time
+            </label>
+
+            <input
+              id="scan-reschedule-requested-time"
+              type="datetime-local"
+              value={rescheduleRequestedTime}
+              onChange={(event) =>
+                setRescheduleRequestedTime(event.target.value)
+              }
+              className="mt-2 h-11 w-full max-w-sm rounded-xl border border-[var(--cera-border)] px-4"
+            />
+
+            <label
+              htmlFor="scan-reschedule-reason"
+              className="mt-4 block text-sm font-medium"
+            >
+              Reason
+            </label>
+
+            <textarea
+              id="scan-reschedule-reason"
+              rows={3}
+              maxLength={500}
+              value={rescheduleReason}
+              onChange={(event) => setRescheduleReason(event.target.value)}
+              placeholder="Why does this appointment need to be changed?"
+              className="mt-2 w-full rounded-xl border border-[var(--cera-border)] p-4"
+            />
+
+            <button
+              type="button"
+              disabled={
+                actionBusy ||
+                !rescheduleRequestedTime ||
+                !rescheduleReason.trim()
+              }
+              onClick={() =>
+                runAction(() =>
+                  requestScanReschedule(
+                    booking.id,
+                    new Date(rescheduleRequestedTime).toISOString(),
+                    rescheduleReason.trim(),
+                  ),
+                )
+              }
+              className="mt-4 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Request reschedule
+            </button>
+          </section>
+        )}
+
+        {ceraOperations && reschedulable && (
+          <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+            <h2 className="text-lg font-semibold">Reschedule management</h2>
+
+            {activeReschedule?.status === SCAN_RESCHEDULE_STATUS.REQUESTED && (
+              <div className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                <p className="text-sm font-medium">
+                  Requested by Doctor / Clinic
+                </p>
+
+                <p className="mt-2 text-lg font-semibold">
+                  {formatDateTime(activeReschedule.requestedStartAt)}
+                </p>
+
+                {activeReschedule.reason && (
+                  <p className="mt-2 text-sm text-[var(--cera-text-muted)]">
+                    {activeReschedule.reason}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() =>
+                    runAction(() => confirmScanReschedule(booking.id))
+                  }
+                  className="mt-4 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Confirm requested time
+                </button>
+              </div>
+            )}
+
+            {activeReschedule?.status ===
+              SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium">
+                  Waiting for Doctor / Clinic confirmation
+                </p>
+
+                <p className="mt-2 font-semibold">
+                  {formatDateTime(activeReschedule.proposedStartAt)}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-6 border-t border-[var(--cera-border)] pt-5">
+              <h3 className="font-semibold">
+                {activeReschedule
+                  ? "Propose another time"
+                  : "Propose a reschedule"}
+              </h3>
+
+              <label
+                htmlFor="scan-reschedule-proposal-time"
+                className="mt-4 block text-sm font-medium"
+              >
+                Proposed date & time
+              </label>
+
+              <input
+                id="scan-reschedule-proposal-time"
+                type="datetime-local"
+                value={rescheduleProposedTime}
+                onChange={(event) =>
+                  setRescheduleProposedTime(event.target.value)
+                }
+                className="mt-2 h-11 w-full max-w-sm rounded-xl border border-[var(--cera-border)] px-4"
+              />
+
+              {!activeReschedule && (
+                <>
+                  <label
+                    htmlFor="scan-reschedule-proposal-reason"
+                    className="mt-4 block text-sm font-medium"
+                  >
+                    Reason
+                  </label>
+
+                  <textarea
+                    id="scan-reschedule-proposal-reason"
+                    rows={3}
+                    maxLength={500}
+                    value={rescheduleProposalReason}
+                    onChange={(event) =>
+                      setRescheduleProposalReason(event.target.value)
+                    }
+                    placeholder="Optional reason for changing the appointment"
+                    className="mt-2 w-full rounded-xl border border-[var(--cera-border)] p-4"
+                  />
+                </>
+              )}
+
+              <button
+                type="button"
+                disabled={actionBusy || !rescheduleProposedTime}
+                onClick={() =>
+                  runAction(() =>
+                    proposeScanReschedule(
+                      booking.id,
+                      new Date(rescheduleProposedTime).toISOString(),
+                      rescheduleProposalReason.trim(),
+                    ),
+                  )
+                }
+                className="mt-4 h-11 rounded-xl border border-[var(--cera-border)] px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Propose new time
+              </button>
+            </div>
+          </section>
+        )}
+
+        {doctorOrClinic &&
+          reschedulable &&
+          activeReschedule?.status ===
+            SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION && (
+            <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-6">
+              <h2 className="text-lg font-semibold">
+                Cera proposed a new appointment time
+              </h2>
+
+              <p className="mt-2 text-sm text-[var(--cera-text-muted)]">
+                Your current confirmed appointment remains active until you
+                accept this change.
+              </p>
+
+              <p className="mt-4 text-xl font-semibold">
+                {formatDateTime(activeReschedule.proposedStartAt)}
+              </p>
+
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() =>
+                  runAction(() => acceptScanReschedule(booking.id))
+                }
+                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Accept new time
+              </button>
+            </section>
+          )}
+
+        {/* =========================================================
+            6. CANCEL BOOKING
+        ========================================================= */}
 
         {(ceraOperations || doctorOrClinic) &&
           ![
@@ -444,12 +773,87 @@ export function ScanBookingDetailPage() {
                     cancelScanBooking(booking.id, cancellationReason),
                   )
                 }
-                className="mt-4 h-11 rounded-xl border border-red-200 px-5 text-sm font-semibold text-red-600"
+                className="mt-4 h-11 rounded-xl border border-red-200 px-5 text-sm font-semibold text-red-600 disabled:opacity-50"
               >
                 Cancel booking
               </button>
             </section>
           )}
+
+        {/* =========================================================
+            7. RESCHEDULE HISTORY
+        ========================================================= */}
+
+        {booking.rescheduleHistory?.length > 0 && (
+          <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+            <h2 className="text-lg font-semibold">Reschedule history</h2>
+
+            <div className="mt-5 space-y-4">
+              {[...booking.rescheduleHistory].reverse().map((entry, index) => (
+                <div
+                  key={`${entry.confirmedAt}-${index}`}
+                  className="rounded-xl border border-[var(--cera-border)] p-4"
+                >
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-[var(--cera-text-muted)]">
+                        Previous time
+                      </p>
+
+                      <p className="mt-1 text-sm font-medium">
+                        {formatDateTime(entry.previousConfirmedStartAt)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[var(--cera-text-muted)]">
+                        Requested
+                      </p>
+
+                      <p className="mt-1 text-sm font-medium">
+                        {formatDateTime(entry.requestedStartAt)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[var(--cera-text-muted)]">
+                        Proposed
+                      </p>
+
+                      <p className="mt-1 text-sm font-medium">
+                        {formatDateTime(entry.proposedStartAt)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[var(--cera-text-muted)]">
+                        Confirmed new time
+                      </p>
+
+                      <p className="mt-1 text-sm font-medium">
+                        {formatDateTime(entry.confirmedStartAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {entry.reason && (
+                    <div className="mt-4 border-t border-[var(--cera-border)] pt-3">
+                      <p className="text-xs text-[var(--cera-text-muted)]">
+                        Reason
+                      </p>
+
+                      <p className="mt-1 text-sm">{entry.reason}</p>
+                    </div>
+                  )}
+
+                  <p className="mt-3 text-xs text-[var(--cera-text-muted)]">
+                    Confirmed {formatDateTime(entry.confirmedAt)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

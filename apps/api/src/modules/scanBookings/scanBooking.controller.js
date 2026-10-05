@@ -1,14 +1,18 @@
 import {
   acceptAlternateTime,
+  acceptProposedReschedule,
   assignScanBooking,
   cancelScanBooking,
   completeScanBooking,
+  confirmRequestedReschedule,
   confirmRequestedTime,
   createScanBooking,
   getScanBooking,
   listScanBookings,
   proposeAlternateTime,
+  proposeRescheduleTime,
   rejectScanBooking,
+  requestScanReschedule,
 } from "./scanBooking.service.js";
 
 import { listActiveScanningStaff } from "./scanningStaff.service.js";
@@ -242,6 +246,94 @@ export async function listScanningStaff(req, res, next) {
 
           email: user.email || null,
         })),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function requestReschedule(req, res, next) {
+  try {
+    const booking = await requestScanReschedule({
+      user: req.user,
+
+      bookingId: req.params.bookingId,
+
+      requestedStartAt: req.body.requestedStartAt,
+
+      reason: req.body.reason,
+    });
+
+    res.json({
+      success: true,
+
+      data: {
+        scanBooking: serializeScanBooking(booking),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmReschedule(req, res, next) {
+  try {
+    const booking = await confirmRequestedReschedule({
+      user: req.user,
+
+      bookingId: req.params.bookingId,
+    });
+
+    res.json({
+      success: true,
+
+      data: {
+        scanBooking: serializeScanBooking(booking),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proposeReschedule(req, res, next) {
+  try {
+    const booking = await proposeRescheduleTime({
+      user: req.user,
+
+      bookingId: req.params.bookingId,
+
+      proposedStartAt: req.body.proposedStartAt,
+
+      reason: req.body.reason,
+    });
+
+    res.json({
+      success: true,
+
+      data: {
+        scanBooking: serializeScanBooking(booking),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function acceptReschedule(req, res, next) {
+  try {
+    const booking = await acceptProposedReschedule({
+      user: req.user,
+
+      bookingId: req.params.bookingId,
+    });
+
+    res.json({
+      success: true,
+
+      data: {
+        scanBooking: serializeScanBooking(booking),
       },
     });
   } catch (error) {

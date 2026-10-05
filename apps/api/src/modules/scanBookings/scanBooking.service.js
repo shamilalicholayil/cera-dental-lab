@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 
-import { SCAN_BOOKING_STATUS, USER_ROLES, USER_STATUS } from "@cera/shared";
+import {
+  SCAN_BOOKING_STATUS,
+  SCAN_RESCHEDULE_STATUS,
+  USER_ROLES,
+  USER_STATUS,
+} from "@cera/shared";
 
 import { AppError } from "../../utils/AppError.js";
 
@@ -17,6 +22,11 @@ import { generateScanBookingReference } from "./scanBookingReference.js";
 const TERMINAL_STATUSES = [
   SCAN_BOOKING_STATUS.REJECTED,
   SCAN_BOOKING_STATUS.CANCELLED,
+];
+
+const RESCHEDULABLE_STATUSES = [
+  SCAN_BOOKING_STATUS.CONFIRMED,
+  SCAN_BOOKING_STATUS.ASSIGNED,
 ];
 
 function assertObjectId(value, code, message) {
@@ -65,6 +75,29 @@ async function populateBooking(booking) {
 
     {
       path: "assignedScanningStaffId",
+
+      select: "name phone email role status",
+    },
+    {
+      path: "rescheduleRequestedByUserId",
+
+      select: "name phone email role status",
+    },
+
+    {
+      path: "rescheduleReviewedByUserId",
+
+      select: "name phone email role status",
+    },
+
+    {
+      path: "rescheduleHistory.requestedByUserId",
+
+      select: "name phone email role status",
+    },
+
+    {
+      path: "rescheduleHistory.reviewedByUserId",
 
       select: "name phone email role status",
     },
@@ -144,6 +177,64 @@ function assertStatus(booking, allowedStatuses) {
       "INVALID_SCAN_BOOKING_TRANSITION",
     );
   }
+}
+
+function assertReschedulable(booking) {
+  if (!RESCHEDULABLE_STATUSES.includes(booking.status)) {
+    throw new AppError(
+      `Scan booking cannot be rescheduled from ${booking.status}`,
+      409,
+      "INVALID_SCAN_RESCHEDULE_TRANSITION",
+    );
+  }
+}
+
+function clearPendingReschedule(booking) {
+  booking.rescheduleStatus = null;
+
+  booking.rescheduleRequestedStartAt = null;
+
+  booking.rescheduleProposedStartAt = null;
+
+  booking.rescheduleReason = null;
+
+  booking.rescheduleRequestedByUserId = null;
+
+  booking.rescheduleReviewedByUserId = null;
+
+  booking.rescheduleRequestedAt = null;
+}
+
+async function finalizeReschedule({ booking, confirmedStartAt }) {
+  const confirmedAt = new Date();
+
+  booking.rescheduleHistory.push({
+    previousConfirmedStartAt: booking.confirmedStartAt,
+
+    requestedStartAt: booking.rescheduleRequestedStartAt,
+
+    proposedStartAt: booking.rescheduleProposedStartAt,
+
+    confirmedStartAt,
+
+    requestedByUserId: booking.rescheduleRequestedByUserId,
+
+    reviewedByUserId: booking.rescheduleReviewedByUserId,
+
+    reason: booking.rescheduleReason,
+
+    requestedAt: booking.rescheduleRequestedAt,
+
+    confirmedAt,
+  });
+
+  booking.confirmedStartAt = confirmedStartAt;
+
+  clearPendingReschedule(booking);
+
+  await booking.save();
+
+  return populateBooking(booking);
 }
 
 export async function createScanBooking({ user, data }) {
@@ -376,6 +467,184 @@ export async function acceptAlternateTime({ user, bookingId }) {
   return populateBooking(booking);
 }
 
+export async function requestScanReschedule({
+  user,
+  bookingId,
+  requestedStartAt,
+  reason,
+}) {
+  const booking = await getBookingOrThrow(bookingId);
+
+  await assertBookingAccess(user, booking);
+
+  if (
+    ![
+      USER_ROLES.CERA_ADMIN,
+      USER_ROLES.CERA_STAFF,
+      USER_ROLES.DOCTOR,
+      USER_ROLES.CLINIC_STAFF,
+    ].includes(user.role)
+  ) {
+    throw new AppError(
+      "You cannot request a scan reschedule",
+      403,
+      "FORBIDDEN",
+    );
+  }
+
+  assertReschedulable(booking);
+
+  if (booking.rescheduleStatus) {
+    throw new AppError(
+      "A scan reschedule is already pending",
+      409,
+      "SCAN_RESCHEDULE_ALREADY_PENDING",
+    );
+  }
+
+  booking.rescheduleRequestedStartAt = assertFutureDate(
+    requestedStartAt,
+    "INVALID_RESCHEDULE_TIME",
+  );
+
+  booking.rescheduleProposedStartAt = null;
+
+  booking.rescheduleReason = reason.trim();
+
+  booking.rescheduleRequestedByUserId = user._id;
+
+  booking.rescheduleReviewedByUserId = null;
+
+  booking.rescheduleRequestedAt = new Date();
+
+  booking.rescheduleStatus = SCAN_RESCHEDULE_STATUS.REQUESTED;
+
+  await booking.save();
+
+  return populateBooking(booking);
+}
+
+export async function confirmRequestedReschedule({ user, bookingId }) {
+  const booking = await getBookingOrThrow(bookingId);
+
+  assertReschedulable(booking);
+
+  if (booking.rescheduleStatus !== SCAN_RESCHEDULE_STATUS.REQUESTED) {
+    throw new AppError(
+      "No requested reschedule is waiting for review",
+      409,
+      "INVALID_SCAN_RESCHEDULE_TRANSITION",
+    );
+  }
+
+  if (!booking.rescheduleRequestedStartAt) {
+    throw new AppError(
+      "Requested reschedule time is missing",
+      409,
+      "RESCHEDULE_REQUEST_MISSING",
+    );
+  }
+
+  const confirmedStartAt = assertFutureDate(
+    booking.rescheduleRequestedStartAt,
+    "INVALID_RESCHEDULE_TIME",
+  );
+
+  booking.rescheduleReviewedByUserId = user._id;
+
+  return finalizeReschedule({
+    booking,
+    confirmedStartAt,
+  });
+}
+
+export async function proposeRescheduleTime({
+  user,
+  bookingId,
+  proposedStartAt,
+  reason,
+}) {
+  const booking = await getBookingOrThrow(bookingId);
+
+  assertReschedulable(booking);
+
+  const proposed = assertFutureDate(
+    proposedStartAt,
+    "INVALID_PROPOSED_RESCHEDULE_TIME",
+  );
+
+  /*
+   * If Cera starts the reschedule directly,
+   * initialize the negotiation here.
+   *
+   * If Doctor/Clinic already requested it,
+   * preserve their request and reason.
+   */
+  if (!booking.rescheduleStatus) {
+    booking.rescheduleRequestedStartAt = null;
+
+    booking.rescheduleRequestedByUserId = null;
+
+    booking.rescheduleRequestedAt = new Date();
+
+    booking.rescheduleReason = normalizeOptional(reason);
+  }
+
+  booking.rescheduleProposedStartAt = proposed;
+
+  booking.rescheduleReviewedByUserId = user._id;
+
+  booking.rescheduleStatus = SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION;
+
+  await booking.save();
+
+  return populateBooking(booking);
+}
+
+export async function acceptProposedReschedule({ user, bookingId }) {
+  const booking = await getBookingOrThrow(bookingId);
+
+  await assertBookingAccess(user, booking);
+
+  if (![USER_ROLES.DOCTOR, USER_ROLES.CLINIC_STAFF].includes(user.role)) {
+    throw new AppError(
+      "Only the Doctor or Clinic Staff can accept a proposed reschedule",
+      403,
+      "FORBIDDEN",
+    );
+  }
+
+  assertReschedulable(booking);
+
+  if (
+    booking.rescheduleStatus !== SCAN_RESCHEDULE_STATUS.AWAITING_CONFIRMATION
+  ) {
+    throw new AppError(
+      "No proposed reschedule is waiting for confirmation",
+      409,
+      "INVALID_SCAN_RESCHEDULE_TRANSITION",
+    );
+  }
+
+  if (!booking.rescheduleProposedStartAt) {
+    throw new AppError(
+      "Proposed reschedule time is missing",
+      409,
+      "RESCHEDULE_PROPOSAL_MISSING",
+    );
+  }
+
+  const confirmedStartAt = assertFutureDate(
+    booking.rescheduleProposedStartAt,
+    "INVALID_PROPOSED_RESCHEDULE_TIME",
+  );
+
+  return finalizeReschedule({
+    booking,
+    confirmedStartAt,
+  });
+}
+
 export async function rejectScanBooking({ user, bookingId, reason }) {
   const booking = await getBookingOrThrow(bookingId);
 
@@ -401,6 +670,14 @@ export async function assignScanBooking({ user, bookingId, scanningStaffId }) {
   const booking = await getBookingOrThrow(bookingId);
 
   assertStatus(booking, [SCAN_BOOKING_STATUS.CONFIRMED]);
+
+  if (booking.rescheduleStatus) {
+    throw new AppError(
+      "Resolve the pending reschedule before assigning scanning staff",
+      409,
+      "SCAN_RESCHEDULE_PENDING",
+    );
+  }
 
   assertObjectId(
     scanningStaffId,
@@ -454,6 +731,8 @@ export async function completeScanBooking({ user, bookingId }) {
 
   booking.completedByUserId = user._id;
 
+  clearPendingReschedule(booking);
+
   await booking.save();
 
   return populateBooking(booking);
@@ -499,6 +778,8 @@ export async function cancelScanBooking({ user, bookingId, reason }) {
   booking.cancellationReason = normalizeOptional(reason);
 
   booking.cancelledByUserId = user._id;
+
+  clearPendingReschedule(booking);
 
   await booking.save();
 

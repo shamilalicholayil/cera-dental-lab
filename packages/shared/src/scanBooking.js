@@ -17,3 +17,13 @@ export const SCAN_BOOKING_STATUS = Object.freeze({
 export const SCAN_BOOKING_STATUS_VALUES = Object.freeze(
   Object.values(SCAN_BOOKING_STATUS),
 );
+
+export const SCAN_RESCHEDULE_STATUS = Object.freeze({
+  REQUESTED: "REQUESTED",
+
+  AWAITING_CONFIRMATION: "AWAITING_CONFIRMATION",
+});
+
+export const SCAN_RESCHEDULE_STATUS_VALUES = Object.freeze(
+  Object.values(SCAN_RESCHEDULE_STATUS),
+);

@@ -41,3 +41,15 @@ export const cancelScanBookingSchema = z.object({
 export const assignScanBookingSchema = z.object({
   scanningStaffId: objectIdString,
 });
+
+export const requestScanRescheduleSchema = z.object({
+  requestedStartAt: dateTimeString,
+
+  reason: z.string().trim().min(1).max(500),
+});
+
+export const proposeScanRescheduleSchema = z.object({
+  proposedStartAt: dateTimeString,
+
+  reason: z.string().trim().max(500).optional().or(z.literal("")),
+});

@@ -82,6 +82,44 @@ export function serializeScanBooking(booking) {
 
     completedAt: booking.completedAt || null,
 
+    reschedule: booking.rescheduleStatus
+      ? {
+          status: booking.rescheduleStatus,
+
+          requestedStartAt: booking.rescheduleRequestedStartAt || null,
+
+          proposedStartAt: booking.rescheduleProposedStartAt || null,
+
+          reason: booking.rescheduleReason || null,
+
+          requestedBy: serializeUser(booking.rescheduleRequestedByUserId),
+
+          reviewedBy: serializeUser(booking.rescheduleReviewedByUserId),
+
+          requestedAt: booking.rescheduleRequestedAt || null,
+        }
+      : null,
+
+    rescheduleHistory: (booking.rescheduleHistory || []).map((entry) => ({
+      previousConfirmedStartAt: entry.previousConfirmedStartAt,
+
+      requestedStartAt: entry.requestedStartAt || null,
+
+      proposedStartAt: entry.proposedStartAt || null,
+
+      confirmedStartAt: entry.confirmedStartAt,
+
+      requestedBy: serializeUser(entry.requestedByUserId),
+
+      reviewedBy: serializeUser(entry.reviewedByUserId),
+
+      reason: entry.reason || null,
+
+      requestedAt: entry.requestedAt || null,
+
+      confirmedAt: entry.confirmedAt,
+    })),
+
     createdAt: booking.createdAt,
 
     updatedAt: booking.updatedAt,

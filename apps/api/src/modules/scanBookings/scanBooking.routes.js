@@ -22,6 +22,10 @@ import {
   listScanningStaff,
   proposeAlternate,
   reject,
+  acceptReschedule,
+  confirmReschedule,
+  proposeReschedule,
+  requestReschedule,
 } from "./scanBooking.controller.js";
 
 import {
@@ -31,6 +35,8 @@ import {
   listScanBookingsQuerySchema,
   proposeAlternateSchema,
   rejectScanBookingSchema,
+  proposeScanRescheduleSchema,
+  requestScanRescheduleSchema,
 } from "./scanBooking.schemas.js";
 
 const router = Router();
@@ -119,6 +125,37 @@ router.post(
   "/:bookingId/accept-alternate",
   authorizeRoles(USER_ROLES.DOCTOR, USER_ROLES.CLINIC_STAFF),
   acceptAlternate,
+);
+
+router.post(
+  "/:bookingId/reschedule-request",
+  authorizeRoles(
+    USER_ROLES.CERA_ADMIN,
+    USER_ROLES.CERA_STAFF,
+    USER_ROLES.DOCTOR,
+    USER_ROLES.CLINIC_STAFF,
+  ),
+  validateBody(requestScanRescheduleSchema),
+  requestReschedule,
+);
+
+router.post(
+  "/:bookingId/reschedule-confirm",
+  authorizeRoles(USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF),
+  confirmReschedule,
+);
+
+router.post(
+  "/:bookingId/reschedule-propose",
+  authorizeRoles(USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF),
+  validateBody(proposeScanRescheduleSchema),
+  proposeReschedule,
+);
+
+router.post(
+  "/:bookingId/reschedule-accept",
+  authorizeRoles(USER_ROLES.DOCTOR, USER_ROLES.CLINIC_STAFF),
+  acceptReschedule,
 );
 
 /*

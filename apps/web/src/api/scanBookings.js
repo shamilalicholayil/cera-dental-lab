@@ -100,3 +100,37 @@ export function cancelScanBooking(bookingId, reason = "") {
 export function getScanningStaff() {
   return apiRequest("/scan-bookings/scanning-staff");
 }
+
+export function requestScanReschedule(bookingId, requestedStartAt, reason) {
+  return apiRequest(`/scan-bookings/${bookingId}/reschedule-request`, {
+    method: "POST",
+
+    body: {
+      requestedStartAt,
+      reason,
+    },
+  });
+}
+
+export function confirmScanReschedule(bookingId) {
+  return apiRequest(`/scan-bookings/${bookingId}/reschedule-confirm`, {
+    method: "POST",
+  });
+}
+
+export function proposeScanReschedule(bookingId, proposedStartAt, reason = "") {
+  return apiRequest(`/scan-bookings/${bookingId}/reschedule-propose`, {
+    method: "POST",
+
+    body: {
+      proposedStartAt,
+      reason,
+    },
+  });
+}
+
+export function acceptScanReschedule(bookingId) {
+  return apiRequest(`/scan-bookings/${bookingId}/reschedule-accept`, {
+    method: "POST",
+  });
+}

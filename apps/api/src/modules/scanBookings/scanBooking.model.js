@@ -4,7 +4,64 @@ import {
   LAB_SLIP_URGENCY_VALUES,
   SCAN_BOOKING_STATUS,
   SCAN_BOOKING_STATUS_VALUES,
+  SCAN_RESCHEDULE_STATUS_VALUES,
 } from "@cera/shared";
+
+const rescheduleHistorySchema = new mongoose.Schema(
+  {
+    previousConfirmedStartAt: {
+      type: Date,
+      required: true,
+    },
+
+    requestedStartAt: {
+      type: Date,
+      default: null,
+    },
+
+    proposedStartAt: {
+      type: Date,
+      default: null,
+    },
+
+    confirmedStartAt: {
+      type: Date,
+      required: true,
+    },
+
+    requestedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    reviewedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    reason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+
+    requestedAt: {
+      type: Date,
+      default: null,
+    },
+
+    confirmedAt: {
+      type: Date,
+      required: true,
+    },
+  },
+  {
+    _id: false,
+  },
+);
 
 const scanBookingSchema = new mongoose.Schema(
   {
@@ -77,6 +134,66 @@ const scanBookingSchema = new mongoose.Schema(
       type: Date,
       default: null,
       index: true,
+    },
+
+    rescheduleStatus: {
+      type: String,
+
+      enum: SCAN_RESCHEDULE_STATUS_VALUES,
+
+      default: null,
+
+      index: true,
+    },
+
+    rescheduleRequestedStartAt: {
+      type: Date,
+
+      default: null,
+    },
+
+    rescheduleProposedStartAt: {
+      type: Date,
+
+      default: null,
+    },
+
+    rescheduleReason: {
+      type: String,
+
+      trim: true,
+
+      maxlength: 500,
+
+      default: null,
+    },
+
+    rescheduleRequestedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+
+      ref: "User",
+
+      default: null,
+    },
+
+    rescheduleReviewedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+
+      ref: "User",
+
+      default: null,
+    },
+
+    rescheduleRequestedAt: {
+      type: Date,
+
+      default: null,
+    },
+
+    rescheduleHistory: {
+      type: [rescheduleHistorySchema],
+
+      default: [],
     },
 
     assignedScanningStaffId: {
