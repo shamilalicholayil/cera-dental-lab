@@ -97,3 +97,7 @@ export function getAccessibleClinics({ search } = {}) {
 export function getAccessibleClinic(clinicId) {
   return apiRequest(`/clinics/${clinicId}`);
 }
+
+export function getClinicDoctors(clinicId) {
+  return apiRequest(`/clinics/${clinicId}/doctors`);
+}

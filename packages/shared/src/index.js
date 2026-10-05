@@ -8,3 +8,14 @@ export {
 } from "./clinic.js";
 
 export { CATALOG_STATUS, CATALOG_STATUS_VALUES } from "./catalog.js";
+
+export {
+  LAB_SLIP_SOURCE,
+  LAB_SLIP_SOURCE_VALUES,
+  LAB_SLIP_STATUS,
+  LAB_SLIP_STATUS_VALUES,
+  LAB_SLIP_URGENCY,
+  LAB_SLIP_URGENCY_VALUES,
+  TOOTH_QUADRANTS,
+  TOOTH_VALUES,
+} from "./labSlip.js";

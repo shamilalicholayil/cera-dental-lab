@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
 
-import { CLINIC_STATUS, USER_ROLES } from "@cera/shared";
+import { USER_STATUS, CLINIC_STATUS, USER_ROLES } from "@cera/shared";
 
 import { AppError } from "../../utils/AppError.js";
 
 import { Clinic } from "./clinic.model.js";
 
 import { ClinicMembership } from "./clinicMembership.model.js";
+
+import { User } from "../users/user.model.js";
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -122,4 +124,35 @@ export async function hasActiveClinicMembership({ userId, clinicId }) {
   });
 
   return Boolean(membership);
+}
+
+export async function listAccessibleClinicDoctors({ user, clinicId }) {
+  const clinic = await getAccessibleClinic({
+    user,
+    clinicId,
+  });
+
+  const memberships = await ClinicMembership.find({
+    clinicId: clinic._id,
+
+    active: true,
+  }).select("userId");
+
+  const userIds = memberships.map((membership) => membership.userId);
+
+  return User.find({
+    _id: {
+      $in: userIds,
+    },
+
+    role: USER_ROLES.DOCTOR,
+
+    status: {
+      $in: [USER_STATUS.ACTIVE, USER_STATUS.INVITED],
+    },
+  })
+    .select("name phone email role status")
+    .sort({
+      name: 1,
+    });
 }

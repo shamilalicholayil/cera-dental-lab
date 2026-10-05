@@ -8,7 +8,11 @@ import { authorizeRoles } from "../../middleware/authorizeRoles.js";
 
 import { validateQuery } from "../../middleware/validateQuery.js";
 
-import { getAccessible, listAccessible } from "./clinic.controller.js";
+import {
+  getAccessible,
+  listAccessible,
+  listDoctors,
+} from "./clinic.controller.js";
 
 import { listAccessibleClinicsQuerySchema } from "./clinic.schemas.js";
 
@@ -28,6 +32,16 @@ router.get(
   "/",
   validateQuery(listAccessibleClinicsQuerySchema),
   listAccessible,
+);
+
+router.get(
+  "/:clinicId/doctors",
+  authorizeRoles(
+    USER_ROLES.CERA_ADMIN,
+    USER_ROLES.CERA_STAFF,
+    USER_ROLES.CLINIC_STAFF,
+  ),
+  listDoctors,
 );
 
 router.get("/:clinicId", getAccessible);

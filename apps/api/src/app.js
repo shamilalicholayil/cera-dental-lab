@@ -31,6 +31,8 @@ import catalogRoutes from "./modules/catalog/catalog.routes.js";
 
 import adminCatalogRoutes from "./modules/catalog/adminCatalog.routes.js";
 
+import labSlipRoutes from "./modules/labSlips/labSlip.routes.js";
+
 export const app = express();
 
 app.disable("x-powered-by");
@@ -73,6 +75,8 @@ app.use("/api/v1/admin/clinics", adminClinicRoutes);
 app.use("/api/v1/catalog", catalogRoutes);
 
 app.use("/api/v1/admin/catalog", adminCatalogRoutes);
+
+app.use("/api/v1/lab-slips", labSlipRoutes);
 
 app.use(notFound);
 

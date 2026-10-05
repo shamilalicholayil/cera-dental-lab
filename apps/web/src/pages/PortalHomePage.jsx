@@ -59,6 +59,10 @@ export function PortalHomePage() {
               >
                 Manage catalogue
               </Link>
+
+              <Link to="/portal/lab-slips/new">New Lab Slip</Link>
+
+              <Link to="/portal/lab-slips">Lab Slips</Link>
             </div>
           )}
         </div>

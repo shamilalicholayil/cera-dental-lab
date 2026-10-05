@@ -1,5 +1,6 @@
 import {
   getAccessibleClinic,
+  listAccessibleClinicDoctors,
   listAccessibleClinics,
 } from "./clinicAccess.service.js";
 
@@ -38,6 +39,36 @@ export async function getAccessible(req, res, next) {
 
       data: {
         clinic: serializeClinic(clinic),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listDoctors(req, res, next) {
+  try {
+    const doctors = await listAccessibleClinicDoctors({
+      user: req.user,
+
+      clinicId: req.params.clinicId,
+    });
+
+    res.status(200).json({
+      success: true,
+
+      data: {
+        doctors: doctors.map((doctor) => ({
+          id: doctor.id,
+
+          name: doctor.name,
+
+          phone: doctor.phone,
+
+          email: doctor.email || null,
+
+          status: doctor.status,
+        })),
       },
     });
   } catch (error) {
