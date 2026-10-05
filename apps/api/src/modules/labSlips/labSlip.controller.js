@@ -1,4 +1,9 @@
-import { createLabSlip, getLabSlip, listLabSlips } from "./labSlip.service.js";
+import {
+  createLabSlip,
+  getLabSlip,
+  listLabSlips,
+  updateLabSlip,
+} from "./labSlip.service.js";
 
 import { serializeLabSlip } from "./labSlip.serializer.js";
 
@@ -50,6 +55,28 @@ export async function getOne(req, res, next) {
       user: req.user,
 
       labSlipId: req.params.labSlipId,
+    });
+
+    res.status(200).json({
+      success: true,
+
+      data: {
+        labSlip: serializeLabSlip(labSlip),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function update(req, res, next) {
+  try {
+    const labSlip = await updateLabSlip({
+      user: req.user,
+
+      labSlipId: req.params.labSlipId,
+
+      data: req.body,
     });
 
     res.status(200).json({

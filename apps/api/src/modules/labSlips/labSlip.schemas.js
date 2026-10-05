@@ -63,3 +63,28 @@ export const listLabSlipsQuerySchema = z.object({
 
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+export const updateLabSlipSchema = z
+  .object({
+    urgency: z.enum(LAB_SLIP_URGENCY_VALUES).optional(),
+
+    patient: z
+      .object({
+        name: z.string().trim().min(1).max(160),
+
+        reference: optionalText(120),
+      })
+      .optional(),
+
+    items: z
+      .array(itemSchema)
+      .min(1, "At least one product is required")
+      .max(30)
+      .optional(),
+
+    notes: optionalText(3000),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one editable field must be provided",
+  });

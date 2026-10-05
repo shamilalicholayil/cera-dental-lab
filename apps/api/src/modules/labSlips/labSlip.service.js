@@ -4,6 +4,8 @@ import {
   CATALOG_STATUS,
   CLINIC_STATUS,
   LAB_SLIP_SOURCE,
+  LAB_SLIP_STATUS,
+  SCAN_BOOKING_STATUS,
   USER_ROLES,
   USER_STATUS,
 } from "@cera/shared";
@@ -18,9 +20,18 @@ import { Product } from "../catalog/product.model.js";
 
 import { User } from "../users/user.model.js";
 
+import { ScanBooking } from "../scanBookings/scanBooking.model.js";
+
 import { LabSlip } from "./labSlip.model.js";
 
 import { generateLabSlipReference } from "./labSlipReference.js";
+
+const ACTIVE_SCAN_BOOKING_STATUSES = [
+  SCAN_BOOKING_STATUS.PENDING_REVIEW,
+  SCAN_BOOKING_STATUS.AWAITING_CONFIRMATION,
+  SCAN_BOOKING_STATUS.CONFIRMED,
+  SCAN_BOOKING_STATUS.ASSIGNED,
+];
 
 function normalizeOptional(value) {
   if (typeof value !== "string") {
@@ -423,4 +434,164 @@ export async function getLabSlip({ user, labSlipId }) {
   }
 
   return labSlip;
+}
+
+async function buildUpdatedItems(labSlip, items) {
+  const existingProducts = new Map(
+    labSlip.items.map((item) => [String(item.productId), item]),
+  );
+
+  const newProductIds = [
+    ...new Set(
+      items
+        .map((item) => item.productId)
+        .filter((productId) => !existingProducts.has(productId)),
+    ),
+  ];
+
+  for (const productId of newProductIds) {
+    assertObjectId(productId, "INVALID_PRODUCT_ID", "Invalid product id");
+  }
+
+  const newProducts = newProductIds.length
+    ? await Product.find({
+        _id: {
+          $in: newProductIds,
+        },
+
+        status: CATALOG_STATUS.ACTIVE,
+      }).populate("categoryId")
+    : [];
+
+  const usableNewProducts = newProducts.filter(
+    (product) =>
+      product.categoryId && product.categoryId.status === CATALOG_STATUS.ACTIVE,
+  );
+
+  if (usableNewProducts.length !== newProductIds.length) {
+    throw new AppError(
+      "One or more products are unavailable",
+      400,
+      "PRODUCT_UNAVAILABLE",
+    );
+  }
+
+  const newProductMap = new Map(
+    usableNewProducts.map((product) => [product.id, product]),
+  );
+
+  return items.map((item) => {
+    const existing = existingProducts.get(item.productId);
+
+    if (existing) {
+      return {
+        productId: existing.productId,
+
+        productName: existing.productName,
+
+        categoryId: existing.categoryId,
+
+        categoryName: existing.categoryName,
+
+        teeth: item.teeth,
+
+        shade: normalizeOptional(item.shade),
+
+        ponticDesign: normalizeOptional(item.ponticDesign),
+
+        designNotes: normalizeOptional(item.designNotes),
+      };
+    }
+
+    const product = newProductMap.get(item.productId);
+
+    return {
+      productId: product._id,
+
+      productName: product.name,
+
+      categoryId: product.categoryId._id,
+
+      categoryName: product.categoryId.name,
+
+      teeth: item.teeth,
+
+      shade: normalizeOptional(item.shade),
+
+      ponticDesign: normalizeOptional(item.ponticDesign),
+
+      designNotes: normalizeOptional(item.designNotes),
+    };
+  });
+}
+
+export async function updateLabSlip({ user, labSlipId, data }) {
+  /*
+   * First reuse the existing resource
+   * authorization.
+   */
+  const accessible = await getLabSlip({
+    user,
+    labSlipId,
+  });
+
+  if (accessible.status !== LAB_SLIP_STATUS.SUBMITTED) {
+    throw new AppError(
+      "This Lab Slip can no longer be edited",
+      409,
+      "LAB_SLIP_NOT_EDITABLE",
+    );
+  }
+
+  const labSlip = await LabSlip.findById(accessible._id);
+
+  if (!labSlip) {
+    throw new AppError("Lab slip not found", 404, "LAB_SLIP_NOT_FOUND");
+  }
+
+  const previousUrgency = labSlip.urgency;
+
+  if (data.patient !== undefined) {
+    labSlip.patient = {
+      name: data.patient.name,
+
+      reference: normalizeOptional(data.patient.reference),
+    };
+  }
+
+  if (data.urgency !== undefined) {
+    labSlip.urgency = data.urgency;
+  }
+
+  if (data.items !== undefined) {
+    labSlip.items = await buildUpdatedItems(labSlip, data.items);
+  }
+
+  if (data.notes !== undefined) {
+    labSlip.notes = normalizeOptional(data.notes);
+  }
+
+  await labSlip.save();
+
+  const urgencyChanged =
+    data.urgency !== undefined && previousUrgency !== labSlip.urgency;
+
+  if (urgencyChanged) {
+    await ScanBooking.updateMany(
+      {
+        labSlipId: labSlip._id,
+
+        status: {
+          $in: ACTIVE_SCAN_BOOKING_STATUSES,
+        },
+      },
+      {
+        $set: {
+          urgency: labSlip.urgency,
+        },
+      },
+    );
+  }
+
+  return populateLabSlip(labSlip);
 }

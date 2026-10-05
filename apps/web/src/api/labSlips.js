@@ -28,3 +28,10 @@ export function getLabSlips({ search, clinicId, page = 1, limit = 20 } = {}) {
 export function getLabSlip(labSlipId) {
   return apiRequest(`/lab-slips/${labSlipId}`);
 }
+
+export function updateLabSlip(labSlipId, payload) {
+  return apiRequest(`/lab-slips/${labSlipId}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}

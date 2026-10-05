@@ -10,11 +10,12 @@ import { validateBody } from "../../middleware/validateBody.js";
 
 import { validateQuery } from "../../middleware/validateQuery.js";
 
-import { create, getOne, list } from "./labSlip.controller.js";
+import { create, getOne, list, update } from "./labSlip.controller.js";
 
 import {
   createLabSlipSchema,
   listLabSlipsQuerySchema,
+  updateLabSlipSchema,
 } from "./labSlip.schemas.js";
 
 const router = Router();
@@ -34,5 +35,7 @@ router.get("/", validateQuery(listLabSlipsQuerySchema), list);
 router.post("/", validateBody(createLabSlipSchema), create);
 
 router.get("/:labSlipId", getOne);
+
+router.patch("/:labSlipId", validateBody(updateLabSlipSchema), update);
 
 export default router;

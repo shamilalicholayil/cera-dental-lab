@@ -33,6 +33,8 @@ import adminCatalogRoutes from "./modules/catalog/adminCatalog.routes.js";
 
 import labSlipRoutes from "./modules/labSlips/labSlip.routes.js";
 
+import scanBookingRoutes from "./modules/scanBookings/scanBooking.routes.js";
+
 export const app = express();
 
 app.disable("x-powered-by");
@@ -77,6 +79,8 @@ app.use("/api/v1/catalog", catalogRoutes);
 app.use("/api/v1/admin/catalog", adminCatalogRoutes);
 
 app.use("/api/v1/lab-slips", labSlipRoutes);
+
+app.use("/api/v1/scan-bookings", scanBookingRoutes);
 
 app.use(notFound);
 

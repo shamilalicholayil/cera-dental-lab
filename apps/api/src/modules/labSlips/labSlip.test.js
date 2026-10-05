@@ -9,6 +9,7 @@ import {
   LAB_SLIP_URGENCY,
   USER_ROLES,
   USER_STATUS,
+  SCAN_BOOKING_STATUS,
 } from "@cera/shared";
 
 import { app } from "../../app.js";
@@ -22,6 +23,8 @@ import {
 import { hashPassword } from "../auth/password.js";
 
 import { User } from "../users/user.model.js";
+
+import { ScanBooking } from "../scanBookings/scanBooking.model.js";
 
 import { Clinic } from "../clinics/clinic.model.js";
 
@@ -536,6 +539,437 @@ describe("Digital Lab Slips", () => {
     const response = await agent.get("/api/v1/lab-slips");
 
     expect(response.status).toBe(403);
+  });
+
+  it("allows a Doctor to edit their own submitted lab slip", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const response = await agent.patch(`/api/v1/lab-slips/${labSlip.id}`).send({
+      urgency: LAB_SLIP_URGENCY.URGENT,
+
+      patient: {
+        name: "Updated Patient",
+        reference: "PAT-UPDATED",
+      },
+
+      items: [
+        {
+          productId: product.id,
+          teeth: ["UL1", "UL2"],
+          shade: "B1",
+          ponticDesign: "Modified",
+          designNotes: "Updated design notes",
+        },
+      ],
+
+      notes: "Updated general notes",
+    });
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.labSlip.urgency).toBe(LAB_SLIP_URGENCY.URGENT);
+
+    expect(response.body.data.labSlip.patient.name).toBe("Updated Patient");
+
+    expect(response.body.data.labSlip.patient.reference).toBe("PAT-UPDATED");
+
+    expect(response.body.data.labSlip.items[0].teeth).toEqual(["UL1", "UL2"]);
+
+    expect(response.body.data.labSlip.items[0].shade).toBe("B1");
+
+    expect(response.body.data.labSlip.notes).toBe("Updated general notes");
+  });
+
+  it("allows Clinic Staff to edit a lab slip from their assigned clinic", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const staff = await createUser({
+      name: "Clinic Staff",
+      phone: "9876543212",
+      role: USER_ROLES.CLINIC_STAFF,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    await addMembership({
+      clinic,
+      user: staff,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorAgent = request.agent(app);
+
+    await login(doctorAgent, doctor.phone);
+
+    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const staffAgent = request.agent(app);
+
+    await login(staffAgent, staff.phone);
+
+    const response = await staffAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Updated by clinic staff",
+      });
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.labSlip.notes).toBe("Updated by clinic staff");
+  });
+
+  it("does not allow a Doctor to edit another Doctor's lab slip", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctorA = await createUser({
+      name: "Doctor A",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const doctorB = await createUser({
+      name: "Doctor B",
+      phone: "9876543212",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctorA,
+      admin,
+    });
+
+    await addMembership({
+      clinic,
+      user: doctorB,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorBAgent = request.agent(app);
+
+    await login(doctorBAgent, doctorB.phone);
+
+    const createResponse = await doctorBAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const doctorAAgent = request.agent(app);
+
+    await login(doctorAAgent, doctorA.phone);
+
+    const response = await doctorAAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Unauthorized change",
+      });
+
+    expect(response.status).toBe(404);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.notes).toBe("General notes");
+  });
+
+  it("does not allow immutable lab slip identity fields to be changed", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const response = await agent.patch(`/api/v1/lab-slips/${labSlip.id}`).send({
+      notes: "Attempted immutable edit",
+
+      clinicId: "507f1f77bcf86cd799439011",
+      doctorId: "507f191e810c19729de860ea",
+      reference: "CDL-FAKE-999999",
+      source: LAB_SLIP_SOURCE.PHONE,
+      scanRequired: false,
+    });
+
+    expect(response.status).toBe(400);
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.reference).toBe(labSlip.reference);
+
+    expect(storedLabSlip.clinicId.toString()).toBe(clinic.id);
+
+    expect(storedLabSlip.doctorId.toString()).toBe(doctor.id);
+
+    expect(storedLabSlip.source).toBe(LAB_SLIP_SOURCE.PORTAL);
+
+    expect(storedLabSlip.scanRequired).toBe(true);
+  });
+
+  it("syncs an active Scan Booking when Lab Slip urgency changes", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const bookingResponse = await agent.post("/api/v1/scan-bookings").send({
+      labSlipId: labSlip.id,
+
+      requestedStartAt: new Date(
+        Date.now() + 24 * 60 * 60 * 1000,
+      ).toISOString(),
+    });
+
+    expect(bookingResponse.status).toBe(201);
+
+    expect(bookingResponse.body.data.scanBooking.urgency).toBe(
+      LAB_SLIP_URGENCY.STANDARD,
+    );
+
+    expect(bookingResponse.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.PENDING_REVIEW,
+    );
+
+    const updateResponse = await agent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        urgency: LAB_SLIP_URGENCY.URGENT,
+      });
+
+    expect(updateResponse.status).toBe(200);
+
+    expect(updateResponse.body.data.labSlip.urgency).toBe(
+      LAB_SLIP_URGENCY.URGENT,
+    );
+
+    const storedBooking = await ScanBooking.findOne({
+      labSlipId: labSlip.id,
+    });
+
+    expect(storedBooking).not.toBeNull();
+
+    expect(storedBooking.urgency).toBe(LAB_SLIP_URGENCY.URGENT);
+  });
+
+  it("does not change urgency on a terminal Scan Booking", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const bookingResponse = await agent.post("/api/v1/scan-bookings").send({
+      labSlipId: labSlip.id,
+
+      requestedStartAt: new Date(
+        Date.now() + 24 * 60 * 60 * 1000,
+      ).toISOString(),
+    });
+
+    expect(bookingResponse.status).toBe(201);
+
+    const booking = bookingResponse.body.data.scanBooking;
+
+    const cancelResponse = await agent
+      .post(`/api/v1/scan-bookings/${booking.id}/cancel`)
+      .send({
+        reason: "Patient unavailable",
+      });
+
+    expect(cancelResponse.status).toBe(200);
+
+    expect(cancelResponse.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.CANCELLED,
+    );
+
+    const updateResponse = await agent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        urgency: LAB_SLIP_URGENCY.URGENT,
+      });
+
+    expect(updateResponse.status).toBe(200);
+
+    expect(updateResponse.body.data.labSlip.urgency).toBe(
+      LAB_SLIP_URGENCY.URGENT,
+    );
+
+    const storedBooking = await ScanBooking.findById(booking.id);
+
+    expect(storedBooking).not.toBeNull();
+
+    expect(storedBooking.status).toBe(SCAN_BOOKING_STATUS.CANCELLED);
+
+    expect(storedBooking.urgency).toBe(LAB_SLIP_URGENCY.STANDARD);
   });
 
   it("generates unique sequential references", async () => {

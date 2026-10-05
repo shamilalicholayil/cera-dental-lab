@@ -19,3 +19,8 @@ export {
   TOOTH_QUADRANTS,
   TOOTH_VALUES,
 } from "./labSlip.js";
+
+export {
+  SCAN_BOOKING_STATUS,
+  SCAN_BOOKING_STATUS_VALUES,
+} from "./scanBooking.js";

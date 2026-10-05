@@ -28,11 +28,25 @@ import { LabSlipsPage } from "../pages/LabSlipsPage";
 
 import { LabSlipDetailPage } from "../pages/LabSlipDetailPage";
 
+import { ScanBookingsPage } from "../pages/ScanBookingsPage";
+
+import { ScanBookingDetailPage } from "../pages/ScanBookingDetailPage";
+
+import { EditLabSlipPage } from "../pages/EditLabSlipPage";
+
 const LAB_SLIP_ROLES = [
   USER_ROLES.CERA_ADMIN,
   USER_ROLES.CERA_STAFF,
   USER_ROLES.DOCTOR,
   USER_ROLES.CLINIC_STAFF,
+];
+
+const SCAN_ROLES = [
+  USER_ROLES.CERA_ADMIN,
+  USER_ROLES.CERA_STAFF,
+  USER_ROLES.DOCTOR,
+  USER_ROLES.CLINIC_STAFF,
+  USER_ROLES.SCANNING_STAFF,
 ];
 
 export function AppRoutes() {
@@ -120,7 +134,43 @@ export function AppRoutes() {
             </RoleGuard>
           }
         />
+
+        <Route
+          path="/portal/lab-slips/:labSlipId/edit"
+          element={
+            <RoleGuard
+              allowedRoles={LAB_SLIP_ROLES}
+              fallback={<Navigate to="/portal" replace />}
+            >
+              <EditLabSlipPage />
+            </RoleGuard>
+          }
+        />
       </Route>
+
+      <Route
+        path="/portal/scans"
+        element={
+          <RoleGuard
+            allowedRoles={SCAN_ROLES}
+            fallback={<Navigate to="/portal" replace />}
+          >
+            <ScanBookingsPage />
+          </RoleGuard>
+        }
+      />
+
+      <Route
+        path="/portal/scans/:bookingId"
+        element={
+          <RoleGuard
+            allowedRoles={SCAN_ROLES}
+            fallback={<Navigate to="/portal" replace />}
+          >
+            <ScanBookingDetailPage />
+          </RoleGuard>
+        }
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

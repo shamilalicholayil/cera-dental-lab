@@ -6,6 +6,8 @@ import { getLabSlip } from "../api/labSlips";
 
 import { PortalHeader } from "../components/portal/PortalHeader";
 
+import { ScanRequestPanel } from "../components/scanBookings/ScanRequestPanel";
+
 export function LabSlipDetailPage() {
   const { labSlipId } = useParams();
 
@@ -72,12 +74,23 @@ export function LabSlipDetailPage() {
       <PortalHeader />
 
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
-        <Link
-          to="/portal/lab-slips"
-          className="text-sm font-medium text-[var(--cera-blue-600)]"
-        >
-          ← Lab Slips
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link
+            to="/portal/lab-slips"
+            className="text-sm font-medium text-[var(--cera-blue-600)]"
+          >
+            ← Lab Slips
+          </Link>
+
+          {slip.status === "SUBMITTED" && (
+            <Link
+              to={`/portal/lab-slips/${slip.id}/edit`}
+              className="inline-flex h-10 items-center rounded-xl border border-[var(--cera-border)] bg-white px-4 text-sm font-semibold text-[var(--cera-navy-950)]"
+            >
+              Edit Lab Slip
+            </Link>
+          )}
+        </div>
 
         <div className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row">
@@ -214,6 +227,8 @@ export function LabSlipDetailPage() {
               </p>
             </div>
           )}
+
+          <ScanRequestPanel labSlip={slip} />
         </section>
       </div>
     </main>
