@@ -11,6 +11,20 @@ const envSchema = z.object({
   CLIENT_URL: z.string().url(),
 
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+
+  REFRESH_TOKEN_SECRET: z
+    .string()
+    .min(32, "REFRESH_TOKEN_SECRET must be at least 32 characters"),
+
+  JWT_ISSUER: z.string().min(1).default("cera-api"),
+
+  JWT_AUDIENCE: z.string().min(1).default("cera-web"),
+
+  INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(72),
 });
 
 const result = envSchema.safeParse(process.env);

@@ -17,7 +17,8 @@
     "lint:api": "npm run lint --workspace=@cera/api",
     "test": "npm run test:api && npm run test:web",
     "test:api": "npm run test --workspace=@cera/api",
-    "test:web": "npm run test --workspace=@cera/web"
+    "test:web": "npm run test --workspace=@cera/web",
+    "create:admin": "npm run create:admin --workspace=@cera/api"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
