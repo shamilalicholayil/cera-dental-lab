@@ -19,6 +19,45 @@ docs/progress/
 
 ---
 
+# 1A. Retrieval-First / RAG Rule
+
+Before asking the user a project/setup/business question, first retrieve the answer from:
+
+```text
+docs/project/PROJECT_KNOWLEDGE_BASE.md
+```
+
+Then follow the source-document pointers in the matching knowledge-base entry when more detail is needed.
+
+Mandatory behavior:
+
+```text
+Question
+↓
+PROJECT_KNOWLEDGE_BASE.md
+↓
+matching detailed project/design/decision document
+↓
+SESSION_HANDOFF.md for latest module changes
+↓
+OPEN_QUESTIONS.md
+↓
+current repository/code for implementation-specific truth
+↓
+ask user only if still unknown and blocking
+```
+
+Do not ask the user a question marked `CONFIRMED` in the knowledge base.
+
+Do not ask a `DEFERRED` question before its module unless current scope changes.
+
+Ask an `OPEN` question only when it blocks the current module/checkpoint.
+
+The knowledge base is a retrieval index, not a higher authority than the current repository or detailed confirmed documentation.
+
+---
+
+
 # 2. Development Mode
 
 The user is **not using a coding agent**.
@@ -1104,7 +1143,8 @@ docs/project/
 ├── REQUIREMENTS.md
 ├── PROJECT_PLAN.md
 ├── MODULE_PLAN.md
-└── BUSINESS_FLOWS.md
+├── BUSINESS_FLOWS.md
+└── PROJECT_KNOWLEDGE_BASE.md
 ```
 
 Design:

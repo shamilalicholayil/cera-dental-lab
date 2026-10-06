@@ -714,6 +714,20 @@ Explains:
 - planning
 - modules
 - business flows
+- retrieval-oriented canonical Q&A for repeated chatbot questions
+
+### Retrieval Layer
+
+`docs/project/PROJECT_KNOWLEDGE_BASE.md`
+
+Purpose:
+
+- provide atomic question-and-answer chunks for ChatGPT Project retrieval
+- prevent repeated questions whose answers are already confirmed
+- route each answer back to the detailed authoritative source document
+- distinguish `CONFIRMED`, `REPOSITORY-DERIVED`, `OPEN`, and `DEFERRED` information
+
+The retrieval layer does not change the source-of-truth priority.
 
 ### Design Knowledge
 

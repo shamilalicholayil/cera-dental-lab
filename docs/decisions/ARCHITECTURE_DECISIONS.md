@@ -1191,6 +1191,65 @@ No chatbot session may invent a production state machine or production persisten
 
 ---
 
+# ADR-051 — Use a Retrieval-First Project Knowledge Base for New Chat Sessions
+
+Status: **ACCEPTED**
+
+## Context
+
+Development is split across multiple normal chatbot sessions, and the user manually copies code into VS Code.
+
+The detailed documentation contains the required information, but a new chatbot may still ask repeated questions because the answer is spread across large documents.
+
+## Decision
+
+Maintain:
+
+```text
+docs/project/PROJECT_KNOWLEDGE_BASE.md
+```
+
+as a retrieval-oriented Q&A index.
+
+Each entry should be small and independently retrievable and should include:
+
+- a probable question
+- a canonical answer
+- a status (`CONFIRMED`, `REPOSITORY-DERIVED`, `OPEN`, or `DEFERRED`)
+- retrieval keywords
+- pointers to the detailed source documents
+
+New chatbot sessions must retrieve this knowledge base before asking generic project/setup/business questions.
+
+## Reason
+
+This gives the ChatGPT Project a RAG-like knowledge layer:
+
+```text
+user/current task
+↓
+retrieve matching Q&A
+↓
+retrieve detailed source document if needed
+↓
+retrieve current handoff/code
+↓
+ask only genuinely unresolved blocking questions
+```
+
+It reduces repeated questioning without weakening the project's no-assumption rule.
+
+## Consequence
+
+- A `CONFIRMED` knowledge-base answer should not be asked again unless a conflict is found.
+- A `DEFERRED` question should not be asked before its module.
+- An `OPEN` question is asked only when it blocks current work.
+- `REPOSITORY-DERIVED` information must still be checked against current code/config.
+- The knowledge base is a retrieval index and does **not** outrank the repository, requirements, detailed design docs, or ADRs.
+- When a permanent project decision changes, update both its authoritative document and the relevant knowledge-base entry.
+
+---
+
 # 3. Adding a New ADR
 
 When a new permanent decision is made, add an entry using this structure:

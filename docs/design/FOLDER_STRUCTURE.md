@@ -774,7 +774,8 @@ docs/
 │   ├── REQUIREMENTS.md
 │   ├── PROJECT_PLAN.md
 │   ├── MODULE_PLAN.md
-│   └── BUSINESS_FLOWS.md
+│   ├── BUSINESS_FLOWS.md
+│   └── PROJECT_KNOWLEDGE_BASE.md
 │
 ├── design/
 │   ├── SYSTEM_DESIGN.md
@@ -811,6 +812,7 @@ Contains:
 - development plan
 - module plan
 - business workflows
+- retrieval-oriented project Q&A knowledge base
 
 These documents answer:
 
@@ -819,6 +821,11 @@ These documents answer:
 and:
 
 > How is the project organized?
+
+`PROJECT_KNOWLEDGE_BASE.md` is optimized for semantic retrieval in new chatbot sessions. It contains atomic Q&A chunks, search keywords, status labels, and pointers to the detailed authoritative documents.
+
+It must not become a substitute for the detailed requirements/design/decision files.
+
 
 ---
 

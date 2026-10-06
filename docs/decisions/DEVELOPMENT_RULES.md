@@ -72,6 +72,24 @@ Benefits:
 
 # 5. New Session Startup Procedure
 
+## Retrieval before questions
+
+Before asking the user generic project, architecture, workflow, role, or setup questions, search:
+
+```text
+docs/project/PROJECT_KNOWLEDGE_BASE.md
+```
+
+Use the matching entry's source-document pointers for deeper context.
+
+The chatbot must not ask the user to reconfirm information already marked `CONFIRMED`.
+
+`DEFERRED` questions must remain deferred until their module.
+
+`OPEN` questions should be asked only when they block the current module/checkpoint, and related questions should be grouped to minimize interruption.
+
+The knowledge base is an index for retrieval. The authority order defined by the project remains unchanged.
+
 Before implementing a module, the new chat should understand the project in this order:
 
 ```text
@@ -91,6 +109,7 @@ IMPLEMENTATION
 At minimum review:
 
 ```text
+docs/project/PROJECT_KNOWLEDGE_BASE.md
 docs/progress/CHAT_CONTEXT.md
 docs/progress/SESSION_HANDOFF.md
 docs/progress/MODULE_STATUS.md

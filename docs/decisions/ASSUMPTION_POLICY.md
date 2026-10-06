@@ -56,6 +56,29 @@ Identify the conflict.
 
 ---
 
+# 3A. Retrieval Order vs Authority Order
+
+The source-of-truth order above defines **authority** when information conflicts.
+
+For efficiency, a new chatbot session should use this **retrieval order** before asking the user:
+
+```text
+1. PROJECT_KNOWLEDGE_BASE.md
+2. matching detailed document referenced by the knowledge-base entry
+3. SESSION_HANDOFF.md for the latest module-specific changes
+4. OPEN_QUESTIONS.md
+5. current repository/code when implementation-specific truth is needed
+6. user, only if the answer is still unknown and blocks current work
+```
+
+The retrieval knowledge base is deliberately redundant and optimized for semantic search.
+
+It does not override the authority order.
+
+If a knowledge-base answer conflicts with current code or a more authoritative confirmed document, treat the knowledge-base entry as stale and update it after the conflict is resolved.
+
+---
+
 # 4. Three Decision Categories
 
 Every uncertain implementation decision should be classified as one of these:
