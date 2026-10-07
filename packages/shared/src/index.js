@@ -28,3 +28,10 @@ export {
 } from "./scanBooking.js";
 
 export { PRODUCTION_STATUS, PRODUCTION_STATUS_VALUES } from "./production.js";
+
+export {
+  CORRECTION_OUTCOME,
+  CORRECTION_OUTCOME_VALUES,
+  CORRECTION_STATUS,
+  CORRECTION_STATUS_VALUES,
+} from "./correction.js";

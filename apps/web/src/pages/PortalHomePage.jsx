@@ -25,6 +25,13 @@ const SCAN_ROLES = [
 
 const PRODUCTION_ROLES = [USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF];
 
+const CORRECTION_ROLES = [
+  USER_ROLES.CERA_ADMIN,
+  USER_ROLES.CERA_STAFF,
+  USER_ROLES.DOCTOR,
+  USER_ROLES.CLINIC_STAFF,
+];
+
 export function PortalHomePage() {
   const user = useSelector(selectCurrentUser);
 
@@ -35,6 +42,8 @@ export function PortalHomePage() {
   const canUseScans = SCAN_ROLES.includes(user.role);
 
   const canUseProduction = PRODUCTION_ROLES.includes(user.role);
+
+  const canUseCorrections = CORRECTION_ROLES.includes(user.role);
 
   const isScanningStaff = user.role === USER_ROLES.SCANNING_STAFF;
 
@@ -97,6 +106,15 @@ export function PortalHomePage() {
                 className="inline-flex h-11 items-center rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-semibold text-[var(--cera-navy-950)] hover:bg-slate-50"
               >
                 Production
+              </Link>
+            )}
+
+            {canUseCorrections && (
+              <Link
+                to="/portal/corrections"
+                className="inline-flex h-11 items-center rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-semibold text-[var(--cera-navy-950)] hover:bg-slate-50"
+              >
+                Corrections
               </Link>
             )}
 

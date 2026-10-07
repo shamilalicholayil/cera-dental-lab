@@ -103,7 +103,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Private supporting attachments are planned for JPEG, PNG, WEBP, and PDF. Ownership, permissions, deletion, limits, and storage provider remain deferred to Module 4E.
+**Canonical answer:** Module 4E private attachments are implemented for supporting JPEG/JPG, PNG, WEBP, and PDF files, up to 10 MB each and 5 per supported record. Storage is private Cloudflare R2/S3-compatible storage with signed temporary access. Large raw intraoral scan files remain out of scope.
 
 **Keywords:** attachments, JPEG, PNG, WEBP, PDF
 
@@ -595,7 +595,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** `LabSlip.status` remains `SUBMITTED`; manufacturing progress is modeled separately through the linked Production entity (`SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`).
+**Canonical answer:** SUBMITTED. A production lifecycle has not yet been approved.
 
 **Keywords:** Lab Slip status, SUBMITTED
 
@@ -1111,11 +1111,11 @@ Status: **REPOSITORY-DERIVED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Modules 0 through 4D are committed/pushed and complete. Module 4D Lab Production Workflow passed automated tests, lint, frontend build, manual QA, documentation finalization, and Git finalization. Final commit: `b392224 feat: add lab production workflow`.
+**Canonical answer:** Complete through Module 4F: 0 Foundation; 1A User+Password; 1B Login; 1C Persistent Auth; 1D Logout; 2A Role Authorization; 2B Invitations/User Management; 3A Clinics/Memberships; 3B Product Catalogue; 4A Digital Lab Slip; 4B Scan Booking + Lab Slip Editing; 4C Scan Rescheduling; 4D Lab Production Workflow; 4E Private Attachments; 4F Corrections/Issues.
 
-**Keywords:** completed modules, progress, Module 4D
+**Keywords:** completed modules, progress
 
-**Source docs:** MODULE_STATUS.md; SESSION_HANDOFF.md
+**Source docs:** MODULE_STATUS.md
 
 ---
 
@@ -1123,9 +1123,9 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Module 4E — Private Attachments is the next planned module. Module 4D is complete, committed, pushed, and the working tree was confirmed clean.
+**Canonical answer:** Module 5A — In-App Notifications. Define notification events, recipients, read/unread behavior, retention, deep links, and deduplication before coding.
 
-**Keywords:** next module, 4E, attachments
+**Keywords:** next module, 5A, notifications
 
 **Source docs:** MODULE_STATUS.md; MODULE_PLAN.md
 
@@ -1135,11 +1135,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** 4E Private Attachments; 4F Corrections/Issues; 5A In-App Notifications; 5B WhatsApp Notifications; 6A Doctor Dashboard; 6B Cera Operations Dashboard; 6C Scanning Staff refinement; 7 Security hardening; 8 E2E regression; 9 Deployment; 10 Final docs/monitoring.
+**Canonical answer:** Modules 4E Private Attachments and 4F Corrections/Issues are now complete. The next module is 5A In-App Notifications, followed by 5B WhatsApp Notifications and the remaining refinement/hardening/deployment modules.
 
 **Keywords:** roadmap, after 4D
 
-**Source docs:** MODULE_PLAN.md
+**Source docs:** MODULE_PLAN.md; MODULE_STATUS.md
 
 ---
 
@@ -1147,11 +1147,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Yes. Production uses `SUBMITTED → IN_PRODUCTION → COMPLETED`. Admin-only backward moves are `COMPLETED → IN_PRODUCTION` and `IN_PRODUCTION → SUBMITTED`; direct `COMPLETED → SUBMITTED` is not allowed.
+**Canonical answer:** Yes. `SUBMITTED → IN_PRODUCTION → COMPLETED`. Cera Staff/Admin may move forward; Cera Admin alone may move backward via `COMPLETED → IN_PRODUCTION` or `IN_PRODUCTION → SUBMITTED`, with a required reason.
 
 **Keywords:** 4D, production statuses, state machine
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; OPEN_QUESTIONS.md
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1159,11 +1159,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Yes. Non-scan cases may start after submission. If `scanRequired=true`, the related Scan Booking must be `COMPLETED`. Scan completion does not auto-start Production and V1 has no readiness override.
+**Canonical answer:** Yes. A non-scan case may start production from `SUBMITTED`. If the Lab Slip requires Cera scanning, a `COMPLETED` Scan Booking must exist before production can start.
 
 **Keywords:** production ready, scan completed
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1171,11 +1171,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Cera Admin and Cera Staff may perform forward transitions. Only Cera Admin may perform backward transitions, and a reason is mandatory. Doctor, Clinic Staff, and Scanning Staff cannot mutate Production status.
+**Canonical answer:** Cera Staff and Cera Admin may perform forward production transitions. Only Cera Admin may perform approved backward transitions.
 
 **Keywords:** production permission, Cera Staff, Admin
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1183,11 +1183,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and stays locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason; Cera Staff, Doctor, and Clinic Staff cannot bypass.
+**Canonical answer:** Doctor/Clinic manufacturing edits lock after Production leaves `SUBMITTED`. Cera Admin retains controlled edit access to a production-locked Lab Slip.
 
-**Keywords:** edit lock, production start, admin override
+**Keywords:** edit lock, production start
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-032; ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current frontend/backend behavior
 
 ---
 
@@ -1195,11 +1195,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Yes. Every Production transition appends previous/new status, actor, timestamp, and optional note/reason. Creation starts with empty transition history.
+**Canonical answer:** Yes. Production history records previous/new status, actor, timestamp, and optional note; backward movement requires a reason.
 
 **Keywords:** production history, audit
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1207,11 +1207,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Doctor and Clinic Staff see `Submitted`, `In Progress`, and `Completed`. Cera Admin/Staff use internal wording `Submitted`, `In Production`, and `Completed`.
+**Canonical answer:** Doctor/Clinic-facing labels are simplified: Submitted, In Progress, Completed. Internal Cera UI may show In Production.
 
 **Keywords:** Doctor production status, Clinic visibility
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; UI_UX_DESIGN.md
+**Source docs:** OPEN_QUESTIONS.md; current frontend behavior
 
 ---
 
@@ -1219,11 +1219,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** `COMPLETED` means fabrication and final internal check are complete. It does not mean delivery, dispatch, or handover.
+**Canonical answer:** `COMPLETED` means lab production has been completed in the implemented workflow. It does not imply a separate delivery/logistics state.
 
-**Keywords:** completed, fabrication, final internal check
+**Keywords:** completed, fabrication, production
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1231,11 +1231,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** No. V1 has no Production assignee.
+**Canonical answer:** No production assignee was introduced in V1. Production is managed by authorized Cera operational roles.
 
 **Keywords:** production assignee, technician
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md
 
 ---
 
@@ -1243,11 +1243,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Production is a separate one-to-one entity linked to Lab Slip. Every new Lab Slip atomically creates exactly one `SUBMITTED` Production record.
+**Canonical answer:** Production is a separate entity linked to the Lab Slip.
 
 **Keywords:** Production model, LabSlip, database
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; DATABASE_DESIGN.md
+**Source docs:** OPEN_QUESTIONS.md; current production model
 
 ---
 
@@ -1255,11 +1255,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Yes, only Cera Admin may move `COMPLETED → IN_PRODUCTION`, with a mandatory reason.
+**Canonical answer:** Yes. Cera Admin may move `COMPLETED → IN_PRODUCTION` with a required reason. This production behavior is independent of the Correction lifecycle.
 
 **Keywords:** reopen, completed production
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
@@ -1267,47 +1267,47 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Forward transition notes are optional. Backward-transition reasons are mandatory. Admin Lab Slip production-lock override reasons are also mandatory.
+**Canonical answer:** Forward transition notes are optional. A reason is mandatory for backward production movement.
 
 **Keywords:** production reason, transition note
 
-**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
+**Source docs:** OPEN_QUESTIONS.md; current production code
 
 ---
 
 ## KB-105 — Are attachment ownership/deletion/storage-provider rules decided?
 
-Status: **DEFERRED**
+Status: **CONFIRMED**
 
-**Canonical answer:** No. They belong to Module 4E. Do not ask during Module 4D unless production unexpectedly depends on attachments.
+**Canonical answer:** Yes for V1. Attachments are private, stored in Cloudflare R2/S3-compatible storage with signed access; supported types are JPEG/JPG, PNG, WEBP, PDF; max 10 MB each and 5 per supported record. Mutation follows resource authorization and workflow state.
 
 **Keywords:** 4E, attachment ownership, storage provider
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** OPEN_QUESTIONS.md; current attachment code
 
 ---
 
 ## KB-106 — Are correction statuses/rescan/reproduction rules decided?
 
-Status: **DEFERRED**
+Status: **CONFIRMED**
 
-**Canonical answer:** No. They belong to Module 4F. Confirmed principle only: the original completed case remains historically intact.
+**Canonical answer:** Yes. Correction statuses are `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`. Resolved outcome must be `HANDLED`, `RESCAN_REQUIRED`, or `REPRODUCTION_REQUIRED`; these outcomes do not auto-create scan or production records.
 
 **Keywords:** 4F, correction, rescan, reproduction
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** OPEN_QUESTIONS.md; current correction code
 
 ---
 
 ## KB-107 — Are notification event/recipient/template rules decided?
 
-Status: **DEFERRED**
+Status: **OPEN**
 
-**Canonical answer:** No. They belong to Module 5. Do not ask during Module 4D unless scope changes.
+**Canonical answer:** Not yet. Module 5A is NEXT and must define in-app notification events, recipients, read/unread behavior, retention, deep links, and deduplication. WhatsApp templates/delivery behavior remain Module 5B.
 
 **Keywords:** Module 5, notifications, WhatsApp
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** OPEN_QUESTIONS.md; MODULE_PLAN.md
 
 ---
 

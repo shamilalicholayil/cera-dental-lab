@@ -38,6 +38,10 @@ import { ProductionDetailPage } from "../pages/ProductionDetailPage";
 
 import { EditLabSlipPage } from "../pages/EditLabSlipPage";
 
+import { CorrectionsPage } from "../pages/CorrectionsPage";
+
+import { CorrectionDetailPage } from "../pages/CorrectionDetailPage";
+
 const LAB_SLIP_ROLES = [
   USER_ROLES.CERA_ADMIN,
   USER_ROLES.CERA_STAFF,
@@ -54,6 +58,13 @@ const SCAN_ROLES = [
 ];
 
 const PRODUCTION_ROLES = [USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF];
+
+const CORRECTION_ROLES = [
+  USER_ROLES.CERA_ADMIN,
+  USER_ROLES.CERA_STAFF,
+  USER_ROLES.DOCTOR,
+  USER_ROLES.CLINIC_STAFF,
+];
 
 export function AppRoutes() {
   return (
@@ -173,6 +184,30 @@ export function AppRoutes() {
               fallback={<Navigate to="/portal" replace />}
             >
               <ProductionDetailPage />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/portal/corrections"
+          element={
+            <RoleGuard
+              allowedRoles={CORRECTION_ROLES}
+              fallback={<Navigate to="/portal" replace />}
+            >
+              <CorrectionsPage />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/portal/corrections/:correctionId"
+          element={
+            <RoleGuard
+              allowedRoles={CORRECTION_ROLES}
+              fallback={<Navigate to="/portal" replace />}
+            >
+              <CorrectionDetailPage />
             </RoleGuard>
           }
         />

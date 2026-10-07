@@ -37,6 +37,8 @@ import scanBookingRoutes from "./modules/scanBookings/scanBooking.routes.js";
 
 import productionRoutes from "./modules/production/production.routes.js";
 
+import correctionRoutes from "./modules/corrections/correction.routes.js";
+
 export const app = express();
 
 app.disable("x-powered-by");
@@ -85,6 +87,8 @@ app.use("/api/v1/lab-slips", labSlipRoutes);
 app.use("/api/v1/scan-bookings", scanBookingRoutes);
 
 app.use("/api/v1/productions", productionRoutes);
+
+app.use("/api/v1/corrections", correctionRoutes);
 
 app.use(notFound);
 

@@ -469,13 +469,13 @@ Current concepts include:
 - creator
 - timestamps
 
-Current Lab Slip status remains:
+Current Lab Slip status:
 
 ```text
 SUBMITTED
 ```
 
-Manufacturing progress is modeled separately by the linked Production record (`SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`).
+Production lifecycle is implemented as a separate Production entity with `SUBMITTED`, `IN_PRODUCTION`, and `COMPLETED` states.
 
 ---
 
@@ -571,7 +571,7 @@ Current immutable identity fields:
 
 `scanRequired` is handled through scan-booking behavior rather than normal Lab Slip editing.
 
-Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and stays locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason.
+Doctor/Clinic manufacturing edits lock after Production leaves `SUBMITTED`; Cera Admin retains controlled edit access.
 
 ---
 
@@ -729,29 +729,21 @@ Doctors continue using existing offline payment arrangements.
 
 # 24. Attachments
 
-Attachments are planned but not yet implemented.
+Module 4E is **COMPLETE**.
 
-Current direction:
+Current implementation:
 
 - private supporting files
-- JPEG
-- PNG
-- WEBP
-- PDF
-- external private object storage later
+- JPEG/JPG, PNG, WEBP, PDF
+- maximum 10 MB per file
+- maximum 5 attachments
+- Cloudflare R2 / S3-compatible private object storage
+- signed temporary access URLs
+- resource-based authorization
+- state-aware mutation controls
 - no large raw scan files
 
-Open:
-
-- ownership
-- permissions
-- deletion
-- retention
-- size limit
-- provider
-- signed URL strategy
-
-Do not implement attachment behavior until Module 4E design.
+Correction evidence reuses this attachment infrastructure.
 
 ---
 
@@ -800,7 +792,7 @@ Corrections
 Profile
 ```
 
-`Corrections` is future functionality.
+`Corrections` is implemented in Module 4F.
 
 ## Clinic Staff
 
@@ -859,9 +851,7 @@ Do not invent logo/typeface/branding.
 
 ---
 
-# 28. Completed / Current Modules
-
-Committed and pushed complete through:
+# 28. Completed Modules
 
 ```text
 Module 0   Foundation                         COMPLETE
@@ -876,58 +866,67 @@ Module 3B  Product Catalogue                  COMPLETE
 Module 4A  Digital Lab Slip Core              COMPLETE
 Module 4B  Scan Booking + Lab Slip Editing    COMPLETE
 Module 4C  Scan Rescheduling                  COMPLETE
+Module 4D  Lab Production Workflow             COMPLETE
+Module 4E  Private Attachments                 COMPLETE
+Module 4F  Corrections / Issues                COMPLETE
 ```
 
-Current completed boundary:
+Current implementation boundary:
 
 ```text
-Module 4D — Lab Production Workflow
-COMPLETE
+Complete through Module 4F.
+Final Module 4F source-control review/commit is the current step.
 ```
 
-Final commit:
-
-```text
-b392224 feat: add lab production workflow
-```
+A fresh session must still verify Git state.
 
 ---
 
-# 29. Module 4D Current State
+# 29. Next Module
 
-Implemented:
+```text
+Module 5A — In-App Notifications
+```
 
-- separate one-to-one Production entity
-- automatic transactional Production creation with Lab Slip
-- `SUBMITTED → IN_PRODUCTION → COMPLETED`
-- scan-required readiness gating
-- Cera Admin/Cera Staff forward transitions
-- Admin-only backward transitions with mandatory reason
-- production history/timestamps
-- production queue/detail frontend
-- Lab Slip edit lock once production starts
-- Admin audited override
-- Doctor/Clinic simplified status visibility
+Status:
 
-Completion means fabrication + final internal check complete, not delivery.
+```text
+NEXT
+```
 
-No Production assignee in V1.
-
-Automated API/frontend tests, lint, frontend build, and manual QA have passed.
+Define notification events and recipients before coding. Do not assume every workflow state change deserves a notification.
 
 ---
 
-# 30. Next Action
+# 30. Locked Module 4D–4F Rules
 
-Module 4D is complete, committed, pushed, and the working tree was confirmed clean.
+Production:
 
-Next planned module:
+- statuses: `SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`
+- Cera Staff/Admin move forward
+- Admin alone moves backward, with a required reason
+- scan-required production waits for a completed scan
+- production history retained
+- Production is a separate entity linked to Lab Slip
 
-```text
-Module 4E — Private Attachments
-```
+Attachments:
 
-Before implementing 4E, resolve only its currently deferred attachment business/security questions.
+- private JPEG/JPG, PNG, WEBP, PDF
+- 10 MB/file, max 5
+- signed temporary access
+- raw intraoral scan storage excluded
+
+Corrections:
+
+- only for completed Production
+- Doctor, permitted Clinic Staff, Cera Staff, and Cera Admin may create
+- one unresolved Correction per Lab Slip
+- multiple historical Corrections allowed
+- lifecycle: `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`
+- resolution outcome required: `HANDLED`, `RESCAN_REQUIRED`, `REPRODUCTION_REQUIRED`
+- outcomes do not auto-create scans/production
+- original Lab Slip and Production remain intact
+- terminal evidence is read-only
 
 ---
 
@@ -1175,20 +1174,23 @@ docs/progress/
 
 ---
 
-# 38. Recommended Continuation Prompt
-
-For a new chat, use:
+# 38. Recommended New Module Chat Prompt
 
 ```text
 We are continuing the Cera Dental Lab project.
 
-Module 4D — Lab Production Workflow is COMPLETE.
-Final commit: b392224 feat: add lab production workflow.
-The commit is pushed and the working tree was confirmed clean.
+Module 4F — Corrections / Issues is complete and verified.
+The next module is Module 5A — In-App Notifications.
 
-First retrieve PROJECT_KNOWLEDGE_BASE, MODULE_STATUS, SESSION_HANDOFF, and the current repository state.
-The next planned module is Module 4E — Private Attachments.
-Resolve only the attachment questions that block the first 4E checkpoint before implementation.
+Do not write notification code yet.
+First define the notification events, recipients, read/unread behavior, retention, deep links, deduplication, and events that should not notify.
+
+Do not assume every workflow change needs a notification.
+Do not add WhatsApp behavior unless we are explicitly working on Module 5B.
+
+I am not using a coding agent.
+I manually run commands and copy/paste code into VS Code.
+Before modifying an existing file, inspect its current contents.
 ```
 
 ---
@@ -1196,8 +1198,6 @@ Resolve only the attachment questions that block the first 4E checkpoint before 
 # 39. Current Handoff State
 
 ```text
-MODULE 4D COMPLETE
-COMMITTED + PUSHED
-CLEAN WORKING TREE CONFIRMED
-READY FOR MODULE 4E DESIGN
+MODULE 4F COMPLETE AND VERIFIED
+NEXT: MODULE 5A — IN-APP NOTIFICATIONS
 ```

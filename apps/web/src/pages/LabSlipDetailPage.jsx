@@ -16,6 +16,8 @@ import { selectCurrentUser } from "../features/auth/authSelectors";
 
 import { LabSlipAttachments } from "../components/labSlips/LabSlipAttachments";
 
+import { CorrectionCreatePanel } from "../components/corrections/CorrectionCreatePanel";
+
 function getProductionStatusLabel(status, doctorFacing) {
   if (!status) {
     return "—";
@@ -114,6 +116,8 @@ export function LabSlipDetailPage() {
     (!productionLocked || user?.role === USER_ROLES.CERA_ADMIN);
 
   const canManageAttachments = productionStatus === PRODUCTION_STATUS.SUBMITTED;
+
+  const canUseCorrections = productionStatus === PRODUCTION_STATUS.COMPLETED;
 
   return (
     <main className="min-h-screen bg-[var(--cera-background)]">
@@ -290,6 +294,10 @@ export function LabSlipDetailPage() {
             labSlipId={slip.id}
             allowUpload={canManageAttachments}
           />
+
+          {canUseCorrections && <CorrectionCreatePanel labSlip={slip} />}
+
+          <ScanRequestPanel labSlip={slip} />
 
           <ScanRequestPanel labSlip={slip} />
         </section>

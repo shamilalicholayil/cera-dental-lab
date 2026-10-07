@@ -444,131 +444,60 @@ Dependencies:
 
 Status: **COMPLETE**
 
-Purpose:
+Implemented scope:
 
-Manage the Cera fabrication lifecycle after a Lab Slip has been submitted and required scan readiness has been satisfied.
+- separate Production record linked to Lab Slip
+- `SUBMITTED`, `IN_PRODUCTION`, `COMPLETED` lifecycle
+- Cera Staff/Admin forward transitions
+- Admin-only backward transitions with required reason
+- production readiness tied to completed scanning when `scanRequired=true`
+- production history and timestamps
+- Doctor/Clinic simplified production visibility
+- Lab Slip edit locking after production starts, with controlled Admin access
 
-Implemented:
-
-- separate one-to-one Production entity
-- automatic Production creation with every Lab Slip
-- `SUBMITTED → IN_PRODUCTION → COMPLETED`
-- scan-completion readiness gating
-- Cera Admin/Cera Staff forward transitions
-- Admin-only backward transitions with mandatory reason
-- append-only Production history
-- started/completed timestamps
-- production queue and filtering
-- production detail screen
-- Lab Slip production edit lock
-- Admin audited edit override
-- Doctor/Clinic simplified production status
-- Cera internal production wording
-- automated backend/frontend tests
-- responsive operational UI
-- manual role/state QA
-
-Confirmed completion meaning:
-
-```text
-fabrication complete
-+
-final internal check complete
-```
-
-Completion does not represent delivery.
-
-Production assignment is not included in V1.
-
-Out of scope:
-
-- correction workflow
-- attachment system
-- notifications / WhatsApp
-- billing
-- delivery logistics
-- inventory
-- scanner integration
-
-Dependencies:
-
-- Module 4A
-- Module 4B
-- Module 4C
+Completed Production may be moved back independently by Admin. Corrections do not reopen or overwrite Production.
 
 ---
 
 ## Module 4E — Private Attachments
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Purpose:
+Implemented scope:
 
-Allow permitted users to attach supporting documents/images to operational records without storing large intraoral scan files.
+- private JPEG/JPG, PNG, WEBP, and PDF supporting files
+- 10 MB maximum per file
+- maximum 5 attachments
+- private Cloudflare R2 / S3-compatible storage
+- signed temporary access URLs
+- resource-based authorization
+- state-aware upload/delete controls
+- no direct scanner integration or large raw intraoral scan storage
 
-Planned file types:
-
-- JPEG
-- PNG
-- WEBP
-- PDF
-
-Required design decisions:
-
-- which entities support attachments
-- who can upload
-- who can view
-- who can delete
-- maximum file size
-- retention rules
-- whether attachments become immutable after production/completion
-- object-storage provider
-- signed/private access rules
-- virus/content validation strategy
-
-Explicitly out of scope:
-
-- direct scanner integration
-- large raw intraoral scan-file storage
-
-Dependencies:
-
-- Lab Slip workflow
-- security design
-- production state rules may affect editability
+This infrastructure is reused for Correction evidence in Module 4F.
 
 ---
 
 ## Module 4F — Corrections / Issues
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Purpose:
+Implemented scope:
 
-Allow Doctor/Clinic users to raise a correction or issue for a finished product while preserving the original completed case.
+- create Correction only for completed Production
+- Doctor, permitted Clinic Staff, Cera Staff, and Cera Admin creation
+- one unresolved Correction per Lab Slip, while retaining historical Corrections
+- required description, optional affected Lab Slip items, optional evidence
+- `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`
+- strict transition rules and clarification round-trip
+- Cera review/resolve/reject actions
+- Doctor/Clinic clarification responses
+- required resolution outcome: `HANDLED`, `RESCAN_REQUIRED`, or `REPRODUCTION_REQUIRED`
+- terminal evidence is read-only
+- original Lab Slip and Production remain intact
+- no automatic rescan or reproduction workflow is created from an outcome
 
-Required design decisions:
-
-- correction reasons
-- correction statuses
-- who may open a correction
-- who may review/accept/reject
-- whether Cera may request clarification
-- whether a correction triggers a new production cycle
-- whether rescanning may be requested
-- whether a new Lab Slip is created
-- what historical data remains immutable
-- notification behavior
-
-Core rule already established:
-
-The original finished case must remain historically intact.
-
-Dependencies:
-
-- Module 4D
-- possibly Module 4E
-- Scan Booking if corrections can trigger rescans
+Dependencies completed: Modules 4D and 4E.
 
 ---
 
@@ -576,7 +505,7 @@ Dependencies:
 
 ## Module 5A — In-App Notifications
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Purpose:
 
@@ -916,16 +845,10 @@ Only then should implementation begin.
 
 Current completed boundary:
 
-**Module 4D — Lab Production Workflow**
-
-Final Module 4D commit:
-
-```text
-b392224 feat: add lab production workflow
-```
+**Module 4F — Corrections / Issues**
 
 Current next module:
 
-**Module 4E — Private Attachments**
+**Module 5A — In-App Notifications**
 
-Before Module 4E implementation, resolve only the attachment ownership, permission, retention, size, storage-provider, signed-access, and security-validation questions that block the first implementation checkpoint.
+Before Module 5A implementation, notification events, recipients, read/unread behavior, retention, and deep-link behavior must be confirmed. Do not assume every workflow event needs a notification.

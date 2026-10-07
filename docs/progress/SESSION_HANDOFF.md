@@ -24,11 +24,15 @@ It is not a substitute for the full project documentation.
 
 Last completed module:
 
-Module 4E — Private Attachments
+```text
+Module 4F — Corrections / Issues
+```
 
 Current next module:
 
-Module 4F — Corrections / Issues
+```text
+Module 5A — In-App Notifications
+```
 
 Current development mode:
 
@@ -38,9 +42,7 @@ Manual copy/paste into VS Code
 No coding agent
 ```
 
-The next session must **not** begin with production code.
-
-It must first resolve the production business lifecycle and permissions.
+The next module should begin with notification business/design rules before notification code is written.
 
 ---
 
@@ -72,6 +74,12 @@ Scanning Staff assignment
 Rescheduling when needed
 ↓
 Scan completion
+↓
+Lab Production
+↓
+Case completion
+↓
+Correction / Issue when required
 ```
 
 The next missing core operational area is:
@@ -330,35 +338,28 @@ A new session should still verify the current Git state instead of assuming noth
 
 ---
 
-# 12. Last Known Git Boundary
+# 12. Current Git Boundary
 
-Last known state:
-
-```text
-Module 4C committed
-Module 4C pushed to GitHub
-```
-
-Recommended commit message used:
+Current state reported in this session:
 
 ```text
-feat: add scan booking rescheduling workflow
+Module 4F implementation and verification are complete.
+The working tree still contains the Module 4F changes until the final commit/push.
 ```
 
-At the start of the next development session, run:
+Before starting Module 5A:
 
 ```bash
 git status
+git diff --check
 git log -1 --oneline
 ```
 
-Expected goal:
+Expected goal after the Module 4F commit/push:
 
 ```text
 working tree clean
 ```
-
-If not clean, inspect changes before starting Module 4D.
 
 ---
 
@@ -394,6 +395,11 @@ The next session must preserve these decisions unless there is a concrete reason
 ✓ current confirmed time remains valid until replacement accepted
 ✓ assigned scanner remains assigned during rescheduling
 ✓ reschedule history retained
+✓ Production is a separate entity linked to Lab Slip
+✓ production statuses are SUBMITTED / IN_PRODUCTION / COMPLETED
+✓ Cera Staff/Admin move production forward; Admin alone moves backward
+✓ private supporting attachments use R2/S3-compatible storage with signed access
+✓ Corrections preserve the original Lab Slip/Production and enforce one unresolved Correction per Lab Slip
 ✓ routes stay outside App.jsx
 ✓ Redux Toolkit is for app-wide state, not every local state
 ✓ one module per chat where practical
@@ -434,7 +440,7 @@ Current immutable identity fields include:
 - creator
 - created timestamp
 
-Normal Lab Slip editing now locks when linked Production reaches `IN_PRODUCTION` and remains locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason.
+Doctor/Clinic manufacturing edits are locked after Production leaves `SUBMITTED`; Cera Admin retains controlled edit access.
 
 ---
 
@@ -522,7 +528,7 @@ Corrections
 Profile
 ```
 
-`Corrections` remains future functionality.
+`Corrections` is implemented in Module 4F.
 
 ---
 
@@ -561,217 +567,172 @@ In-app notifications are also planned.
 
 However, notification events, recipients, templates, and retry behavior are not yet defined.
 
-Do not add automatic WhatsApp behavior inside Module 4D unless explicitly decided.
+Module 5A covers in-app notifications. Do not add automatic WhatsApp behavior until Module 5B rules are explicitly decided.
 
 ---
 
-# 20. Module 4E — Private Attachments
+# 20. Current Attachment Direction
 
-Status: **COMPLETE**
+Module 4E is **COMPLETE**.
 
-Implemented and verified:
+Implemented:
 
-- Lab Slip-only supporting attachments
-- JPEG / PNG / WEBP / PDF
-- 10 MB maximum per attachment
-- maximum 5 per Lab Slip
-- Cloudflare R2 private storage
-- 5-minute authorized presigned GET URLs
-- extension, MIME, and magic-byte validation
-- uploader-only deletion
-- attachment mutation only while production is `SUBMITTED`
-- no Cera Admin mutation override after production begins
-- post-production read access retained
-- assigned Scanning Staff read-only access through their Scan Booking
-- Scanning Staff remain blocked from general Lab Slip browse/detail routes
-- create-page attachment selection and partial-failure retry
-- Lab Slip detail attachment management
-- Scan Booking detail read-only attachment view for assigned Scanning Staff
-- backend and frontend regression suites passing
-- lint/build passing
-- manual scanner authorization QA passing
-- real Cloudflare R2 smoke test passing
+```text
+JPEG/JPG
+PNG
+WEBP
+PDF
+max 10 MB per file
+max 5 attachments
+private Cloudflare R2 / S3-compatible storage
+signed temporary access URLs
+```
 
-Known hardening item:
-
-- the five-attachment limit currently uses a count check and is not fully atomic under simultaneous uploads.
+Large raw scanner files remain excluded. Correction evidence reuses this private attachment infrastructure.
 
 ---
 
-# 21. Last Completed Module — Module 4D
+# 21. Next Module — Module 5A
 
 Module:
 
 ```text
-Lab Production Workflow
+In-App Notifications
 ```
 
 Status:
 
 ```text
-COMPLETE
+NEXT
 ```
 
-Final commit:
-
-```text
-b392224 feat: add lab production workflow
-```
-
-The commit is pushed and the working tree was confirmed clean.
+Before coding, define which events are genuinely actionable, who receives them, read/unread behavior, retention, deep links, and deduplication.
 
 ---
 
-# 22. Module 4D — Confirmed Business Rules
+# 22. Modules 4D–4F Completion Summary
 
-Production lifecycle:
+## Module 4D — Lab Production Workflow
 
-```text
-SUBMITTED → IN_PRODUCTION → COMPLETED
-```
+Status: **COMPLETE**
 
-Readiness:
+- `SUBMITTED → IN_PRODUCTION → COMPLETED` forward lifecycle
+- Cera Staff/Admin forward actions
+- Admin-only backward moves with required reason
+- scan-required production waits for completed scan
+- production history retained
+- Doctor/Clinic simplified production status
+- Lab Slip edit lock after production starts
 
-- non-scan case may start after submission
-- scan-required case requires related Scan Booking `COMPLETED`
-- scan completion does not auto-start Production
+## Module 4E — Private Attachments
 
-Permissions:
+Status: **COMPLETE**
 
-- Cera Admin + Cera Staff: forward transitions
-- Cera Admin only: backward transitions
-- backward reason required
-- Doctor / Clinic Staff / Scanning Staff cannot mutate Production
+- private JPEG/JPG, PNG, WEBP, PDF
+- 10 MB/file, maximum 5
+- private R2/S3-compatible storage with signed access
+- large raw scan files excluded
 
-Backward transitions:
+## Module 4F — Corrections / Issues
 
-```text
-COMPLETED → IN_PRODUCTION
-IN_PRODUCTION → SUBMITTED
-```
+Status: **COMPLETE**
 
-Direct `COMPLETED → SUBMITTED` is not allowed.
-
-Lab Slip editing:
-
-- normal editing locks at `IN_PRODUCTION`
-- remains locked at `COMPLETED`
-- Cera Admin may override with mandatory audited reason
-- Cera Staff / Doctor / Clinic Staff cannot override
-
-Visibility:
-
-```text
-Doctor/Clinic: Submitted → In Progress → Completed
-Cera:          Submitted → In Production → Completed
-```
-
-Completion means fabrication + final internal check complete; it does not mean delivery.
-
-No Production assignee in V1.
+- completed-production-only creation
+- Doctor/Clinic/Cera creation subject to resource authorization
+- one unresolved Correction per Lab Slip
+- historical Corrections retained
+- strict review/clarification/resolve/reject state machine
+- required terminal resolution outcome for resolved Corrections
+- private evidence attachments
+- terminal evidence read-only
+- no automatic rescan/reproduction record creation
+- original Lab Slip and Production remain intact
 
 ---
 
-# 23. Module 4D — Implemented Technical Areas
+# 23. Module 4F Verification Boundary
 
-Backend:
+Completed checks:
 
-- `PRODUCTION_STATUS` shared constants
-- Production model + indexes + history
-- atomic Lab Slip + Production transaction
-- local MongoDB replica set `rs0` for transaction support
-- production validation/service/controller/routes/serializer
-- queue filtering/pagination/detail
-- readiness + role/state enforcement
-- Lab Slip production edit lock + Admin override audit
+- focused Correction backend tests
+- focused Lab Slip → Correction frontend tests
+- full API test suite
+- full web test suite
+- `lint:api`
+- `lint:web`
+- web build
+- manual lifecycle/role/evidence QA
+- route placement verified so both Correction routes remain inside the authenticated portal wrapper
 
-Frontend:
-
-- Production queue
-- Production detail actions/history
-- role-aware controls
-- Lab Slip edit-lock screens
-- Admin override field
-- Doctor/Clinic production visibility
+The user reported all requested tests/checks passed.
 
 ---
 
-# 24. Module 4D — Verification
-
-Confirmed by user:
+# 24. Locked Correction Rules
 
 ```text
-focused tests passed
-full frontend tests passed
-full API tests passed
-frontend lint passed
-API lint passed
-frontend build passed
-manual QA passed
+OPEN → UNDER_REVIEW
+UNDER_REVIEW → AWAITING_CLARIFICATION
+AWAITING_CLARIFICATION → UNDER_REVIEW
+UNDER_REVIEW → RESOLVED
+UNDER_REVIEW → REJECTED
 ```
 
-Manual QA covered forward/backward transitions, scan readiness, role restrictions, edit lock/override, external/internal wording, and responsive behavior.
+Invalid transitions are rejected. `RESOLVED` and `REJECTED` are terminal.
 
----
+Clarification request and response notes are required. Start-review, resolution, and rejection notes are optional.
 
-# 25. Deliberate Non-Changes / Technical Notes
-
-- Production creation history begins empty; creation is not a transition.
-- No Production assignee in V1.
-- `COMPLETED` does not mean delivery.
-- Notifications remain future Module 5 work.
-- Attachments remain Module 4E.
-- Corrections remain Module 4F.
-- Production transitions currently use read-modify-save; concurrency hardening remains cross-workflow technical debt.
-- Reference-number gaps after a rolled-back Lab Slip creation transaction are accepted.
-- Local MongoDB remains single-node replica set `rs0`.
-
----
-
-# 26. Immediate Next Steps
-
-Module 4D requires no further finalization.
-
-Next:
+Resolution outcome is required and must be one of:
 
 ```text
-1. begin Module 4E — Private Attachments design
-2. retrieve only Module 4E deferred questions
-3. resolve blocking attachment ownership/permission/storage/security decisions
-4. then start the first vertical implementation checkpoint
+HANDLED
+RESCAN_REQUIRED
+REPRODUCTION_REQUIRED
 ```
 
----
-
-# 27. Manual Development Protocol
-
-The user normally manually runs commands and copies code into VS Code.
-
-For future source-code changes:
-
-1. inspect current files first
-2. give exact path and targeted/full replacement guidance
-3. run smallest relevant tests
-4. progress checkpoint by checkpoint
-
-The user explicitly authorized direct editing of the uploaded documentation source files for this final documentation pass.
+These outcomes are descriptive in Module 4F; they do not automatically create a new Scan Booking, Production cycle, or Lab Slip.
 
 ---
 
-# 28. Next Planned Module
+# 25. Suggested Module 5A Session Start
+
+Start by resolving only notification decisions that block Module 5A:
 
 ```text
-Module 4F — Corrections / Issues
+1. Which events create in-app notifications?
+2. Who receives each event?
+3. What notification content is safe/useful?
+4. Read/unread behavior?
+5. Retention?
+6. Deep links?
+7. Deduplication?
+8. Which events must NOT create notifications?
 ```
 
-Its ownership, permissions, deletion/retention, size, storage-provider, signed-access, and security-validation questions remain deferred until that module begins.
+Do not automatically add WhatsApp behavior during 5A. WhatsApp remains Module 5B.
 
 ---
 
-# 29. Handoff State
+# 26. Manual Development Protocol
+
+The user is manually copying code into VS Code. Continue checkpoint-by-checkpoint:
+
+1. inspect current relevant file before modifying it
+2. give exact path and targeted/full replacement instruction
+3. run the smallest relevant test
+4. fix failures before continuing
+5. run full regression/lint/build before module completion
+6. perform manual browser QA
+7. review Git diff/status
+8. commit and push before beginning the next module
+
+---
+
+# 27. Handoff State
 
 ```text
-MODULE 4E COMPLETE
-MODULE 4F NEXT
-DO NOT START MODULE 4F UNTIL MODULE 4E IS COMMITTED AND PUSHED
+MODULE 4F FUNCTIONALLY COMPLETE AND VERIFIED
+NEXT: MODULE 5A — IN-APP NOTIFICATIONS
 ```
+
+Current source-control step: review the final Module 4F diff, then commit and push.

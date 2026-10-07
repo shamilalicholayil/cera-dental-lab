@@ -28,6 +28,12 @@ import { getCatalogCategories, getCatalogProducts } from "../api/catalog";
 
 import { createLabSlip, getLabSlip, getLabSlips } from "../api/labSlips";
 
+import {
+  createCorrection,
+  getActiveCorrectionForLabSlip,
+  uploadCorrectionAttachment,
+} from "../api/corrections";
+
 vi.mock("../api/clinics", () => ({
   getAccessibleClinics: vi.fn(),
 
@@ -67,6 +73,14 @@ vi.mock("../api/labSlips", () => ({
   }),
 
   deleteLabSlipAttachment: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../api/corrections", () => ({
+  getActiveCorrectionForLabSlip: vi.fn(),
+
+  createCorrection: vi.fn(),
+
+  uploadCorrectionAttachment: vi.fn(),
 }));
 
 vi.mock("../components/portal/PortalHeader", () => ({
@@ -507,6 +521,11 @@ function renderLabSlipDetail(user = doctor) {
             path="/portal/lab-slips/:labSlipId"
             element={<LabSlipDetailPage />}
           />
+
+          <Route
+            path="/portal/corrections/:correctionId"
+            element={<div>Correction detail destination</div>}
+          />
         </Routes>
       </MemoryRouter>
     </Provider>,
@@ -522,6 +541,214 @@ describe("LabSlipDetailPage", () => {
         labSlip,
       },
     });
+
+    getActiveCorrectionForLabSlip.mockResolvedValue({
+      data: {
+        correction: null,
+      },
+    });
+
+    createCorrection.mockResolvedValue({
+      data: {
+        correction: {
+          id: "correction-1",
+        },
+      },
+    });
+
+    uploadCorrectionAttachment.mockResolvedValue({
+      data: {
+        attachment: {
+          id: "evidence-1",
+        },
+      },
+    });
+  });
+
+  it("offers Correction creation after production is completed", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.COMPLETED,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Raise Correction",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByLabelText("Describe the issue")).toBeInTheDocument();
+
+    expect(getActiveCorrectionForLabSlip).toHaveBeenCalledWith("slip-1");
+  });
+
+  it("shows the active Correction instead of allowing another unresolved Correction", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.COMPLETED,
+          },
+        },
+      },
+    });
+
+    getActiveCorrectionForLabSlip.mockResolvedValue({
+      data: {
+        correction: {
+          id: "correction-active-1",
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    const link = await screen.findByRole("link", {
+      name: "View Active Correction",
+    });
+
+    expect(link).toHaveAttribute(
+      "href",
+      "/portal/corrections/correction-active-1",
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Raise Correction",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("creates a Correction with description and affected Lab Slip items", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.COMPLETED,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    await screen.findByRole("button", {
+      name: "Raise Correction",
+    });
+
+    fireEvent.change(screen.getByLabelText("Describe the issue"), {
+      target: {
+        value: "The crown fit needs correction.",
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /Product 1: Zirconia Crown/i,
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Raise Correction",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(createCorrection).toHaveBeenCalledWith({
+        labSlipId: "slip-1",
+
+        description: "The crown fit needs correction.",
+
+        affectedLabSlipItemIds: ["item-1"],
+      });
+    });
+
+    expect(
+      await screen.findByText("Correction detail destination"),
+    ).toBeInTheDocument();
+  });
+
+  it("uploads optional initial evidence after creating the Correction", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.COMPLETED,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    await screen.findByRole("button", {
+      name: "Raise Correction",
+    });
+
+    fireEvent.change(screen.getByLabelText("Describe the issue"), {
+      target: {
+        value: "Please review this damage.",
+      },
+    });
+
+    const evidenceFile = new File(["evidence"], "damage.jpg", {
+      type: "image/jpeg",
+    });
+
+    fireEvent.change(screen.getByLabelText(/Initial evidence/i), {
+      target: {
+        files: [evidenceFile],
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Raise Correction",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(uploadCorrectionAttachment).toHaveBeenCalledWith(
+        "correction-1",
+        evidenceFile,
+      );
+    });
+
+    expect(
+      await screen.findByText("Correction detail destination"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer Correction creation before production is completed", async () => {
+    renderLabSlipDetail(doctor);
+
+    await screen.findByRole("heading", {
+      name: "CDL-2026-000001",
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Raise Correction",
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(getActiveCorrectionForLabSlip).not.toHaveBeenCalled();
   });
 
   it("shows Submitted production status to a Doctor", async () => {
