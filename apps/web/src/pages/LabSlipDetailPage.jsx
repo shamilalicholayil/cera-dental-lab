@@ -14,6 +14,8 @@ import { ScanRequestPanel } from "../components/scanBookings/ScanRequestPanel";
 
 import { selectCurrentUser } from "../features/auth/authSelectors";
 
+import { LabSlipAttachments } from "../components/labSlips/LabSlipAttachments";
+
 function getProductionStatusLabel(status, doctorFacing) {
   if (!status) {
     return "—";
@@ -110,6 +112,8 @@ export function LabSlipDetailPage() {
     slip.status === LAB_SLIP_STATUS.SUBMITTED &&
     Boolean(productionStatus) &&
     (!productionLocked || user?.role === USER_ROLES.CERA_ADMIN);
+
+  const canManageAttachments = productionStatus === PRODUCTION_STATUS.SUBMITTED;
 
   return (
     <main className="min-h-screen bg-[var(--cera-background)]">
@@ -281,6 +285,11 @@ export function LabSlipDetailPage() {
               </p>
             </div>
           )}
+
+          <LabSlipAttachments
+            labSlipId={slip.id}
+            allowUpload={canManageAttachments}
+          />
 
           <ScanRequestPanel labSlip={slip} />
         </section>

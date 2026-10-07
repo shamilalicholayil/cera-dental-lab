@@ -35,3 +35,30 @@ export function updateLabSlip(labSlipId, payload) {
     body: payload,
   });
 }
+
+export function uploadLabSlipAttachment(labSlipId, file) {
+  const body = new FormData();
+
+  body.append("attachment", file);
+
+  return apiRequest(`/lab-slips/${labSlipId}/attachments`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function getLabSlipAttachments(labSlipId) {
+  return apiRequest(`/lab-slips/${labSlipId}/attachments`);
+}
+
+export function getLabSlipAttachmentAccess(labSlipId, attachmentId) {
+  return apiRequest(
+    `/lab-slips/${labSlipId}/attachments/${attachmentId}/access`,
+  );
+}
+
+export function deleteLabSlipAttachment(labSlipId, attachmentId) {
+  return apiRequest(`/lab-slips/${labSlipId}/attachments/${attachmentId}`, {
+    method: "DELETE",
+  });
+}

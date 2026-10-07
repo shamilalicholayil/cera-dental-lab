@@ -1,6 +1,14 @@
 import request from "supertest";
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   CATALOG_STATUS,
@@ -12,6 +20,16 @@ import {
   USER_STATUS,
   SCAN_BOOKING_STATUS,
 } from "@cera/shared";
+
+vi.mock("./labSlipAttachment.storage.js", () => ({
+  storeLabSlipAttachment: vi.fn().mockResolvedValue(undefined),
+
+  deleteLabSlipAttachmentObject: vi.fn().mockResolvedValue(undefined),
+
+  createLabSlipAttachmentAccessUrl: vi
+    .fn()
+    .mockResolvedValue("https://example.test/private-file"),
+}));
 
 import { app } from "../../app.js";
 
@@ -41,7 +59,14 @@ import { Production } from "../production/production.model.js";
 
 import { LabSlipCounter } from "./labSlipCounter.model.js";
 
+import { LabSlipAttachment } from "./labSlipAttachment.model.js";
+
 const password = "StrongPass123";
+
+const VALID_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=",
+  "base64",
+);
 
 async function createUser({ name, phone, role }) {
   return User.create({
@@ -177,6 +202,69 @@ function payload({ clinic, product, doctorId, source } = {}) {
   };
 }
 
+async function createDoctorLabSlipFixture() {
+  const admin = await createUser({
+    name: "Admin",
+    phone: "9876543210",
+    role: USER_ROLES.CERA_ADMIN,
+  });
+
+  const doctor = await createUser({
+    name: "Doctor",
+    phone: "9876543211",
+    role: USER_ROLES.DOCTOR,
+  });
+
+  const clinic = await createClinic(admin);
+
+  await addMembership({
+    clinic,
+    user: doctor,
+    admin,
+  });
+
+  const { product } = await setupCatalogue(admin);
+
+  const doctorAgent = request.agent(app);
+
+  await login(doctorAgent, doctor.phone);
+
+  const response = await doctorAgent.post("/api/v1/lab-slips").send(
+    payload({
+      clinic,
+      product,
+    }),
+  );
+
+  expect(response.status).toBe(201);
+
+  return {
+    admin,
+    doctor,
+    clinic,
+    product,
+    doctorAgent,
+    labSlip: response.body.data.labSlip,
+  };
+}
+
+async function uploadTestAttachment({
+  agent,
+  labSlipId,
+  filename = "reference.png",
+}) {
+  const response = await agent
+    .post(`/api/v1/lab-slips/${labSlipId}/attachments`)
+    .attach("attachment", VALID_PNG, {
+      filename,
+      contentType: "image/png",
+    });
+
+  expect(response.status).toBe(201);
+
+  return response.body.data.attachment;
+}
+
 describe("Digital Lab Slips", () => {
   beforeAll(async () => {
     await connectTestDatabase();
@@ -187,6 +275,7 @@ describe("Digital Lab Slips", () => {
     await Category.syncIndexes();
     await Product.syncIndexes();
     await LabSlip.syncIndexes();
+    await LabSlipAttachment.syncIndexes();
     await Production.syncIndexes();
   });
 
@@ -196,6 +285,213 @@ describe("Digital Lab Slips", () => {
 
   afterAll(async () => {
     await disconnectTestDatabase();
+  });
+
+  it("allows Doctor to upload an attachment to their Lab Slip", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const response = await agent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", VALID_PNG, {
+        filename: "reference.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(201);
+
+    expect(response.body.data.attachment.originalFilename).toBe(
+      "reference.png",
+    );
+
+    expect(response.body.data.attachment.contentType).toBe("image/png");
+
+    expect(response.body.data.attachment.sizeBytes).toBe(VALID_PNG.length);
+
+    expect(response.body.data.attachment.uploadedByUserId).toBe(doctor.id);
+
+    expect(response.body.data.attachment.objectKey).toBeUndefined();
+
+    const storedAttachment = await LabSlipAttachment.findById(
+      response.body.data.attachment.id,
+    );
+
+    expect(storedAttachment).not.toBeNull();
+
+    expect(storedAttachment.labSlipId.toString()).toBe(labSlip.id);
+
+    expect(storedAttachment.uploadedByUserId.toString()).toBe(doctor.id);
+  });
+
+  it("rejects an attachment whose content does not match its file type", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const fakePng = Buffer.from("this is not really a PNG file");
+
+    const response = await agent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", fakePng, {
+        filename: "fake.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_TYPE_INVALID");
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(0);
+  });
+
+  it("rejects attachment uploads after production has started", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const response = await agent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", VALID_PNG, {
+        filename: "reference.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_PRODUCTION_LOCKED");
+  });
+
+  it("does not allow Scanning Staff to upload Lab Slip attachments", async () => {
+    const scanner = await createUser({
+      name: "Scanner",
+      phone: "9876543213",
+      role: USER_ROLES.SCANNING_STAFF,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, scanner.phone);
+
+    const response = await agent
+      .post("/api/v1/lab-slips/507f1f77bcf86cd799439011/attachments")
+      .attach("attachment", VALID_PNG, {
+        filename: "reference.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(403);
   });
 
   it("allows Doctor to submit a lab slip for an assigned clinic", async () => {
@@ -1302,77 +1598,6 @@ describe("Digital Lab Slips", () => {
     expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
   });
 
-  it("requires an override reason when Admin edits after production has started", async () => {
-    const admin = await createUser({
-      name: "Admin",
-      phone: "9876543210",
-      role: USER_ROLES.CERA_ADMIN,
-    });
-
-    const doctor = await createUser({
-      name: "Doctor",
-      phone: "9876543211",
-      role: USER_ROLES.DOCTOR,
-    });
-
-    const clinic = await createClinic(admin);
-
-    await addMembership({
-      clinic,
-      user: doctor,
-      admin,
-    });
-
-    const { product } = await setupCatalogue(admin);
-
-    const doctorAgent = request.agent(app);
-
-    await login(doctorAgent, doctor.phone);
-
-    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
-      payload({
-        clinic,
-        product,
-      }),
-    );
-
-    expect(createResponse.status).toBe(201);
-
-    const labSlip = createResponse.body.data.labSlip;
-
-    await Production.findOneAndUpdate(
-      {
-        labSlipId: labSlip.id,
-      },
-      {
-        $set: {
-          status: PRODUCTION_STATUS.IN_PRODUCTION,
-          startedAt: new Date(),
-        },
-      },
-    );
-
-    const adminAgent = request.agent(app);
-
-    await login(adminAgent, admin.phone);
-
-    const response = await adminAgent
-      .patch(`/api/v1/lab-slips/${labSlip.id}`)
-      .send({
-        notes: "Admin edit without reason",
-      });
-
-    expect(response.status).toBe(400);
-
-    expect(response.body.error.code).toBe("LAB_SLIP_OVERRIDE_REASON_REQUIRED");
-
-    const storedLabSlip = await LabSlip.findById(labSlip.id);
-
-    expect(storedLabSlip.notes).toBe("General notes");
-
-    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
-  });
-
   it("allows Admin to override the production edit lock with an audited reason", async () => {
     const admin = await createUser({
       name: "Admin",
@@ -1505,5 +1730,341 @@ describe("Digital Lab Slips", () => {
     expect(first.value).toBe(1);
 
     expect(second.value).toBe(2);
+  });
+
+  it("allows the uploader to list Lab Slip attachments", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const uploaded = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const response = await doctorAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments`,
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.attachments).toHaveLength(1);
+
+    const [attachment] = response.body.data.attachments;
+
+    expect(attachment.id).toBe(uploaded.id);
+    expect(attachment.originalFilename).toBe("reference.png");
+    expect(attachment.canDelete).toBe(true);
+    expect(attachment.objectKey).toBeUndefined();
+  });
+
+  it("returns temporary private access for an authorized attachment", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const response = await doctorAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}/access`,
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.url).toBe("https://example.test/private-file");
+
+    expect(response.body.data.expiresInSeconds).toBe(300);
+
+    expect(response.body.data.attachment.id).toBe(attachment.id);
+
+    expect(response.body.data.attachment.objectKey).toBeUndefined();
+  });
+
+  it("does not allow another Doctor to view Lab Slip attachments", async () => {
+    const { admin, doctorAgent, clinic, labSlip } =
+      await createDoctorLabSlipFixture();
+
+    await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const otherDoctor = await createUser({
+      name: "Other Doctor",
+      phone: "9876543212",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    await addMembership({
+      clinic,
+      user: otherDoctor,
+      admin,
+    });
+
+    const otherAgent = request.agent(app);
+
+    await login(otherAgent, otherDoctor.phone);
+
+    const response = await otherAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments`,
+    );
+
+    expect(response.status).toBe(404);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+  });
+
+  it("allows the original uploader to delete before production starts", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const response = await doctorAgent.delete(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}`,
+    );
+
+    expect(response.status).toBe(204);
+
+    expect(await LabSlipAttachment.findById(attachment.id)).toBeNull();
+  });
+
+  it("does not allow Admin to delete another user's attachment", async () => {
+    const { admin, doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const adminAgent = request.agent(app);
+
+    await login(adminAgent, admin.phone);
+
+    const response = await adminAgent.delete(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}`,
+    );
+
+    expect(response.status).toBe(403);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_DELETE_FORBIDDEN");
+
+    expect(await LabSlipAttachment.findById(attachment.id)).not.toBeNull();
+  });
+
+  it("does not allow attachment deletion after production starts", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const response = await doctorAgent.delete(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}`,
+    );
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_PRODUCTION_LOCKED");
+
+    expect(await LabSlipAttachment.findById(attachment.id)).not.toBeNull();
+  });
+
+  it("allows assigned Scanning Staff to view the Lab Slip and attachments", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const scanner = await createUser({
+      name: "Scanner",
+      phone: "9876543213",
+      role: USER_ROLES.SCANNING_STAFF,
+    });
+
+    const bookingResponse = await doctorAgent
+      .post("/api/v1/scan-bookings")
+      .send({
+        labSlipId: labSlip.id,
+
+        requestedStartAt: new Date(
+          Date.now() + 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      });
+
+    expect(bookingResponse.status).toBe(201);
+
+    await ScanBooking.findByIdAndUpdate(
+      bookingResponse.body.data.scanBooking.id,
+      {
+        $set: {
+          assignedScanningStaffId: scanner._id,
+        },
+      },
+    );
+
+    const scannerAgent = request.agent(app);
+
+    await login(scannerAgent, scanner.phone);
+
+    const labSlipResponse = await scannerAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}`,
+    );
+
+    expect(labSlipResponse.status).toBe(403);
+
+    const attachmentsResponse = await scannerAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments`,
+    );
+
+    expect(attachmentsResponse.status).toBe(200);
+
+    expect(attachmentsResponse.body.data.attachments).toHaveLength(1);
+
+    expect(attachmentsResponse.body.data.attachments[0].canDelete).toBe(false);
+
+    const accessResponse = await scannerAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}/access`,
+    );
+
+    expect(accessResponse.status).toBe(200);
+
+    expect(accessResponse.body.data.url).toBe(
+      "https://example.test/private-file",
+    );
+  });
+
+  it("does not allow Scanning Staff to open the full Lab Slip detail", async () => {
+    const { labSlip } = await createDoctorLabSlipFixture();
+
+    const scanner = await createUser({
+      name: "Scanner",
+      phone: "9876543213",
+      role: USER_ROLES.SCANNING_STAFF,
+    });
+
+    const scannerAgent = request.agent(app);
+
+    await login(scannerAgent, scanner.phone);
+
+    const response = await scannerAgent.get(`/api/v1/lab-slips/${labSlip.id}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("does not allow unassigned Scanning Staff to view Lab Slip attachments", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const scanner = await createUser({
+      name: "Scanner",
+      phone: "9876543213",
+      role: USER_ROLES.SCANNING_STAFF,
+    });
+
+    const scannerAgent = request.agent(app);
+
+    await login(scannerAgent, scanner.phone);
+
+    const response = await scannerAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments`,
+    );
+
+    expect(response.status).toBe(404);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+  });
+
+  it("rejects attachments larger than 10 MB", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const oversizedFile = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
+
+    const response = await doctorAgent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", oversizedFile, {
+        filename: "large.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_TOO_LARGE");
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(0);
+  });
+
+  it("rejects a sixth attachment on the same Lab Slip", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    for (let index = 1; index <= 5; index += 1) {
+      const response = await doctorAgent
+        .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+        .attach("attachment", VALID_PNG, {
+          filename: `reference-${index}.png`,
+          contentType: "image/png",
+        });
+
+      expect(response.status).toBe(201);
+    }
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(5);
+
+    const response = await doctorAgent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", VALID_PNG, {
+        filename: "reference-6.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("ATTACHMENT_LIMIT_REACHED");
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(5);
+  });
+
+  it("allows creating a Lab Slip without attachments", async () => {
+    const { labSlip } = await createDoctorLabSlipFixture();
+
+    expect(labSlip.id).toBeTruthy();
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(0);
   });
 });

@@ -24,15 +24,11 @@ It is not a substitute for the full project documentation.
 
 Last completed module:
 
-```text
-Module 4C — Scan Rescheduling
-```
+Module 4E — Private Attachments
 
 Current next module:
 
-```text
-Module 4D — Lab Production Workflow
-```
+Module 4F — Corrections / Issues
 
 Current development mode:
 
@@ -569,24 +565,36 @@ Do not add automatic WhatsApp behavior inside Module 4D unless explicitly decide
 
 ---
 
-# 20. Current Attachment Direction
+# 20. Module 4E — Private Attachments
 
-Attachments are planned but not yet implemented.
+Status: **COMPLETE**
 
-Planned supported types:
+Implemented and verified:
 
-```text
-JPEG
-PNG
-WEBP
-PDF
-```
+- Lab Slip-only supporting attachments
+- JPEG / PNG / WEBP / PDF
+- 10 MB maximum per attachment
+- maximum 5 per Lab Slip
+- Cloudflare R2 private storage
+- 5-minute authorized presigned GET URLs
+- extension, MIME, and magic-byte validation
+- uploader-only deletion
+- attachment mutation only while production is `SUBMITTED`
+- no Cera Admin mutation override after production begins
+- post-production read access retained
+- assigned Scanning Staff read-only access through their Scan Booking
+- Scanning Staff remain blocked from general Lab Slip browse/detail routes
+- create-page attachment selection and partial-failure retry
+- Lab Slip detail attachment management
+- Scan Booking detail read-only attachment view for assigned Scanning Staff
+- backend and frontend regression suites passing
+- lint/build passing
+- manual scanner authorization QA passing
+- real Cloudflare R2 smoke test passing
 
-Attachments must be private.
+Known hardening item:
 
-Large raw scanner files remain excluded.
-
-Object-storage provider and permissions are not yet locked.
+- the five-attachment limit currently uses a count check and is not fully atomic under simultaneous uploads.
 
 ---
 
@@ -753,7 +761,7 @@ The user explicitly authorized direct editing of the uploaded documentation sour
 # 28. Next Planned Module
 
 ```text
-Module 4E — Private Attachments
+Module 4F — Corrections / Issues
 ```
 
 Its ownership, permissions, deletion/retention, size, storage-provider, signed-access, and security-validation questions remain deferred until that module begins.
@@ -763,8 +771,7 @@ Its ownership, permissions, deletion/retention, size, storage-provider, signed-a
 # 29. Handoff State
 
 ```text
-MODULE 4D COMPLETE
-COMMITTED + PUSHED
-CLEAN WORKING TREE CONFIRMED
-READY FOR MODULE 4E DESIGN
+MODULE 4E COMPLETE
+MODULE 4F NEXT
+DO NOT START MODULE 4F UNTIL MODULE 4E IS COMMITTED AND PUSHED
 ```

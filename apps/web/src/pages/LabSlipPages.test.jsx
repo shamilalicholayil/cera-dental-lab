@@ -46,6 +46,27 @@ vi.mock("../api/labSlips", () => ({
   getLabSlips: vi.fn(),
 
   getLabSlip: vi.fn(),
+
+  getLabSlipAttachments: vi.fn().mockResolvedValue({
+    data: {
+      attachments: [],
+    },
+  }),
+
+  getLabSlipAttachmentAccess: vi.fn().mockResolvedValue({
+    data: {
+      url: "https://example.test/private-file",
+      expiresInSeconds: 300,
+    },
+  }),
+
+  uploadLabSlipAttachment: vi.fn().mockResolvedValue({
+    data: {
+      attachment: {},
+    },
+  }),
+
+  deleteLabSlipAttachment: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../components/portal/PortalHeader", () => ({

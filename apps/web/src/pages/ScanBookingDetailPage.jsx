@@ -28,6 +28,8 @@ import {
 
 import { PortalHeader } from "../components/portal/PortalHeader";
 
+import { LabSlipAttachments } from "../components/labSlips/LabSlipAttachments";
+
 import { SCAN_BOOKING_STATUS_LABELS } from "../constants/scanBookingDisplay";
 
 import { selectCurrentUser } from "../features/auth/authSelectors";
@@ -278,6 +280,14 @@ export function ScanBookingDetailPage() {
                 {booking.assignedScanningStaff.name}
               </p>
             </div>
+          )}
+
+          {scanner && booking.labSlip?.id && (
+            <LabSlipAttachments
+              labSlipId={booking.labSlip.id}
+              allowUpload={false}
+              showReadOnlyNotice={false}
+            />
           )}
         </section>
 

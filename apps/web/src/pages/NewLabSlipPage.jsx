@@ -10,7 +10,7 @@ import { getCatalogCategories, getCatalogProducts } from "../api/catalog";
 
 import { getAccessibleClinics, getClinicDoctors } from "../api/clinics";
 
-import { createLabSlip } from "../api/labSlips";
+import { createLabSlip, uploadLabSlipAttachment } from "../api/labSlips";
 
 import { PortalHeader } from "../components/portal/PortalHeader";
 
@@ -25,6 +25,60 @@ const blankItem = () => ({
   ponticDesign: "",
   designNotes: "",
 });
+
+const MAX_ATTACHMENT_COUNT = 5;
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+const ATTACHMENT_TYPES = Object.freeze({
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+});
+
+function getFileExtension(filename) {
+  const dotIndex = filename.lastIndexOf(".");
+
+  if (dotIndex === -1) {
+    return "";
+  }
+
+  return filename.slice(dotIndex).toLowerCase();
+}
+
+function validateAttachment(file) {
+  const extension = getFileExtension(file.name);
+
+  const expectedType = ATTACHMENT_TYPES[extension];
+
+  if (!expectedType) {
+    return "Only JPEG, PNG, WEBP, and PDF files are allowed.";
+  }
+
+  if (file.type && file.type !== expectedType) {
+    return `${file.name} does not match its file extension.`;
+  }
+
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    return `${file.name} is larger than 10 MB.`;
+  }
+
+  if (file.size === 0) {
+    return `${file.name} is empty.`;
+  }
+
+  return null;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.ceil(bytes / 1024)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function NewLabSlipPage() {
   const navigate = useNavigate();
@@ -44,6 +98,16 @@ export function NewLabSlipPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [error, setError] = useState(null);
+
+  const [selectedAttachments, setSelectedAttachments] = useState([]);
+
+  const [attachmentError, setAttachmentError] = useState(null);
+
+  const [createdLabSlipId, setCreatedLabSlipId] = useState(null);
+
+  const [failedAttachments, setFailedAttachments] = useState([]);
+
+  const [retryingAttachments, setRetryingAttachments] = useState(false);
 
   const [form, setForm] = useState({
     clinicId: "",
@@ -198,6 +262,68 @@ export function NewLabSlipPage() {
     }));
   }
 
+  function handleAttachmentSelection(event) {
+    const files = Array.from(event.target.files || []);
+
+    event.target.value = "";
+
+    setAttachmentError(null);
+
+    if (!files.length) {
+      return;
+    }
+
+    if (selectedAttachments.length + files.length > MAX_ATTACHMENT_COUNT) {
+      setAttachmentError(
+        `You can attach a maximum of ${MAX_ATTACHMENT_COUNT} files.`,
+      );
+
+      return;
+    }
+
+    for (const file of files) {
+      const validationError = validateAttachment(file);
+
+      if (validationError) {
+        setAttachmentError(validationError);
+        return;
+      }
+    }
+
+    setSelectedAttachments((current) => [
+      ...current,
+      ...files.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+      })),
+    ]);
+  }
+
+  function removeSelectedAttachment(id) {
+    setSelectedAttachments((current) =>
+      current.filter((attachment) => attachment.id !== id),
+    );
+
+    setAttachmentError(null);
+  }
+
+  async function uploadAttachments(labSlipId, attachments) {
+    const failures = [];
+
+    for (const attachment of attachments) {
+      try {
+        await uploadLabSlipAttachment(labSlipId, attachment.file);
+      } catch (uploadError) {
+        failures.push({
+          ...attachment,
+          error: uploadError.message || "Unable to upload this attachment.",
+        });
+      }
+    }
+
+    return failures;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -264,14 +390,143 @@ export function NewLabSlipPage() {
 
       const response = await createLabSlip(payload);
 
-      navigate(`/portal/lab-slips/${response.data.labSlip.id}`, {
-        replace: true,
-      });
+      const labSlipId = response.data.labSlip.id;
+
+      if (selectedAttachments.length === 0) {
+        navigate(`/portal/lab-slips/${labSlipId}`, {
+          replace: true,
+        });
+
+        return;
+      }
+
+      const failures = await uploadAttachments(labSlipId, selectedAttachments);
+
+      if (failures.length === 0) {
+        navigate(`/portal/lab-slips/${labSlipId}`, {
+          replace: true,
+        });
+
+        return;
+      }
+
+      /*
+       * The Lab Slip itself has already been created.
+       *
+       * Do not present this as a Lab Slip creation failure and
+       * never create another Lab Slip just because one or more
+       * optional attachment uploads failed.
+       */
+      setCreatedLabSlipId(labSlipId);
+
+      setFailedAttachments(failures);
     } catch (requestError) {
       setError(requestError.message || "Unable to submit the lab slip.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function retryFailedAttachments() {
+    if (!createdLabSlipId || failedAttachments.length === 0) {
+      return;
+    }
+
+    setRetryingAttachments(true);
+
+    try {
+      const failures = await uploadAttachments(
+        createdLabSlipId,
+        failedAttachments,
+      );
+
+      if (failures.length === 0) {
+        navigate(`/portal/lab-slips/${createdLabSlipId}`, {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setFailedAttachments(failures);
+    } finally {
+      setRetryingAttachments(false);
+    }
+  }
+
+  if (createdLabSlipId && failedAttachments.length > 0) {
+    return (
+      <main className="min-h-screen bg-[var(--cera-background)]">
+        <PortalHeader />
+
+        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-8">
+          <div className="rounded-2xl border border-amber-200 bg-white p-6">
+            <p className="text-sm font-medium text-amber-700">
+              Lab Slip created
+            </p>
+
+            <h1 className="mt-2 text-2xl font-semibold text-[var(--cera-navy-950)]">
+              Some attachments could not be uploaded
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-[var(--cera-text-muted)]">
+              Your Lab Slip has been saved. You can retry the failed files
+              without creating another Lab Slip.
+            </p>
+
+            <div className="mt-6 space-y-3">
+              {failedAttachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="rounded-xl border border-[var(--cera-border)] p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {attachment.file.name}
+                      </p>
+
+                      <p className="mt-1 text-xs text-[var(--cera-text-muted)]">
+                        {formatFileSize(attachment.file.size)}
+                      </p>
+
+                      <p className="mt-2 text-sm text-red-600">
+                        {attachment.error}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={retryFailedAttachments}
+                disabled={retryingAttachments}
+                className="h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {retryingAttachments
+                  ? "Retrying..."
+                  : "Retry failed attachments"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/portal/lab-slips/${createdLabSlipId}`, {
+                    replace: true,
+                  })
+                }
+                className="h-11 rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-semibold text-[var(--cera-navy-950)]"
+              >
+                Continue to Lab Slip
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (loading) {
@@ -664,7 +919,10 @@ export function NewLabSlipPage() {
                 htmlFor="lab-notes"
                 className="mb-2 block text-sm font-medium"
               >
-                General notes
+                General notes{" "}
+                <span className="font-normal text-[var(--cera-text-muted)]">
+                  optional
+                </span>
               </label>
 
               <textarea
@@ -680,6 +938,81 @@ export function NewLabSlipPage() {
                 }
                 className="w-full rounded-xl border border-[var(--cera-border)] px-4 py-3"
               />
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor="lab-attachments"
+                  className="block text-sm font-medium"
+                >
+                  Attachments{" "}
+                  <span className="font-normal text-[var(--cera-text-muted)]">
+                    optional
+                  </span>
+                </label>
+
+                <span className="text-xs text-[var(--cera-text-muted)]">
+                  {selectedAttachments.length}/{MAX_ATTACHMENT_COUNT}
+                </span>
+              </div>
+
+              <p className="mt-1 text-sm text-[var(--cera-text-muted)]">
+                Add photos or PDFs that help Cera understand the case. Maximum
+                10 MB per file.
+              </p>
+
+              <input
+                id="lab-attachments"
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                onChange={handleAttachmentSelection}
+                disabled={
+                  submitting ||
+                  selectedAttachments.length >= MAX_ATTACHMENT_COUNT
+                }
+                className="mt-3 block w-full rounded-xl border border-[var(--cera-border)] bg-white px-4 py-3 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold"
+              />
+
+              {attachmentError && (
+                <p
+                  role="alert"
+                  className="mt-2 text-sm font-medium text-red-600"
+                >
+                  {attachmentError}
+                </p>
+              )}
+
+              {selectedAttachments.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {selectedAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-[var(--cera-border)] px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {attachment.file.name}
+                        </p>
+
+                        <p className="mt-1 text-xs text-[var(--cera-text-muted)]">
+                          {formatFileSize(attachment.file.size)}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedAttachment(attachment.id)}
+                        disabled={submitting}
+                        className="shrink-0 text-sm font-medium text-red-600 disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--cera-border)] p-4">
@@ -729,7 +1062,11 @@ export function NewLabSlipPage() {
                 disabled={submitting}
                 className="h-12 rounded-xl bg-[var(--cera-navy-900)] px-7 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {submitting ? "Submitting..." : "Submit Lab Slip"}
+                {submitting
+                  ? selectedAttachments.length > 0
+                    ? "Submitting case..."
+                    : "Submitting..."
+                  : "Submit Lab Slip"}
               </button>
             </div>
           </div>

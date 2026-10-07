@@ -477,6 +477,17 @@ export async function getLabSlip({ user, labSlipId }) {
     }
   }
 
+  if (user.role === USER_ROLES.SCANNING_STAFF) {
+    const assignedBooking = await ScanBooking.exists({
+      labSlipId: labSlip._id,
+      assignedScanningStaffId: user._id,
+    });
+
+    if (!assignedBooking) {
+      throw new AppError("Lab slip not found", 404, "LAB_SLIP_NOT_FOUND");
+    }
+  }
+
   return labSlip;
 }
 

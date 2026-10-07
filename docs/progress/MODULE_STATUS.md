@@ -81,32 +81,32 @@ Module 4E — Private Attachments
 
 # 4. Module Summary
 
-| Module | Name | Status |
-|---|---|---|
-| 0 | Foundation | COMPLETE |
-| 1A | User + Password Foundation | COMPLETE |
-| 1B | Login | COMPLETE |
-| 1C | Persistent Authentication | COMPLETE |
-| 1D | Logout | COMPLETE |
-| 2A | Role Authorization | COMPLETE |
-| 2B | Invitations & User Management | COMPLETE |
-| 3A | Clinics & Memberships | COMPLETE |
-| 3B | Product Catalogue | COMPLETE |
-| 4A | Digital Lab Slip Core | COMPLETE |
-| 4B | Scan Booking Core + Lab Slip Editing | COMPLETE |
-| 4C | Scan Rescheduling | COMPLETE |
-| 4D | Lab Production Workflow | COMPLETE |
-| 4E | Private Attachments | PLANNED |
-| 4F | Corrections / Issues | PLANNED |
-| 5A | In-App Notifications | PLANNED |
-| 5B | WhatsApp Notifications | PLANNED |
-| 6A | Doctor Dashboard Refinement | PLANNED |
-| 6B | Cera Operations Dashboard | PLANNED |
-| 6C | Scanning Staff Mobile Refinement | PLANNED |
-| 7 | Security & Cross-Module Hardening | PLANNED |
-| 8 | End-to-End Regression Testing | PLANNED |
-| 9 | Production Deployment | PLANNED |
-| 10 | Final Documentation & Monitoring | PLANNED |
+| Module | Name                                 | Status   |
+| ------ | ------------------------------------ | -------- |
+| 0      | Foundation                           | COMPLETE |
+| 1A     | User + Password Foundation           | COMPLETE |
+| 1B     | Login                                | COMPLETE |
+| 1C     | Persistent Authentication            | COMPLETE |
+| 1D     | Logout                               | COMPLETE |
+| 2A     | Role Authorization                   | COMPLETE |
+| 2B     | Invitations & User Management        | COMPLETE |
+| 3A     | Clinics & Memberships                | COMPLETE |
+| 3B     | Product Catalogue                    | COMPLETE |
+| 4A     | Digital Lab Slip Core                | COMPLETE |
+| 4B     | Scan Booking Core + Lab Slip Editing | COMPLETE |
+| 4C     | Scan Rescheduling                    | COMPLETE |
+| 4D     | Lab Production Workflow              | COMPLETE |
+| 4E     | Private Attachments                  | COMPLETE |
+| 4F     | Corrections / Issues                 | NEXT     |
+| 5A     | In-App Notifications                 | PLANNED  |
+| 5B     | WhatsApp Notifications               | PLANNED  |
+| 6A     | Doctor Dashboard Refinement          | PLANNED  |
+| 6B     | Cera Operations Dashboard            | PLANNED  |
+| 6C     | Scanning Staff Mobile Refinement     | PLANNED  |
+| 7      | Security & Cross-Module Hardening    | PLANNED  |
+| 8      | End-to-End Regression Testing        | PLANNED  |
+| 9      | Production Deployment                | PLANNED  |
+| 10     | Final Documentation & Monitoring     | PLANNED  |
 
 ---
 
@@ -706,33 +706,62 @@ Git finalization:
 
 # 18. Module 4E — Private Attachments
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Confirmed direction:
+Implemented:
 
-- supporting files only
-- private access
-- JPEG
-- PNG
-- WEBP
-- PDF
-- large raw intraoral scan files excluded
+- attachments belong to Lab Slips only in V1
+- supporting files only; raw intraoral scan files are excluded
+- JPEG, PNG, WEBP, and PDF
+- maximum 10 MB per attachment
+- maximum 5 attachments per Lab Slip
+- Cloudflare R2 private object storage
+- S3-compatible R2 integration
+- private objects; no permanent public URLs
+- 5-minute presigned GET URLs created only after backend authorization
+- attachment metadata stored separately from binary contents
+- extension validation
+- declared MIME validation
+- magic-byte/file-signature validation
+- mismatched or unsupported files rejected
+- Doctor, Clinic Staff, Cera Staff, and Cera Admin access follows Lab Slip authorization
+- Scanning Staff receive narrow read-only attachment access only when assigned to the related Scan Booking
+- Scanning Staff remain denied general Lab Slip browsing/detail access
+- upload and deletion allowed only while production status is `SUBMITTED`
+- only the original uploader may delete an attachment
+- Cera Admin has no attachment mutation override after production begins
+- existing attachments remain readable after production starts
+- Lab Slip creation supports optional attachments
+- Lab Slip is created before selected attachments are uploaded
+- partial attachment upload failure does not delete or duplicate the Lab Slip
+- failed attachment uploads can be retried
+- Lab Slip detail supports attachment listing, viewing, adding, and permitted deletion
+- assigned Scanning Staff can view attachments from Scan Booking detail without gaining general Lab Slip access
+- loading, error, empty, validation, and read-only UI states implemented
+- backend tests pass
+- frontend tests pass
+- API/frontend lint passes
+- frontend build passes
+- manual Scanning Staff authorization QA passed
+- real Cloudflare R2 upload/view/delete smoke test passed
 
-Open:
+Known hardening item:
 
-- ownership
-- permissions
-- deletion/retention
-- max size
-- object-storage provider
-- signed access
-- security validation
+- the maximum-five count check is not fully atomic across simultaneous concurrent uploads; future hardening may make this concurrency-safe if required.
+
+Explicitly out of scope:
+
+- direct intraoral scanner integration
+- raw intraoral scan-file storage
+- generic attachment ownership across arbitrary entities
+- correction attachments until Module 4F defines that relationship
+- malware/antivirus scanning in V1
 
 ---
 
 # 19. Module 4F — Corrections / Issues
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Confirmed principle:
 
@@ -1018,7 +1047,7 @@ b392224 feat: add lab production workflow
 Current next goal:
 
 ```text
-Module 4E — Private Attachments
+Module 4F — Corrections / Issues
 ```
 
 Module 4D is complete and must not be reopened unless a concrete defect or changed requirement requires it.
