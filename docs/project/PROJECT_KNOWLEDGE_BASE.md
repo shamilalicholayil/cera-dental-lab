@@ -1111,7 +1111,7 @@ Status: **REPOSITORY-DERIVED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Modules 0 through 4C are committed/pushed and complete. Module 4D Lab Production Workflow is implemented, fully tested/linted/built, and manually verified, but remains IN PROGRESS until final Git review, commit, push, and clean working tree are confirmed.
+**Canonical answer:** Modules 0 through 4D are committed/pushed and complete. Module 4D Lab Production Workflow passed automated tests, lint, frontend build, manual QA, documentation finalization, and Git finalization. Final commit: `b392224 feat: add lab production workflow`.
 
 **Keywords:** completed modules, progress, Module 4D
 
@@ -1123,7 +1123,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** After Module 4D is committed and pushed, the next planned module is 4E — Private Attachments. Do not start 4E before Module 4D Git finalization and clean working tree confirmation.
+**Canonical answer:** Module 4E — Private Attachments is the next planned module. Module 4D is complete, committed, pushed, and the working tree was confirmed clean.
 
 **Keywords:** next module, 4E, attachments
 

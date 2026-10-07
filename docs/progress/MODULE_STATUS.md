@@ -46,31 +46,32 @@ DEFERRED
 
 # 3. Current Project Position
 
-Last committed/pushed completed boundary:
-
-```text
-Module 4C — Scan Rescheduling
-```
-
-Current module:
+Current committed/pushed completed boundary:
 
 ```text
 Module 4D — Lab Production Workflow
 ```
 
-Current Module 4D state:
+Module 4D final state:
 
 ```text
-IMPLEMENTED
+COMPLETE
 AUTOMATED TESTS PASSED
-FRONTEND/ BACKEND LINT PASSED
+FRONTEND / BACKEND LINT PASSED
 FRONTEND BUILD PASSED
 MANUAL QA PASSED
-DOCUMENTATION UPDATE IN PROGRESS
-PENDING FINAL GIT REVIEW / COMMIT / PUSH
+DOCUMENTATION UPDATED
+COMMITTED + PUSHED
+CLEAN WORKING TREE CONFIRMED
 ```
 
-Next planned module after Module 4D is finalized:
+Final Module 4D commit:
+
+```text
+b392224 feat: add lab production workflow
+```
+
+Next planned module:
 
 ```text
 Module 4E — Private Attachments
@@ -94,7 +95,7 @@ Module 4E — Private Attachments
 | 4A | Digital Lab Slip Core | COMPLETE |
 | 4B | Scan Booking Core + Lab Slip Editing | COMPLETE |
 | 4C | Scan Rescheduling | COMPLETE |
-| 4D | Lab Production Workflow | IN PROGRESS |
+| 4D | Lab Production Workflow | COMPLETE |
 | 4E | Private Attachments | PLANNED |
 | 4F | Corrections / Issues | PLANNED |
 | 5A | In-App Notifications | PLANNED |
@@ -626,7 +627,7 @@ Verification completed:
 
 # 17. Module 4D — Lab Production Workflow
 
-Status: **IN PROGRESS — IMPLEMENTED / VERIFIED / PENDING GIT FINALIZATION**
+Status: **COMPLETE**
 
 Confirmed/implemented lifecycle:
 
@@ -695,13 +696,11 @@ Verification completed:
 - frontend build passed
 - manual role/state/responsive QA passed
 
-Remaining before status may become `COMPLETE`:
+Git finalization:
 
-- finish documentation consistency update
-- inspect `git status` / `git diff`
-- commit Module 4D
-- push to GitHub
-- confirm clean working tree
+- final commit: `b392224 feat: add lab production workflow`
+- pushed to `origin/master`
+- clean working tree confirmed
 
 ---
 
@@ -1001,38 +1000,25 @@ Do not implement these opportunistically inside unrelated modules without discus
 Last confirmed committed/pushed module:
 
 ```text
-Module 4C — Scan Rescheduling
+Module 4D — Lab Production Workflow
 ```
 
-Module 4D is currently present as uncommitted working-tree work and must not be reported as `COMPLETE` until Git finalization succeeds.
+Final commit:
 
-Required final checks:
-
-```bash
-git status
-git diff
+```text
+b392224 feat: add lab production workflow
 ```
 
-Then create one coherent Module 4D commit, push it, and confirm the working tree is clean.
+`origin/master` and local `master` were confirmed at the same commit, and the working tree was clean.
 
 ---
 
 # 32. Next Session Goal
 
-Current immediate goal:
-
-```text
-Finalize Module 4D documentation
-↓
-Review Git diff/status
-↓
-Commit + push Module 4D
-↓
-Confirm clean working tree
-```
-
-Only after that may work begin on:
+Current next goal:
 
 ```text
 Module 4E — Private Attachments
 ```
+
+Module 4D is complete and must not be reopened unless a concrete defect or changed requirement requires it.

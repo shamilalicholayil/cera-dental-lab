@@ -1328,4 +1328,4 @@ Production-aware Lab Slip edit lock / Admin override
 Doctor/Clinic production visibility
 ```
 
-Module 4D UX has passed automated checks and manual role/state QA. The next planned UX area is Module 4E — Private Attachments after Module 4D Git finalization.
+Module 4D UX is complete and passed automated checks and manual role/state QA. The next planned UX area is Module 4E — Private Attachments.

@@ -590,7 +590,7 @@ Object-storage provider and permissions are not yet locked.
 
 ---
 
-# 21. Current Module — Module 4D
+# 21. Last Completed Module — Module 4D
 
 Module:
 
@@ -601,8 +601,16 @@ Lab Production Workflow
 Status:
 
 ```text
-IN PROGRESS — IMPLEMENTED + VERIFIED, PENDING FINAL DOCUMENTATION/GIT FINALIZATION
+COMPLETE
 ```
+
+Final commit:
+
+```text
+b392224 feat: add lab production workflow
+```
+
+The commit is pushed and the working tree was confirmed clean.
 
 ---
 
@@ -714,19 +722,15 @@ Manual QA covered forward/backward transitions, scan readiness, role restriction
 
 # 26. Immediate Next Steps
 
-Do not start Module 4E yet.
+Module 4D requires no further finalization.
 
-Finish Module 4D in this order:
+Next:
 
 ```text
-1. finish documentation consistency update
-2. run git status
-3. inspect git diff
-4. ensure only intended Module 4D/doc changes are present
-5. create one Module 4D commit
-6. push to GitHub
-7. confirm clean working tree
-8. then mark Module 4D COMPLETE
+1. begin Module 4E — Private Attachments design
+2. retrieve only Module 4E deferred questions
+3. resolve blocking attachment ownership/permission/storage/security decisions
+4. then start the first vertical implementation checkpoint
 ```
 
 ---
@@ -748,8 +752,6 @@ The user explicitly authorized direct editing of the uploaded documentation sour
 
 # 28. Next Planned Module
 
-After Module 4D is committed/pushed and the working tree is clean:
-
 ```text
 Module 4E — Private Attachments
 ```
@@ -761,6 +763,8 @@ Its ownership, permissions, deletion/retention, size, storage-provider, signed-a
 # 29. Handoff State
 
 ```text
-MODULE 4D IMPLEMENTED + VERIFIED
-PENDING FINAL DOCUMENTATION / GIT REVIEW / COMMIT / PUSH
+MODULE 4D COMPLETE
+COMMITTED + PUSHED
+CLEAN WORKING TREE CONFIRMED
+READY FOR MODULE 4E DESIGN
 ```

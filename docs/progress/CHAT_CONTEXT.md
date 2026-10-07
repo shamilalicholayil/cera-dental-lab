@@ -878,11 +878,17 @@ Module 4B  Scan Booking + Lab Slip Editing    COMPLETE
 Module 4C  Scan Rescheduling                  COMPLETE
 ```
 
-Current module:
+Current completed boundary:
 
 ```text
 Module 4D — Lab Production Workflow
-IN PROGRESS — implemented and verified, pending final documentation/Git review/commit/push
+COMPLETE
+```
+
+Final commit:
+
+```text
+b392224 feat: add lab production workflow
 ```
 
 ---
@@ -913,27 +919,15 @@ Automated API/frontend tests, lint, frontend build, and manual QA have passed.
 
 # 30. Next Action
 
-Do not begin Module 4E yet.
+Module 4D is complete, committed, pushed, and the working tree was confirmed clean.
 
-Finish Module 4D by:
-
-```text
-documentation consistency
-↓
-git status / git diff review
-↓
-one Module 4D commit
-↓
-push to GitHub
-↓
-confirm clean working tree
-```
-
-After that, next planned module is:
+Next planned module:
 
 ```text
 Module 4E — Private Attachments
 ```
+
+Before implementing 4E, resolve only its currently deferred attachment business/security questions.
 
 ---
 
@@ -1183,16 +1177,18 @@ docs/progress/
 
 # 38. Recommended Continuation Prompt
 
-If this work continues in a new chat before the Module 4D commit is finished, use:
+For a new chat, use:
 
 ```text
 We are continuing the Cera Dental Lab project.
 
-Module 4D — Lab Production Workflow is implemented and verified.
-Do not begin Module 4E yet.
+Module 4D — Lab Production Workflow is COMPLETE.
+Final commit: b392224 feat: add lab production workflow.
+The commit is pushed and the working tree was confirmed clean.
 
-First retrieve PROJECT_KNOWLEDGE_BASE, MODULE_STATUS, SESSION_HANDOFF, and the current Git state.
-The remaining work is final documentation consistency, git status/diff review, one Module 4D commit, push, and clean-tree confirmation.
+First retrieve PROJECT_KNOWLEDGE_BASE, MODULE_STATUS, SESSION_HANDOFF, and the current repository state.
+The next planned module is Module 4E — Private Attachments.
+Resolve only the attachment questions that block the first 4E checkpoint before implementation.
 ```
 
 ---
@@ -1200,12 +1196,8 @@ The remaining work is final documentation consistency, git status/diff review, o
 # 39. Current Handoff State
 
 ```text
-MODULE 4D IMPLEMENTED + VERIFIED
-PENDING DOCUMENTATION / GIT FINALIZATION
-```
-
-Not yet ready for:
-
-```text
-MODULE 4E DEVELOPMENT
+MODULE 4D COMPLETE
+COMMITTED + PUSHED
+CLEAN WORKING TREE CONFIRMED
+READY FOR MODULE 4E DESIGN
 ```

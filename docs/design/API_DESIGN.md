@@ -1267,4 +1267,4 @@ Production queue/detail
 Production forward/backward transitions + history
 ```
 
-Module 4D API behavior is implemented and verified. The next planned API area is Module 4E — Private Attachments after Module 4D Git finalization.
+Module 4D API behavior is complete. The next planned API area is Module 4E — Private Attachments.

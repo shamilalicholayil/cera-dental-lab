@@ -442,7 +442,7 @@ Dependencies:
 
 ## Module 4D — Lab Production Workflow
 
-Status: **IN PROGRESS — IMPLEMENTED / PENDING FINAL GIT REVIEW, COMMIT, AND PUSH**
+Status: **COMPLETE**
 
 Purpose:
 
@@ -916,12 +916,16 @@ Only then should implementation begin.
 
 Current completed boundary:
 
-**Module 4C — Scan Rescheduling**
+**Module 4D — Lab Production Workflow**
+
+Final Module 4D commit:
+
+```text
+b392224 feat: add lab production workflow
+```
 
 Current next module:
 
-**Module 4D — Lab Production Workflow**
+**Module 4E — Private Attachments**
 
-Before Module 4D implementation, the production lifecycle and permissions must be designed and approved.
-
-No production statuses or transitions should be invented by the chatbot.
+Before Module 4E implementation, resolve only the attachment ownership, permission, retention, size, storage-provider, signed-access, and security-validation questions that block the first implementation checkpoint.
