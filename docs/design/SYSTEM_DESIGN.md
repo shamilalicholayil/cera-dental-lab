@@ -577,15 +577,13 @@ LabSlip
 └── scanRequired
 ```
 
-The Lab Slip currently uses status:
+The Lab Slip continues to use its own case status:
 
 ```text
 SUBMITTED
 ```
 
-A richer production lifecycle is intentionally not yet implemented.
-
-Module 4D must define that lifecycle before changing it.
+Manufacturing lifecycle is modeled separately through the linked Production entity using `SUBMITTED`, `IN_PRODUCTION`, and `COMPLETED`.
 
 ---
 
@@ -1041,22 +1039,39 @@ If a new dependency is needed, review it explicitly.
 
 ---
 
-## 41. Future Production Module Integration
+## 41. Production Module Integration
 
-Module 4D will likely extend Lab Slip/case behavior.
+Module 4D is implemented as a dedicated production capability linked one-to-one with each Lab Slip.
 
-Before implementation, system design must confirm:
+System relationship:
 
-- whether production status belongs on LabSlip or a separate entity
-- whether production history is embedded or separate
-- readiness rules
-- editing lock
-- transition ownership
-- list/filter requirements
-- Doctor-visible status
-- interaction with completed scans
+```text
+LabSlip
+  │
+  └── Production
+        ├── status
+        ├── startedAt
+        ├── completedAt
+        └── history[]
+```
 
-No design choice here is final until Module 4D business rules are approved.
+Every newly created Lab Slip atomically creates one Production record in `SUBMITTED`.
+
+Production readiness rules:
+
+- no-scan case: may start after submission
+- scan-required case: related Scan Booking must be `COMPLETED`
+- scan completion does not automatically start Production
+
+Production transitions are owned by the production module/service.
+
+Forward transitions are available to Cera Admin and Cera Staff. Backward transitions are Admin-only and require a reason.
+
+Lab Slip editing remains a Lab Slip concern, but its service checks linked Production state and locks normal editing once Production reaches `IN_PRODUCTION`. Admin override requires an audited reason.
+
+Doctor/Clinic visibility is intentionally simplified while Cera operational users retain internal wording.
+
+Production does not introduce delivery/logistics, correction, attachment, notification, billing, inventory, or scanner-integration behavior.
 
 ---
 
@@ -1160,17 +1175,15 @@ Digital Lab Slip
 ↓
 Scan Booking
 ↓
-Scan scheduling
+Scan scheduling / assignment / rescheduling / completion
 ↓
-Scanner assignment
+Production queue + lifecycle
 ↓
-Scan rescheduling
+Production history
 ↓
-Scan completion
+Production-aware Lab Slip edit lock
+↓
+Doctor/Clinic production visibility
 ```
 
-The next major system-design extension is:
-
-**Module 4D — Lab Production Workflow**
-
-That module must begin with business/design decisions before code.
+Module 4D has been implemented and verified. The current project checkpoint is documentation/Git finalization before beginning Module 4E — Private Attachments.

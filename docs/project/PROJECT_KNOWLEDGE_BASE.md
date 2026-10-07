@@ -595,7 +595,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** SUBMITTED. A production lifecycle has not yet been approved.
+**Canonical answer:** `LabSlip.status` remains `SUBMITTED`; manufacturing progress is modeled separately through the linked Production entity (`SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`).
 
 **Keywords:** Lab Slip status, SUBMITTED
 
@@ -1111,11 +1111,11 @@ Status: **REPOSITORY-DERIVED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Complete through Module 4C: 0 Foundation; 1A User+Password; 1B Login; 1C Persistent Auth; 1D Logout; 2A Role Authorization; 2B Invitations/User Management; 3A Clinics/Memberships; 3B Product Catalogue; 4A Digital Lab Slip; 4B Scan Booking + Lab Slip Editing; 4C Scan Rescheduling.
+**Canonical answer:** Modules 0 through 4C are committed/pushed and complete. Module 4D Lab Production Workflow is implemented, fully tested/linted/built, and manually verified, but remains IN PROGRESS until final Git review, commit, push, and clean working tree are confirmed.
 
-**Keywords:** completed modules, progress
+**Keywords:** completed modules, progress, Module 4D
 
-**Source docs:** MODULE_STATUS.md
+**Source docs:** MODULE_STATUS.md; SESSION_HANDOFF.md
 
 ---
 
@@ -1123,11 +1123,11 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Module 4D — Lab Production Workflow. Do not code it until its business lifecycle is approved.
+**Canonical answer:** After Module 4D is committed and pushed, the next planned module is 4E — Private Attachments. Do not start 4E before Module 4D Git finalization and clean working tree confirmation.
 
-**Keywords:** next module, 4D, production
+**Keywords:** next module, 4E, attachments
 
-**Source docs:** MODULE_STATUS.md
+**Source docs:** MODULE_STATUS.md; MODULE_PLAN.md
 
 ---
 
@@ -1145,133 +1145,133 @@ Status: **CONFIRMED**
 
 ## KB-094 — Is the Module 4D production state machine defined?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** No. Do not invent states such as IN_PRODUCTION, QUALITY_CHECK, or READY. Resolve from Cera's real workflow.
+**Canonical answer:** Yes. Production uses `SUBMITTED → IN_PRODUCTION → COMPLETED`. Admin-only backward moves are `COMPLETED → IN_PRODUCTION` and `IN_PRODUCTION → SUBMITTED`; direct `COMPLETED → SUBMITTED` is not allowed.
 
 **Keywords:** 4D, production statuses, state machine
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; OPEN_QUESTIONS.md
 
 ---
 
 ## KB-095 — Is production readiness defined?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** No. Module 4D must decide readiness for scan-required and non-scan cases, whether completed scan is mandatory, and whether Cera can override.
+**Canonical answer:** Yes. Non-scan cases may start after submission. If `scanRequired=true`, the related Scan Booking must be `COMPLETED`. Scan completion does not auto-start Production and V1 has no readiness override.
 
 **Keywords:** production ready, scan completed
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-096 — Who may start/change production status?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Do not assume Cera Staff/Admin have identical production-transition rights and do not invent a technician role.
+**Canonical answer:** Cera Admin and Cera Staff may perform forward transitions. Only Cera Admin may perform backward transitions, and a reason is mandatory. Doctor, Clinic Staff, and Scanning Staff cannot mutate Production status.
 
 **Keywords:** production permission, Cera Staff, Admin
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-097 — When does Lab Slip editing lock?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Current pre-production edits are allowed. Module 4D must define the lock point and any controlled exception.
+**Canonical answer:** Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and stays locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason; Cera Staff, Doctor, and Clinic Staff cannot bypass.
 
-**Keywords:** edit lock, production start
+**Keywords:** edit lock, production start, admin override
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-032; ADR-050
 
 ---
 
 ## KB-098 — Should production history be retained?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Module 4D must decide whether transitions retain old/new state, actor, timestamp, and reason.
+**Canonical answer:** Yes. Every Production transition appends previous/new status, actor, timestamp, and optional note/reason. Creation starts with empty transition history.
 
 **Keywords:** production history, audit
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-099 — What production status should Doctor/Clinic users see?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Do not automatically expose every internal lab state. Module 4D must define external visibility.
+**Canonical answer:** Doctor and Clinic Staff see `Submitted`, `In Progress`, and `Completed`. Cera Admin/Staff use internal wording `Submitted`, `In Production`, and `Completed`.
 
 **Keywords:** Doctor production status, Clinic visibility
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; UI_UX_DESIGN.md
 
 ---
 
 ## KB-100 — What does production 'completed' mean?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. It could mean fabrication complete, quality check complete, ready for pickup/dispatch, or another Cera milestone. Do not tie it to logistics without approval.
+**Canonical answer:** `COMPLETED` means fabrication and final internal check are complete. It does not mean delivery, dispatch, or handover.
 
-**Keywords:** completed, fabrication, quality check
+**Keywords:** completed, fabrication, final internal check
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-101 — Is a production assignee required?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Do not add technician/user/team assignment until the real workflow confirms ownership.
+**Canonical answer:** No. V1 has no Production assignee.
 
 **Keywords:** production assignee, technician
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-102 — Should production live on LabSlip or a separate model?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet decided. Make this architecture choice only after the production lifecycle is understood. Do not create a production module/model prematurely.
+**Canonical answer:** Production is a separate one-to-one entity linked to Lab Slip. Every new Lab Slip atomically creates exactly one `SUBMITTED` Production record.
 
 **Keywords:** Production model, LabSlip, database
 
-**Source docs:** OPEN_QUESTIONS.md; FOLDER_STRUCTURE.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050; DATABASE_DESIGN.md
 
 ---
 
 ## KB-103 — Can completed production reopen?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Align this later with historical integrity and the correction workflow.
+**Canonical answer:** Yes, only Cera Admin may move `COMPLETED → IN_PRODUCTION`, with a mandatory reason.
 
 **Keywords:** reopen, completed production
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 
 ## KB-104 — Are production transition notes/reasons required?
 
-Status: **OPEN**
+Status: **CONFIRMED**
 
-**Canonical answer:** Not yet confirmed. Do not require notes for every transition unless Cera's workflow needs them.
+**Canonical answer:** Forward transition notes are optional. Backward-transition reasons are mandatory. Admin Lab Slip production-lock override reasons are also mandatory.
 
 **Keywords:** production reason, transition note
 
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** ARCHITECTURE_DECISIONS.md ADR-050
 
 ---
 

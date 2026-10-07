@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import { useNavigate, useParams } from "react-router-dom";
 
-import { LAB_SLIP_URGENCY } from "@cera/shared";
+import { LAB_SLIP_URGENCY, PRODUCTION_STATUS, USER_ROLES } from "@cera/shared";
 
 import { getCatalogProducts } from "../api/catalog";
 
@@ -12,10 +14,14 @@ import { PortalHeader } from "../components/portal/PortalHeader";
 
 import { ToothSelector } from "../components/labSlips/ToothSelector";
 
+import { selectCurrentUser } from "../features/auth/authSelectors";
+
 export function EditLabSlipPage() {
   const { labSlipId } = useParams();
 
   const navigate = useNavigate();
+
+  const user = useSelector(selectCurrentUser);
 
   const [slip, setSlip] = useState(null);
 
@@ -28,6 +34,8 @@ export function EditLabSlipPage() {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState(null);
+
+  const [overrideReason, setOverrideReason] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -151,6 +159,16 @@ export function EditLabSlipPage() {
     }));
   }
 
+  const productionUnavailable = slip && !slip.production;
+
+  const productionLocked =
+    slip?.production?.status &&
+    slip.production.status !== PRODUCTION_STATUS.SUBMITTED;
+
+  const isAdmin = user?.role === USER_ROLES.CERA_ADMIN;
+
+  const canOverrideProductionLock = productionLocked && isAdmin;
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -166,11 +184,19 @@ export function EditLabSlipPage() {
       return;
     }
 
+    if (canOverrideProductionLock && !overrideReason.trim()) {
+      setError(
+        "An override reason is required because production has already started.",
+      );
+
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
 
-      await updateLabSlip(labSlipId, {
+      const updatePayload = {
         patient: {
           name: form.patientName.trim(),
 
@@ -192,7 +218,13 @@ export function EditLabSlipPage() {
         })),
 
         notes: form.notes.trim(),
-      });
+      };
+
+      if (canOverrideProductionLock) {
+        updatePayload.overrideReason = overrideReason.trim();
+      }
+
+      await updateLabSlip(labSlipId, updatePayload);
 
       navigate(`/portal/lab-slips/${labSlipId}`, {
         replace: true,
@@ -210,6 +242,86 @@ export function EditLabSlipPage() {
         <PortalHeader />
 
         <div className="p-10 text-center">Loading...</div>
+      </main>
+    );
+  }
+
+  if (productionUnavailable) {
+    return (
+      <main className="min-h-screen bg-[var(--cera-background)]">
+        <PortalHeader />
+
+        <div className="mx-auto max-w-3xl px-5 py-8">
+          <p className="text-sm font-medium text-[var(--cera-blue-600)]">
+            {slip.reference}
+          </p>
+
+          <h1 className="mt-1 text-3xl font-semibold text-[var(--cera-navy-950)]">
+            Edit Lab Slip
+          </h1>
+
+          <div
+            role="alert"
+            className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5"
+          >
+            <p className="font-semibold text-red-800">
+              Production information is unavailable
+            </p>
+
+            <p className="mt-2 text-sm text-red-700">
+              This Lab Slip cannot be edited until its production record is
+              available.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/portal/lab-slips/${labSlipId}`)}
+            className="mt-5 h-11 rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-medium"
+          >
+            Back to Lab Slip
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (productionLocked && !isAdmin) {
+    return (
+      <main className="min-h-screen bg-[var(--cera-background)]">
+        <PortalHeader />
+
+        <div className="mx-auto max-w-3xl px-5 py-8">
+          <p className="text-sm font-medium text-[var(--cera-blue-600)]">
+            {slip.reference}
+          </p>
+
+          <h1 className="mt-1 text-3xl font-semibold text-[var(--cera-navy-950)]">
+            Edit Lab Slip
+          </h1>
+
+          <div
+            role="alert"
+            className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5"
+          >
+            <p className="font-semibold text-amber-900">
+              Lab Slip editing is locked
+            </p>
+
+            <p className="mt-2 text-sm text-amber-800">
+              This Lab Slip can no longer be edited because production has
+              already started.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/portal/lab-slips/${labSlipId}`)}
+            className="mt-5 h-11 rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-medium"
+          >
+            Back to Lab Slip
+          </button>
+        </div>
       </main>
     );
   }
@@ -234,6 +346,20 @@ export function EditLabSlipPage() {
 
           <span>{slip.doctor.name}</span>
         </div>
+
+        {canOverrideProductionLock && (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="font-semibold text-amber-900">
+              Admin production-lock override
+            </p>
+
+            <p className="mt-2 text-sm text-amber-800">
+              Production has already started for this Lab Slip. Any saved
+              changes are an administrative override and the reason will be
+              recorded in the audit history.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-5">
           <section className="rounded-2xl border border-[var(--cera-border)] bg-white p-6">
@@ -475,6 +601,31 @@ export function EditLabSlipPage() {
             />
           </section>
 
+          {canOverrideProductionLock && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+              <label
+                htmlFor="production-edit-override-reason"
+                className="block text-sm font-semibold text-amber-900"
+              >
+                Override reason
+              </label>
+
+              <p className="mt-1 text-sm text-amber-800">
+                Required because production has already started.
+              </p>
+
+              <textarea
+                id="production-edit-override-reason"
+                rows={3}
+                maxLength={500}
+                value={overrideReason}
+                onChange={(event) => setOverrideReason(event.target.value)}
+                placeholder="Explain why this Lab Slip must be changed after production started"
+                className="mt-3 w-full rounded-xl border border-amber-300 bg-white px-4 py-3"
+              />
+            </section>
+          )}
+
           {error && (
             <div
               role="alert"
@@ -495,10 +646,16 @@ export function EditLabSlipPage() {
 
             <button
               type="submit"
-              disabled={saving}
+              disabled={
+                saving || (canOverrideProductionLock && !overrideReason.trim())
+              }
               className="h-11 rounded-xl bg-[var(--cera-navy-900)] px-6 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save changes"}
+              {saving
+                ? "Saving..."
+                : canOverrideProductionLock
+                  ? "Save Admin Override"
+                  : "Save changes"}
             </button>
           </div>
         </form>

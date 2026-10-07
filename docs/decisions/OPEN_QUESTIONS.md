@@ -46,377 +46,263 @@ The questions in Section 4 must be resolved before implementation begins.
 
 # 4. Module 4D — Lab Production Workflow
 
+All Module 4D blocking questions are resolved.
+
 ## Q-4D-001 — What production statuses should exist?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Known
-
-The Lab Slip currently stops at:
+Decision:
 
 ```text
 SUBMITTED
+IN_PRODUCTION
+COMPLETED
 ```
 
-Cera must eventually manufacture the case and mark it completed.
+Resolved on: 2026-10-07
 
-### Unknown
-
-The exact production lifecycle.
-
-### Why it matters
-
-This affects:
-
-- database design
-- API transitions
-- role permissions
-- UI status display
-- edit locking
-- history
-- completion behavior
-- correction workflow later
-
-### Decision needed
-
-Define the minimum real-world statuses Cera actually uses.
-
-Do not create statuses just because they are common in other lab systems.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-002 — What makes a case ready for production?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Known
+Decision:
 
-Some cases require Cera scanning and some do not.
+- non-scan case: may start after submission
+- scan-required case: related Scan Booking must be `COMPLETED`
+- scan completion does not auto-start production
+- no readiness override in V1
 
-### Unknown
+Resolved on: 2026-10-07
 
-What conditions must be true before production can begin.
-
-Questions include:
-
-- Can a non-scan case begin production immediately after submission?
-- For a scan-required case, must the Scan Booking be `COMPLETED` first?
-- Can Cera manually override readiness?
-- Is any additional approval/check required?
-
-### Why it matters
-
-This determines when the production-start action becomes valid.
-
-### Decision needed
-
-Define production readiness separately for:
-
-- scan-required cases
-- non-scan cases
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-003 — Who can start production?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Possible actors to decide between
+Decision:
 
-- Cera Admin
-- Cera Staff
-- another future production-specific role
+```text
+Cera Admin
+Cera Staff
+```
 
-### Why it matters
+Resolved on: 2026-10-07
 
-This is a backend authorization rule and affects operational UI.
-
-### Decision needed
-
-Confirm exactly which roles may start production.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-004 — Who can update production status?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether:
+Forward transitions:
 
-- Cera Admin and Cera Staff have identical production permissions
-- some transitions are Admin-only
-- a future technician/production role is required
+```text
+Cera Admin
+Cera Staff
+```
 
-### Why it matters
+Backward transitions:
 
-State transition authorization must be explicit.
+```text
+Cera Admin only
+```
 
-### Decision needed
+Resolved on: 2026-10-07
 
-Map each production transition to the permitted role(s).
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-005 — Are backward production transitions allowed?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Example
+Decision:
 
-If a case moves forward and an issue is found, can it move back to an earlier state?
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
 
-### Why it matters
+Admin only. Reason required.
 
-This affects:
+Direct `COMPLETED → SUBMITTED` is not allowed.
 
-- state-machine design
-- history
-- auditability
-- UI controls
-- error handling
+Resolved on: 2026-10-07
 
-### Decision needed
-
-For each production state, define allowed next states.
-
-Do not assume a simple linear workflow.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-006 — When should Lab Slip editing become locked?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Known
+Decision:
 
-Lab Slips are currently editable after submission.
+Normal editing locks at `IN_PRODUCTION` and remains locked at `COMPLETED`.
 
-### Unknown
+Cera Admin may override with a mandatory audited reason.
 
-The exact point when manufacturing instructions should become immutable.
+Cera Staff, Doctor, and Clinic Staff cannot override.
 
-### Why it matters
+Resolved on: 2026-10-07
 
-Allowing edits after Cera begins fabrication could cause production mistakes.
-
-### Recommended direction for discussion
-
-Lock manufacturing-relevant fields when production officially starts.
-
-### Decision needed
-
-Confirm:
-
-- exact lock point
-- whether all fields lock
-- whether Cera Staff/Admin get any controlled override
-- whether notes can still be appended
-
-No rule is approved yet.
+Recorded in: ADR-032 and ADR-050
 
 ---
 
 ## Q-4D-007 — Should production history be retained?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether the system must record:
+Yes. Append-only transition history stores previous status, new status, actor, timestamp, and optional note/reason.
 
-- previous production status
-- new production status
-- actor
-- timestamp
-- optional note/reason
+Resolved on: 2026-10-07
 
-### Why it matters
-
-History may be needed for:
-
-- accountability
-- operational troubleshooting
-- future corrections
-- customer communication
-
-### Decision needed
-
-Confirm whether production transitions need append-only history.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-008 — What production status should Doctors see?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether Doctors should see:
+```text
+SUBMITTED      → Submitted
+IN_PRODUCTION  → In Progress
+COMPLETED      → Completed
+```
 
-- every internal production state
-- a simplified external status
-- only broad phases such as received / in progress / completed
+Resolved on: 2026-10-07
 
-### Why it matters
-
-Internal operational terminology may not be useful or appropriate for Doctors.
-
-### Decision needed
-
-Define Doctor-visible production information.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-009 — What production status should Clinic Staff see?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether Clinic Staff should see the same external status as Doctors.
+Clinic Staff use the same simplified Production wording as Doctors.
 
-### Why it matters
+Resolved on: 2026-10-07
 
-Clinic Staff permissions and UI may differ from Doctor access.
-
-### Decision needed
-
-Confirm Clinic Staff visibility.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-010 — What does “completed” mean?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether completion means:
+`COMPLETED` means fabrication and final internal check are complete.
 
-- fabrication completed
-- quality check completed
-- ready for dispatch/pickup
-- handed over/delivered
+It does not mean delivery, dispatch, or handover.
 
-### Why it matters
+Resolved on: 2026-10-07
 
-The project currently does not include a defined delivery/logistics module.
-
-### Decision needed
-
-Define the exact business meaning of case completion.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-011 — Does the system need a production assignee?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether a case is assigned to:
+No Production assignee in V1.
 
-- an individual Cera Staff member
-- a production technician
-- a department/team
-- nobody; status is enough
+Resolved on: 2026-10-07
 
-### Why it matters
-
-This changes:
-
-- database structure
-- permissions
-- workload views
-- dashboard design
-
-### Decision needed
-
-Confirm whether production ownership/assignment exists in Cera's real workflow.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-012 — Should production be stored directly on LabSlip or as a separate entity?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Option A
+Decision:
 
-Production fields/history live on `LabSlip`.
+Production is a separate entity with a one-to-one relationship to Lab Slip.
 
-### Option B
+Every new Lab Slip creates exactly one Production record.
 
-A separate production record links to `LabSlip`.
+Resolved on: 2026-10-07
 
-### Important
-
-This decision must come **after** the real production lifecycle is understood.
-
-### Why it matters
-
-It affects:
-
-- database design
-- folder/module ownership
-- API structure
-- corrections later
-- history
-- future repeat production cycles
-
-### Decision needed
-
-Choose architecture only after Q-4D-001 through Q-4D-011 are resolved.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-013 — Can a completed production case be reopened?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether production may move out of completed state.
+Yes, but only Cera Admin may move:
 
-### Why it matters
+```text
+COMPLETED → IN_PRODUCTION
+```
 
-This affects:
+with a mandatory reason.
 
-- terminal state rules
-- historical integrity
-- correction workflow
-- accidental changes
+Resolved on: 2026-10-07
 
-### Decision needed
-
-Confirm whether completion is terminal.
-
-If post-completion issues must be handled only through Corrections, that should be stated explicitly.
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
 ## Q-4D-014 — Is a production note/reason required for status changes?
 
-Status: **OPEN**
+Status: **RESOLVED**
 
-### Unknown
+Decision:
 
-Whether any transition needs an operational note.
+Forward transition note:
 
-### Why it matters
+```text
+optional
+```
 
-Requiring notes for every transition may create unnecessary work, but some exceptions may need explanation.
+Backward transition reason:
 
-### Decision needed
+```text
+required
+```
 
-Identify whether notes/reasons are required for:
+Admin Lab Slip production-lock override reason:
 
-- starting
-- pausing
-- moving backward
-- completing
-- exceptional transitions
+```text
+required
+```
+
+Resolved on: 2026-10-07
+
+Recorded in: `ARCHITECTURE_DECISIONS.md` ADR-050
 
 ---
 
@@ -813,23 +699,8 @@ Then ensure implementation follows the confirmed decision.
 
 # 14. Current Blocking Questions
 
-Before Module 4D coding begins, resolve at minimum:
+Module 4D has no remaining blocking questions.
 
-```text
-Q-4D-001 Production statuses
-Q-4D-002 Production readiness
-Q-4D-003 Who starts production
-Q-4D-004 Who changes production status
-Q-4D-005 Allowed transitions/backward movement
-Q-4D-006 Lab Slip edit-lock point
-Q-4D-007 Production history
-Q-4D-008 Doctor visibility
-Q-4D-009 Clinic Staff visibility
-Q-4D-010 Meaning of completed
-Q-4D-011 Production assignee
-Q-4D-012 LabSlip vs separate production entity
-Q-4D-013 Reopening completed production
-Q-4D-014 Transition notes/reasons
-```
+The next module is Module 4E — Private Attachments.
 
-Do not begin production implementation by guessing answers to these questions.
+Its deferred questions should be resolved only when Module 4E design begins.

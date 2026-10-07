@@ -83,8 +83,16 @@ export const updateLabSlipSchema = z
       .optional(),
 
     notes: optionalText(3000),
+
+    overrideReason: optionalText(500),
   })
   .strict()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one editable field must be provided",
-  });
+  .refine(
+    (data) =>
+      ["urgency", "patient", "items", "notes"].some(
+        (field) => data[field] !== undefined,
+      ),
+    {
+      message: "At least one editable field must be provided",
+    },
+  );

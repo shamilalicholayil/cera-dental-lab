@@ -46,19 +46,35 @@ DEFERRED
 
 # 3. Current Project Position
 
-Current completed boundary:
+Last committed/pushed completed boundary:
 
 ```text
 Module 4C — Scan Rescheduling
 ```
 
-Next planned module:
+Current module:
 
 ```text
 Module 4D — Lab Production Workflow
 ```
 
-Module 4D must begin with business/design clarification before any production code is written.
+Current Module 4D state:
+
+```text
+IMPLEMENTED
+AUTOMATED TESTS PASSED
+FRONTEND/ BACKEND LINT PASSED
+FRONTEND BUILD PASSED
+MANUAL QA PASSED
+DOCUMENTATION UPDATE IN PROGRESS
+PENDING FINAL GIT REVIEW / COMMIT / PUSH
+```
+
+Next planned module after Module 4D is finalized:
+
+```text
+Module 4E — Private Attachments
+```
 
 ---
 
@@ -78,7 +94,7 @@ Module 4D must begin with business/design clarification before any production co
 | 4A | Digital Lab Slip Core | COMPLETE |
 | 4B | Scan Booking Core + Lab Slip Editing | COMPLETE |
 | 4C | Scan Rescheduling | COMPLETE |
-| 4D | Lab Production Workflow | NEXT |
+| 4D | Lab Production Workflow | IN PROGRESS |
 | 4E | Private Attachments | PLANNED |
 | 4F | Corrections / Issues | PLANNED |
 | 5A | In-App Notifications | PLANNED |
@@ -610,37 +626,82 @@ Verification completed:
 
 # 17. Module 4D — Lab Production Workflow
 
-Status: **NEXT**
+Status: **IN PROGRESS — IMPLEMENTED / VERIFIED / PENDING GIT FINALIZATION**
 
-Implementation has **not started**.
-
-This module is blocked from coding until production business rules are resolved.
-
-Required decisions include:
-
-- production statuses
-- production readiness
-- who starts production
-- who changes status
-- allowed transitions
-- backward transitions
-- edit-lock point
-- production history
-- Doctor visibility
-- Clinic Staff visibility
-- meaning of completion
-- whether a production assignee exists
-- whether production belongs directly on LabSlip or a separate entity
-- whether completed production can reopen
-- whether transitions need notes/reasons
-
-See:
+Confirmed/implemented lifecycle:
 
 ```text
-docs/decisions/OPEN_QUESTIONS.md
+SUBMITTED
+→ IN_PRODUCTION
+→ COMPLETED
 ```
 
-No production state machine should be invented before those decisions are approved.
+Readiness:
+
+- non-scan cases may start after submission
+- scan-required cases require related Scan Booking `COMPLETED`
+- scan completion does not auto-start Production
+
+Permissions:
+
+- Cera Admin + Cera Staff: forward transitions
+- Cera Admin only: backward transitions with mandatory reason
+- Doctor / Clinic Staff / Scanning Staff: no Production mutation
+
+Backward transitions:
+
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
+
+No direct `COMPLETED → SUBMITTED`.
+
+Implemented backend:
+
+- shared Production status constants
+- one-to-one Production model
+- atomic Lab Slip + Production creation transaction
+- production service/schema/controller/routes/serializer
+- queue pagination/filtering
+- readiness enforcement
+- transition history and timestamps
+- Production detail endpoint
+- production-aware Lab Slip edit lock
+- Admin-only audited Lab Slip edit override
+
+Implemented frontend:
+
+- Production queue
+- Production detail/action/history UI
+- role-specific forward/backward controls
+- Lab Slip edit-lock UX
+- Admin override reason UX
+- Doctor/Clinic simplified status (`Submitted`, `In Progress`, `Completed`)
+- Cera internal status wording (`Submitted`, `In Production`, `Completed`)
+
+Completion means fabrication + final internal check complete, not delivery.
+
+V1 has no Production assignee.
+
+Verification completed:
+
+- focused backend Production/Lab Slip tests passed
+- full API tests passed
+- API lint passed
+- focused frontend Production/Edit/Lab Slip tests passed
+- full frontend tests passed
+- frontend lint passed
+- frontend build passed
+- manual role/state/responsive QA passed
+
+Remaining before status may become `COMPLETE`:
+
+- finish documentation consistency update
+- inspect `git status` / `git diff`
+- commit Module 4D
+- push to GitHub
+- confirm clean working tree
 
 ---
 
@@ -937,71 +998,41 @@ Do not implement these opportunistically inside unrelated modules without discus
 
 # 31. Current Repository/Git Boundary
 
-Last known completed module:
+Last confirmed committed/pushed module:
 
 ```text
 Module 4C — Scan Rescheduling
 ```
 
-Last known Git state reported by the user:
+Module 4D is currently present as uncommitted working-tree work and must not be reported as `COMPLETE` until Git finalization succeeds.
 
-```text
-Module 4C committed and pushed to GitHub
-```
-
-A fresh module session should still verify:
+Required final checks:
 
 ```bash
 git status
-git log -1 --oneline
+git diff
 ```
 
-before starting new implementation.
-
-Do not assume the repository is still unchanged after this document was written.
+Then create one coherent Module 4D commit, push it, and confirm the working tree is clean.
 
 ---
 
 # 32. Next Session Goal
 
-The next development chat should focus only on:
+Current immediate goal:
 
 ```text
-Module 4D — Lab Production Workflow
+Finalize Module 4D documentation
+↓
+Review Git diff/status
+↓
+Commit + push Module 4D
+↓
+Confirm clean working tree
 ```
 
-First task:
+Only after that may work begin on:
 
 ```text
-resolve production business/design questions
-```
-
-Not:
-
-```text
-write production code immediately
-```
-
-Recommended sequence:
-
-```text
-Understand context
-↓
-Review Module 4D open questions
-↓
-Define production lifecycle
-↓
-Define permissions
-↓
-Define edit-lock behavior
-↓
-Define visibility/history
-↓
-Choose data architecture
-↓
-Define acceptance criteria
-↓
-Inspect current related files
-↓
-Begin implementation
+Module 4E — Private Attachments
 ```

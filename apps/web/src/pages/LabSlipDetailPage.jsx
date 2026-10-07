@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import { Link, useParams } from "react-router-dom";
+
+import { LAB_SLIP_STATUS, PRODUCTION_STATUS, USER_ROLES } from "@cera/shared";
 
 import { getLabSlip } from "../api/labSlips";
 
@@ -8,14 +12,42 @@ import { PortalHeader } from "../components/portal/PortalHeader";
 
 import { ScanRequestPanel } from "../components/scanBookings/ScanRequestPanel";
 
+import { selectCurrentUser } from "../features/auth/authSelectors";
+
+function getProductionStatusLabel(status, doctorFacing) {
+  if (!status) {
+    return "—";
+  }
+
+  if (status === PRODUCTION_STATUS.SUBMITTED) {
+    return "Submitted";
+  }
+
+  if (status === PRODUCTION_STATUS.IN_PRODUCTION) {
+    return doctorFacing ? "In Progress" : "In Production";
+  }
+
+  if (status === PRODUCTION_STATUS.COMPLETED) {
+    return "Completed";
+  }
+
+  return status;
+}
+
 export function LabSlipDetailPage() {
   const { labSlipId } = useParams();
+
+  const user = useSelector(selectCurrentUser);
 
   const [slip, setSlip] = useState(null);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState(null);
+
+  const doctorFacing = [USER_ROLES.DOCTOR, USER_ROLES.CLINIC_STAFF].includes(
+    user?.role,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +101,16 @@ export function LabSlipDetailPage() {
     );
   }
 
+  const productionStatus = slip.production?.status || null;
+
+  const productionLocked =
+    productionStatus && productionStatus !== PRODUCTION_STATUS.SUBMITTED;
+
+  const canEditLabSlip =
+    slip.status === LAB_SLIP_STATUS.SUBMITTED &&
+    Boolean(productionStatus) &&
+    (!productionLocked || user?.role === USER_ROLES.CERA_ADMIN);
+
   return (
     <main className="min-h-screen bg-[var(--cera-background)]">
       <PortalHeader />
@@ -82,7 +124,7 @@ export function LabSlipDetailPage() {
             ← Lab Slips
           </Link>
 
-          {slip.status === "SUBMITTED" && (
+          {canEditLabSlip && (
             <Link
               to={`/portal/lab-slips/${slip.id}/edit`}
               className="inline-flex h-10 items-center rounded-xl border border-[var(--cera-border)] bg-white px-4 text-sm font-semibold text-[var(--cera-navy-950)]"
@@ -196,7 +238,7 @@ export function LabSlipDetailPage() {
         </div>
 
         <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
-          <div className="grid gap-5 sm:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs text-[var(--cera-text-muted)]">Priority</p>
 
@@ -212,9 +254,21 @@ export function LabSlipDetailPage() {
             </div>
 
             <div>
-              <p className="text-xs text-[var(--cera-text-muted)]">Status</p>
+              <p className="text-xs text-[var(--cera-text-muted)]">
+                Lab Slip Status
+              </p>
 
               <p className="mt-1 font-medium">{slip.status}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-[var(--cera-text-muted)]">
+                Production
+              </p>
+
+              <p className="mt-1 font-medium">
+                {getProductionStatusLabel(productionStatus, doctorFacing)}
+              </p>
             </div>
           </div>
 

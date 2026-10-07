@@ -726,7 +726,7 @@ Immutable top-level identity fields must be rejected rather than silently ignore
 
 Strict validation is preferred for security and predictability.
 
-Future production edit-lock rules must be enforced here once Module 4D is designed.
+Production-aware edit locking is enforced by the Lab Slip update service. Normal edits are blocked once linked Production is `IN_PRODUCTION` or `COMPLETED`; Cera Admin may override only with a mandatory audited reason.
 
 ---
 
@@ -1060,22 +1060,82 @@ Do not create arbitrary generic endpoints if ownership is clear.
 
 ---
 
-# 43. Future Production API
+# 43. Production API
 
-Module 4D is not yet designed.
+Base resource:
 
-Possible production APIs must not be invented before business rules are approved.
+```text
+/api/v1/productions
+```
 
-Open decisions include:
+Implemented endpoints:
 
-- whether production is part of `/lab-slips`
-- whether a separate `/production` resource exists
-- whether transitions use action endpoints
-- whether there is an assignee
-- what Doctor/Clinic can see
-- what history is returned
+```text
+GET  /api/v1/productions
+GET  /api/v1/productions/:productionId
+POST /api/v1/productions/:productionId/start
+POST /api/v1/productions/:productionId/complete
+POST /api/v1/productions/:productionId/move-back
+```
 
-Only after Module 4D design should route structure be finalized.
+### List / Detail
+
+Cera Admin and Cera Staff may list and view Production records.
+
+Default queue behavior returns active Production states (`SUBMITTED` and `IN_PRODUCTION`) ordered by most recently updated. `COMPLETED` and `ALL` are explicit filters.
+
+### Start
+
+Allowed roles:
+
+```text
+Cera Admin
+Cera Staff
+```
+
+Valid transition:
+
+```text
+SUBMITTED → IN_PRODUCTION
+```
+
+For scan-required Lab Slips, the related Scan Booking must be `COMPLETED`. Optional note supported.
+
+### Complete
+
+Allowed roles:
+
+```text
+Cera Admin
+Cera Staff
+```
+
+Valid transition:
+
+```text
+IN_PRODUCTION → COMPLETED
+```
+
+Optional note supported.
+
+### Move Back
+
+Allowed role:
+
+```text
+Cera Admin only
+```
+
+Valid transitions:
+
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
+
+A non-empty reason is required. Direct `COMPLETED → SUBMITTED` is invalid.
+
+Doctor, Clinic Staff, and Scanning Staff do not receive general Production mutation/list/detail API access. Doctor/Clinic production status visibility is exposed through accessible Lab Slip detail serialization.
 
 ---
 
@@ -1198,25 +1258,13 @@ Clinics/memberships
 ↓
 Catalogue
 ↓
-Digital Lab Slips
+Digital Lab Slips + production-aware editing
 ↓
-Lab Slip editing
+Scan Booking lifecycle + rescheduling
 ↓
-Scan Booking
+Production queue/detail
 ↓
-Scan confirmation/proposal
-↓
-Scanner assignment
-↓
-Scan completion
-↓
-Scan cancellation/rejection
-↓
-Scan rescheduling
+Production forward/backward transitions + history
 ```
 
-The next major API area is:
-
-**Module 4D — Lab Production Workflow**
-
-Its endpoint design must follow approved business rules rather than assumptions.
+Module 4D API behavior is implemented and verified. The next planned API area is Module 4E — Private Attachments after Module 4D Git finalization.

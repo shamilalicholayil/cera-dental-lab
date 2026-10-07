@@ -7,6 +7,7 @@ import {
   CLINIC_TYPES,
   LAB_SLIP_SOURCE,
   LAB_SLIP_URGENCY,
+  PRODUCTION_STATUS,
   USER_ROLES,
   USER_STATUS,
   SCAN_BOOKING_STATUS,
@@ -35,6 +36,8 @@ import { Category } from "../catalog/category.model.js";
 import { Product } from "../catalog/product.model.js";
 
 import { LabSlip } from "./labSlip.model.js";
+
+import { Production } from "../production/production.model.js";
 
 import { LabSlipCounter } from "./labSlipCounter.model.js";
 
@@ -184,6 +187,7 @@ describe("Digital Lab Slips", () => {
     await Category.syncIndexes();
     await Product.syncIndexes();
     await LabSlip.syncIndexes();
+    await Production.syncIndexes();
   });
 
   afterEach(async () => {
@@ -243,6 +247,61 @@ describe("Digital Lab Slips", () => {
     expect(response.body.data.labSlip.items[0].productName).toBe(
       "Zirconia Crown",
     );
+  });
+
+  it("creates a submitted Production record with every new Lab Slip", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const response = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(response.status).toBe(201);
+
+    const labSlip = response.body.data.labSlip;
+
+    const production = await Production.findOne({
+      labSlipId: labSlip.id,
+    });
+
+    expect(production).not.toBeNull();
+
+    expect(production.status).toBe(PRODUCTION_STATUS.SUBMITTED);
+
+    expect(production.labSlipId.toString()).toBe(labSlip.id);
+
+    expect(production.startedAt).toBeNull();
+
+    expect(production.completedAt).toBeNull();
+
+    expect(production.history).toHaveLength(0);
   });
 
   it("rejects Doctor access to an unrelated clinic", async () => {
@@ -613,6 +672,10 @@ describe("Digital Lab Slips", () => {
     expect(response.body.data.labSlip.items[0].shade).toBe("B1");
 
     expect(response.body.data.labSlip.notes).toBe("Updated general notes");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
   });
 
   it("allows Clinic Staff to edit a lab slip from their assigned clinic", async () => {
@@ -970,6 +1033,442 @@ describe("Digital Lab Slips", () => {
     expect(storedBooking.status).toBe(SCAN_BOOKING_STATUS.CANCELLED);
 
     expect(storedBooking.urgency).toBe(LAB_SLIP_URGENCY.STANDARD);
+  });
+
+  it("returns the linked Production status with a Lab Slip", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const response = await agent.get(`/api/v1/lab-slips/${labSlip.id}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.labSlip.production).toEqual({
+      status: PRODUCTION_STATUS.SUBMITTED,
+    });
+  });
+
+  it("does not allow Cera Staff to edit after production has started", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const ceraStaff = await createUser({
+      name: "Cera Staff",
+      phone: "9876543212",
+      role: USER_ROLES.CERA_STAFF,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorAgent = request.agent(app);
+
+    await login(doctorAgent, doctor.phone);
+
+    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const staffAgent = request.agent(app);
+
+    await login(staffAgent, ceraStaff.phone);
+
+    const response = await staffAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Attempted production edit",
+
+        /*
+         * Supplying a reason must not let
+         * Cera Staff bypass the Admin-only lock.
+         */
+        overrideReason: "Trying to override",
+      });
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_PRODUCTION_LOCKED");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.notes).toBe("General notes");
+
+    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
+  });
+
+  it("does not allow a Doctor to edit after production is completed", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const createResponse = await agent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    const startedAt = new Date(Date.now() - 60 * 60 * 1000);
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.COMPLETED,
+          startedAt,
+          completedAt: new Date(),
+        },
+      },
+    );
+
+    const response = await agent.patch(`/api/v1/lab-slips/${labSlip.id}`).send({
+      notes: "Attempted completed-case edit",
+    });
+
+    expect(response.status).toBe(409);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_PRODUCTION_LOCKED");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.notes).toBe("General notes");
+  });
+
+  it("requires an override reason when Admin edits after production has started", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorAgent = request.agent(app);
+
+    await login(doctorAgent, doctor.phone);
+
+    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const adminAgent = request.agent(app);
+
+    await login(adminAgent, admin.phone);
+
+    const response = await adminAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Admin edit without reason",
+      });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_OVERRIDE_REASON_REQUIRED");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.notes).toBe("General notes");
+
+    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
+  });
+
+  it("requires an override reason when Admin edits after production has started", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorAgent = request.agent(app);
+
+    await login(doctorAgent, doctor.phone);
+
+    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const adminAgent = request.agent(app);
+
+    await login(adminAgent, admin.phone);
+
+    const response = await adminAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Admin edit without reason",
+      });
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe("LAB_SLIP_OVERRIDE_REASON_REQUIRED");
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.notes).toBe("General notes");
+
+    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(0);
+  });
+
+  it("allows Admin to override the production edit lock with an audited reason", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await createClinic(admin);
+
+    await addMembership({
+      clinic,
+      user: doctor,
+      admin,
+    });
+
+    const { product } = await setupCatalogue(admin);
+
+    const doctorAgent = request.agent(app);
+
+    await login(doctorAgent, doctor.phone);
+
+    const createResponse = await doctorAgent.post("/api/v1/lab-slips").send(
+      payload({
+        clinic,
+        product,
+      }),
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const labSlip = createResponse.body.data.labSlip;
+
+    await Production.findOneAndUpdate(
+      {
+        labSlipId: labSlip.id,
+      },
+      {
+        $set: {
+          status: PRODUCTION_STATUS.IN_PRODUCTION,
+          startedAt: new Date(),
+        },
+      },
+    );
+
+    const adminAgent = request.agent(app);
+
+    await login(adminAgent, admin.phone);
+
+    const response = await adminAgent
+      .patch(`/api/v1/lab-slips/${labSlip.id}`)
+      .send({
+        notes: "Corrected manufacturing instructions",
+
+        overrideReason:
+          "Doctor confirmed that the original instructions were incorrect",
+      });
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.labSlip.notes).toBe(
+      "Corrected manufacturing instructions",
+    );
+
+    const storedLabSlip = await LabSlip.findById(labSlip.id);
+
+    expect(storedLabSlip.productionEditOverrideHistory).toHaveLength(1);
+
+    const [auditEntry] = storedLabSlip.productionEditOverrideHistory;
+
+    expect(auditEntry.productionStatus).toBe(PRODUCTION_STATUS.IN_PRODUCTION);
+
+    expect(auditEntry.reason).toBe(
+      "Doctor confirmed that the original instructions were incorrect",
+    );
+
+    expect(auditEntry.changedByUserId.toString()).toBe(admin.id);
+
+    expect(auditEntry.changedAt).toBeInstanceOf(Date);
+
+    /*
+     * A Lab Slip edit override is not a
+     * Production status transition.
+     */
+    const production = await Production.findOne({
+      labSlipId: labSlip.id,
+    });
+
+    expect(production.status).toBe(PRODUCTION_STATUS.IN_PRODUCTION);
+
+    expect(production.history).toHaveLength(0);
   });
 
   it("generates unique sequential references", async () => {

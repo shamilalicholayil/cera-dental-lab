@@ -5,6 +5,7 @@ import {
   CLINIC_STATUS,
   LAB_SLIP_SOURCE,
   LAB_SLIP_STATUS,
+  PRODUCTION_STATUS,
   SCAN_BOOKING_STATUS,
   USER_ROLES,
   USER_STATUS,
@@ -21,6 +22,8 @@ import { Product } from "../catalog/product.model.js";
 import { User } from "../users/user.model.js";
 
 import { ScanBooking } from "../scanBookings/scanBooking.model.js";
+
+import { Production } from "../production/production.model.js";
 
 import { LabSlip } from "./labSlip.model.js";
 
@@ -223,8 +226,11 @@ async function populateLabSlip(labSlip) {
     },
     {
       path: "doctorId",
-
       select: "name phone email role status",
+    },
+    {
+      path: "production",
+      select: "status",
     },
   ]);
 
@@ -263,33 +269,70 @@ export async function createLabSlip({ user, data }) {
 
   const reference = await generateLabSlipReference();
 
-  const labSlip = await LabSlip.create({
-    reference,
+  const session = await mongoose.startSession();
 
-    source,
+  let labSlip;
 
-    urgency: data.urgency,
+  try {
+    await session.withTransaction(async () => {
+      const createdLabSlips = await LabSlip.create(
+        [
+          {
+            reference,
 
-    clinicId: clinic._id,
+            source,
 
-    doctorId: doctor._id,
+            urgency: data.urgency,
 
-    patient: {
-      name: data.patient.name,
+            clinicId: clinic._id,
 
-      reference: normalizeOptional(data.patient.reference),
-    },
+            doctorId: doctor._id,
 
-    items,
+            patient: {
+              name: data.patient.name,
 
-    notes: normalizeOptional(data.notes),
+              reference: normalizeOptional(data.patient.reference),
+            },
 
-    scanRequired: data.scanRequired,
+            items,
 
-    createdByUserId: user._id,
-  });
+            notes: normalizeOptional(data.notes),
 
-  return populateLabSlip(labSlip);
+            scanRequired: data.scanRequired,
+
+            createdByUserId: user._id,
+          },
+        ],
+        {
+          session,
+        },
+      );
+
+      [labSlip] = createdLabSlips;
+
+      await Production.create(
+        [
+          {
+            labSlipId: labSlip._id,
+          },
+        ],
+        {
+          session,
+        },
+      );
+    });
+
+    /*
+     * The transaction is complete. Future reads/populates
+     * should use the normal connection rather than retaining
+     * the transaction session on this document.
+     */
+    labSlip.$session(null);
+
+    return await populateLabSlip(labSlip);
+  } finally {
+    await session.endSession();
+  }
 }
 
 async function getAccessibleClinicIds(userId) {
@@ -406,7 +449,8 @@ export async function getLabSlip({ user, labSlipId }) {
 
   const labSlip = await LabSlip.findById(labSlipId)
     .populate("clinicId")
-    .populate("doctorId", "name phone email role status");
+    .populate("doctorId", "name phone email role status")
+    .populate("production", "status");
 
   if (!labSlip) {
     throw new AppError("Lab slip not found", 404, "LAB_SLIP_NOT_FOUND");
@@ -543,6 +587,35 @@ export async function updateLabSlip({ user, labSlipId, data }) {
     );
   }
 
+  if (!accessible.production) {
+    throw new AppError(
+      "Production record is unavailable for this Lab Slip",
+      409,
+      "LAB_SLIP_PRODUCTION_UNAVAILABLE",
+    );
+  }
+
+  const productionLocked =
+    accessible.production.status !== PRODUCTION_STATUS.SUBMITTED;
+
+  const overrideReason = normalizeOptional(data.overrideReason);
+
+  if (productionLocked && user.role !== USER_ROLES.CERA_ADMIN) {
+    throw new AppError(
+      "This Lab Slip cannot be edited after production has started",
+      409,
+      "LAB_SLIP_PRODUCTION_LOCKED",
+    );
+  }
+
+  if (productionLocked && !overrideReason) {
+    throw new AppError(
+      "An override reason is required to edit this Lab Slip after production has started",
+      400,
+      "LAB_SLIP_OVERRIDE_REASON_REQUIRED",
+    );
+  }
+
   const labSlip = await LabSlip.findById(accessible._id);
 
   if (!labSlip) {
@@ -569,6 +642,15 @@ export async function updateLabSlip({ user, labSlipId, data }) {
 
   if (data.notes !== undefined) {
     labSlip.notes = normalizeOptional(data.notes);
+  }
+
+  if (productionLocked) {
+    labSlip.productionEditOverrideHistory.push({
+      productionStatus: accessible.production.status,
+      reason: overrideReason,
+      changedByUserId: user._id,
+      changedAt: new Date(),
+    });
   }
 
   await labSlip.save();

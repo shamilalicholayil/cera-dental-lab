@@ -26,3 +26,5 @@ export {
   SCAN_RESCHEDULE_STATUS,
   SCAN_RESCHEDULE_STATUS_VALUES,
 } from "./scanBooking.js";
+
+export { PRODUCTION_STATUS, PRODUCTION_STATUS_VALUES } from "./production.js";

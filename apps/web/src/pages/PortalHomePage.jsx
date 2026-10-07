@@ -23,6 +23,8 @@ const SCAN_ROLES = [
   USER_ROLES.SCANNING_STAFF,
 ];
 
+const PRODUCTION_ROLES = [USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF];
+
 export function PortalHomePage() {
   const user = useSelector(selectCurrentUser);
 
@@ -31,6 +33,8 @@ export function PortalHomePage() {
   const canUseLabSlips = LAB_SLIP_ROLES.includes(user.role);
 
   const canUseScans = SCAN_ROLES.includes(user.role);
+
+  const canUseProduction = PRODUCTION_ROLES.includes(user.role);
 
   const isScanningStaff = user.role === USER_ROLES.SCANNING_STAFF;
 
@@ -84,6 +88,15 @@ export function PortalHomePage() {
                 className="inline-flex h-11 items-center rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-semibold text-[var(--cera-navy-950)] hover:bg-slate-50"
               >
                 {isScanningStaff ? "My Visits" : "Scans"}
+              </Link>
+            )}
+
+            {canUseProduction && (
+              <Link
+                to="/portal/production"
+                className="inline-flex h-11 items-center rounded-xl border border-[var(--cera-border)] bg-white px-5 text-sm font-semibold text-[var(--cera-navy-950)] hover:bg-slate-50"
+              >
+                Production
               </Link>
             )}
 

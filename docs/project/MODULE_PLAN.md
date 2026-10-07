@@ -442,56 +442,59 @@ Dependencies:
 
 ## Module 4D — Lab Production Workflow
 
-Status: **NEXT / NOT YET DESIGNED**
+Status: **IN PROGRESS — IMPLEMENTED / PENDING FINAL GIT REVIEW, COMMIT, AND PUSH**
 
 Purpose:
 
-Model what happens after Cera has the information needed to manufacture the case.
+Manage the Cera fabrication lifecycle after a Lab Slip has been submitted and required scan readiness has been satisfied.
 
-This module must be designed before coding.
+Implemented:
 
-Required decisions include:
+- separate one-to-one Production entity
+- automatic Production creation with every Lab Slip
+- `SUBMITTED → IN_PRODUCTION → COMPLETED`
+- scan-completion readiness gating
+- Cera Admin/Cera Staff forward transitions
+- Admin-only backward transitions with mandatory reason
+- append-only Production history
+- started/completed timestamps
+- production queue and filtering
+- production detail screen
+- Lab Slip production edit lock
+- Admin audited edit override
+- Doctor/Clinic simplified production status
+- Cera internal production wording
+- automated backend/frontend tests
+- responsive operational UI
+- manual role/state QA
 
-- production statuses
-- who can start production
-- who can move production states
-- valid state transitions
-- whether backward transitions are allowed
-- when Lab Slip editing becomes locked
-- whether scan completion is required before production for scan-required cases
-- what Doctors can see
-- what Clinic Staff can see
-- whether status history is required
-- what constitutes completion
-- whether Cera Admin and Cera Staff have identical production permissions
+Confirmed completion meaning:
 
-Possible output areas may include:
+```text
+fabrication complete
++
+final internal check complete
+```
 
-- production lifecycle
-- operational status controls
-- Doctor/Clinic production visibility
-- edit-lock enforcement
-- production timestamps/history
-- list/filter refinements
+Completion does not represent delivery.
 
-Important:
+Production assignment is not included in V1.
 
-No production state machine should be implemented until these business decisions are approved.
+Out of scope:
+
+- correction workflow
+- attachment system
+- notifications / WhatsApp
+- billing
+- delivery logistics
+- inventory
+- scanner integration
 
 Dependencies:
 
 - Module 4A
 - Module 4B
-- Module 4C where scan state affects production readiness
-
-Out of scope unless explicitly approved:
-
-- correction workflow
-- attachment system
-- WhatsApp notifications
-- billing
-- delivery logistics
-- inventory
+- Module 4C
 
 ---
 

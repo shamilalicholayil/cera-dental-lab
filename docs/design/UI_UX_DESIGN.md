@@ -1085,21 +1085,60 @@ Use patient data only where operationally required.
 
 ---
 
-# 54. Planned Production UX
+# 54. Production UX
 
-Module 4D production UI is not yet designed.
+Module 4D Production UX is implemented.
 
-Before designing screens, confirm:
+### Cera Operations
 
-- production statuses
-- who changes them
-- Doctor-visible states
-- whether there is assignment
-- edit-lock behavior
-- history
-- completion behavior
+Cera Admin and Cera Staff have an operational Production queue with:
 
-Do not create production boards/status badges based on guessed workflow.
+- active queue default (`Submitted` + `In Production`)
+- explicit Completed filter
+- explicit All filter
+- case summary cards linking to Production detail
+- loading, error, and empty states
+
+Production detail supports:
+
+- case/Lab Slip summary
+- current Production status
+- scan-readiness messaging
+- optional forward-transition note
+- Production history
+
+Cera Staff may start/complete production.
+
+Cera Admin additionally receives backward-transition controls with mandatory reason.
+
+### Lab Slip Editing
+
+When Production is `IN_PRODUCTION` or `COMPLETED`:
+
+- Doctor, Clinic Staff, and Cera Staff see a locked edit experience
+- Cera Admin may edit through an explicit override state
+- Admin override reason is mandatory
+- missing Production information blocks editing rather than silently allowing it
+
+### External Production Wording
+
+Doctor and Clinic Staff see:
+
+```text
+Submitted
+In Progress
+Completed
+```
+
+Cera operational users see:
+
+```text
+Submitted
+In Production
+Completed
+```
+
+`Completed` must not imply delivery.
 
 ---
 
@@ -1276,27 +1315,17 @@ Clinic management
 ↓
 Catalogue management
 ↓
-New Lab Slip
+Lab Slip create/list/detail/edit
 ↓
-Lab Slip list/detail/edit
+Scan request/list/detail/scheduling/assignment/rescheduling/completion
 ↓
-Tooth selector
+Production queue
 ↓
-Scan request
+Production detail + history + transitions
 ↓
-Scan list/detail
+Production-aware Lab Slip edit lock / Admin override
 ↓
-Initial scheduling
-↓
-Scanner assignment
-↓
-Rescheduling
-↓
-Scan completion
+Doctor/Clinic production visibility
 ```
 
-The next major UX area is:
-
-**Module 4D — Lab Production Workflow**
-
-Its interface must be designed only after production business rules are approved.
+Module 4D UX has passed automated checks and manual role/state QA. The next planned UX area is Module 4E — Private Attachments after Module 4D Git finalization.

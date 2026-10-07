@@ -469,13 +469,13 @@ Current concepts include:
 - creator
 - timestamps
 
-Current Lab Slip status:
+Current Lab Slip status remains:
 
 ```text
 SUBMITTED
 ```
 
-Production lifecycle has not yet been defined.
+Manufacturing progress is modeled separately by the linked Production record (`SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`).
 
 ---
 
@@ -571,7 +571,7 @@ Current immutable identity fields:
 
 `scanRequired` is handled through scan-booking behavior rather than normal Lab Slip editing.
 
-The production edit-lock point is not yet defined.
+Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and stays locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason.
 
 ---
 
@@ -859,7 +859,9 @@ Do not invent logo/typeface/branding.
 
 ---
 
-# 28. Completed Modules
+# 28. Completed / Current Modules
+
+Committed and pushed complete through:
 
 ```text
 Module 0   Foundation                         COMPLETE
@@ -876,62 +878,61 @@ Module 4B  Scan Booking + Lab Slip Editing    COMPLETE
 Module 4C  Scan Rescheduling                  COMPLETE
 ```
 
-Last known state:
-
-```text
-Module 4C was committed and pushed to GitHub.
-```
-
-A fresh session must still verify Git state.
-
----
-
-# 29. Next Module
+Current module:
 
 ```text
 Module 4D — Lab Production Workflow
+IN PROGRESS — implemented and verified, pending final documentation/Git review/commit/push
 ```
-
-Status:
-
-```text
-NEXT
-```
-
-Do not write production code immediately.
-
-The production business flow must first be understood and approved.
 
 ---
 
-# 30. Module 4D — Open Decisions
+# 29. Module 4D Current State
 
-Before implementation, resolve:
+Implemented:
+
+- separate one-to-one Production entity
+- automatic transactional Production creation with Lab Slip
+- `SUBMITTED → IN_PRODUCTION → COMPLETED`
+- scan-required readiness gating
+- Cera Admin/Cera Staff forward transitions
+- Admin-only backward transitions with mandatory reason
+- production history/timestamps
+- production queue/detail frontend
+- Lab Slip edit lock once production starts
+- Admin audited override
+- Doctor/Clinic simplified status visibility
+
+Completion means fabrication + final internal check complete, not delivery.
+
+No Production assignee in V1.
+
+Automated API/frontend tests, lint, frontend build, and manual QA have passed.
+
+---
+
+# 30. Next Action
+
+Do not begin Module 4E yet.
+
+Finish Module 4D by:
 
 ```text
-1. Production statuses
-2. Production readiness condition
-3. Who can start production
-4. Who can update production status
-5. Allowed transitions
-6. Whether backward transitions are allowed
-7. Lab Slip edit-lock point
-8. Whether production history is retained
-9. What Doctor can see
-10. What Clinic Staff can see
-11. Meaning of completed
-12. Whether production has an assignee
-13. Whether production lives on LabSlip or a separate entity
-14. Whether completed production can reopen
-15. Whether transitions require notes/reasons
+documentation consistency
+↓
+git status / git diff review
+↓
+one Module 4D commit
+↓
+push to GitHub
+↓
+confirm clean working tree
 ```
 
-Do not invent answers.
-
-See:
+After that, next planned module is:
 
 ```text
-docs/decisions/OPEN_QUESTIONS.md
+Module 4E — Private Attachments
 ```
 
 ---
@@ -1180,35 +1181,18 @@ docs/progress/
 
 ---
 
-# 38. Recommended New Module Chat Prompt
+# 38. Recommended Continuation Prompt
 
-After pasting this file into a new chat, use:
+If this work continues in a new chat before the Module 4D commit is finished, use:
 
 ```text
 We are continuing the Cera Dental Lab project.
 
-This session is only for Module 4D — Lab Production Workflow.
+Module 4D — Lab Production Workflow is implemented and verified.
+Do not begin Module 4E yet.
 
-Do not write code yet.
-
-First:
-1. explain your understanding of the overall project,
-2. explain where Module 4D fits,
-3. identify dependencies on completed modules,
-4. review the current Lab Slip and Scan Booking behavior,
-5. identify the unresolved production business/design decisions,
-6. help me resolve those decisions,
-7. define acceptance criteria.
-
-Do not assume missing business rules.
-
-I am not using a coding agent.
-I manually run commands and copy/paste code into VS Code.
-
-Before modifying an existing file, ask me for its current contents.
-Do not create new folders, architecture layers, dependencies, statuses,
-permissions, or workflows unless the existing project structure and approved
-business rules require them.
+First retrieve PROJECT_KNOWLEDGE_BASE, MODULE_STATUS, SESSION_HANDOFF, and the current Git state.
+The remaining work is final documentation consistency, git status/diff review, one Module 4D commit, push, and clean-tree confirmation.
 ```
 
 ---
@@ -1216,11 +1200,12 @@ business rules require them.
 # 39. Current Handoff State
 
 ```text
-READY FOR MODULE 4D BUSINESS DESIGN
+MODULE 4D IMPLEMENTED + VERIFIED
+PENDING DOCUMENTATION / GIT FINALIZATION
 ```
 
 Not yet ready for:
 
 ```text
-MODULE 4D CODING
+MODULE 4E DEVELOPMENT
 ```

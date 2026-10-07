@@ -309,11 +309,13 @@ Identity fields must remain immutable, including:
 
 `scanRequired` is managed through the scan-booking flow rather than normal Lab Slip editing.
 
-### 9.12 Future Edit Lock
+### 9.12 Production Edit Lock
 
-The exact point at which Lab Slip editing becomes locked during production must be explicitly defined before implementing the production workflow.
+The Production edit-lock behavior is defined in Section 12.7.
 
-This must not be assumed.
+Normal Lab Slip edits lock when Production reaches `IN_PRODUCTION`.
+
+Only Cera Admin may override the lock, and an audited reason is mandatory.
 
 ---
 
@@ -475,24 +477,137 @@ They must not receive reschedule-management controls.
 
 ## 12. Lab Production Requirements
 
-Lab production is planned but not yet implemented.
+### 12.1 Production Record
 
-The system must eventually support the workflow after Cera receives sufficient case information.
+Each Lab Slip must have exactly one linked Production record.
 
-Before implementation, the following must be explicitly defined:
+New Lab Slip creation must create Production in:
 
-- production statuses
-- who may start production
-- who may change production states
-- allowed state transitions
-- whether backward transitions are allowed
-- Lab Slip edit-lock point
-- Doctor/Clinic visibility
-- completion rules
-- whether production history is retained
-- relationship between scan completion and production start
+```text
+SUBMITTED
+```
 
-These items must not be assumed.
+### 12.2 Production Lifecycle
+
+Supported statuses:
+
+```text
+SUBMITTED
+IN_PRODUCTION
+COMPLETED
+```
+
+Forward lifecycle:
+
+```text
+SUBMITTED
+→ IN_PRODUCTION
+→ COMPLETED
+```
+
+### 12.3 Production Readiness
+
+For a Lab Slip with no required scan, Production may begin after submission.
+
+For a Lab Slip where scanning is required, the related Scan Booking must be `COMPLETED` before Production may start.
+
+Completing a scan must not automatically start Production.
+
+### 12.4 Forward Permissions
+
+Cera Admin and Cera Staff may:
+
+```text
+SUBMITTED → IN_PRODUCTION
+IN_PRODUCTION → COMPLETED
+```
+
+Doctor, Clinic Staff, and Scanning Staff may not change Production status.
+
+### 12.5 Backward Permissions
+
+Only Cera Admin may perform:
+
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
+
+A reason is mandatory.
+
+Direct:
+
+```text
+COMPLETED → SUBMITTED
+```
+
+must be rejected.
+
+### 12.6 Production History
+
+Every status transition must retain:
+
+- previous status
+- new status
+- actor
+- timestamp
+- optional note/reason
+
+Backward transition reasons are mandatory.
+
+### 12.7 Lab Slip Production Edit Lock
+
+Normal Lab Slip editing is allowed while Production remains `SUBMITTED`.
+
+When Production reaches `IN_PRODUCTION` or `COMPLETED`, normal Lab Slip editing is locked.
+
+Cera Admin may intentionally override the lock with a mandatory reason.
+
+The override must be audited.
+
+Cera Staff, Doctor, and Clinic Staff cannot bypass the lock.
+
+### 12.8 Production Visibility
+
+Doctor and Clinic Staff must see simplified production wording:
+
+```text
+Submitted
+In Progress
+Completed
+```
+
+Cera Staff and Cera Admin use internal wording:
+
+```text
+Submitted
+In Production
+Completed
+```
+
+Scanning Staff do not receive general Production access.
+
+### 12.9 Completion Meaning
+
+Production `COMPLETED` means fabrication and final internal check are complete.
+
+It must not imply delivery, dispatch, or patient handover.
+
+### 12.10 Assignment
+
+V1 does not include a Production assignee.
+
+### 12.11 Out of Scope
+
+Module 4D does not include:
+
+- delivery/logistics
+- attachments
+- corrections
+- notifications
+- billing/payments
+- inventory
+- scanner integration
 
 ---
 
@@ -663,8 +778,10 @@ Examples already confirmed:
 - Scan Booking references
 - Reschedule history
 - immutable Lab Slip identity fields
+- append-only Production transition history
+- Lab Slip Admin production-lock override audit
 
-Future production/correction history requirements must be explicitly designed rather than assumed.
+Correction history requirements remain deferred to Module 4F and must be explicitly designed rather than assumed.
 
 ---
 

@@ -748,11 +748,30 @@ Current Lab Slip edit support includes:
 - design notes
 - general notes
 
-## Important Limitation
+## Production Edit Lock
 
-The future point at which production locks these edits has **not yet been decided**.
+Module 4D resolved the production edit-lock rule.
 
-That decision belongs to Module 4D and must not be inferred from this ADR.
+Normal Lab Slip editing is allowed while the linked Production status is:
+
+```text
+SUBMITTED
+```
+
+When Production reaches:
+
+```text
+IN_PRODUCTION
+COMPLETED
+```
+
+normal Lab Slip editing is locked.
+
+Cera Admin may intentionally override this lock only with a mandatory reason. The override is retained in Lab Slip audit history.
+
+Cera Staff, Doctor, and Clinic Staff cannot bypass the lock.
+
+See ADR-050 for the complete Production workflow.
 
 ---
 
@@ -1166,28 +1185,195 @@ Do not introduce branch-process complexity without a reason.
 
 ---
 
-# ADR-050 — Production Workflow Is Not Yet Architecturally Decided
+# ADR-050 — Production Workflow Architecture and Rules
 
 Status: **ACCEPTED**
 
 ## Decision
 
-Module 4D production architecture is intentionally **not decided yet**.
+Production is modeled as a separate `Production` entity with a one-to-one relationship to `LabSlip`.
 
-Open questions include:
+Every newly created Lab Slip must atomically create exactly one Production record.
 
-- production statuses
-- production permissions
-- Lab Slip edit lock
-- readiness conditions
-- history
-- whether production lives directly on LabSlip or as a separate entity
-- what Doctor/Clinic can see
-- completion semantics
+Initial Production state:
+
+```text
+SUBMITTED
+```
+
+Confirmed lifecycle:
+
+```text
+SUBMITTED
+→ IN_PRODUCTION
+→ COMPLETED
+```
+
+Confirmed backward transitions:
+
+```text
+COMPLETED
+→ IN_PRODUCTION
+
+IN_PRODUCTION
+→ SUBMITTED
+```
+
+There is no direct:
+
+```text
+COMPLETED
+→ SUBMITTED
+```
+
+### Readiness
+
+For a Lab Slip where:
+
+```text
+scanRequired = false
+```
+
+Production may start after submission.
+
+For:
+
+```text
+scanRequired = true
+```
+
+Production may start only when the related Scan Booking is:
+
+```text
+COMPLETED
+```
+
+Scan completion does not automatically start Production.
+
+### Permissions
+
+Forward transitions:
+
+```text
+Cera Admin
+Cera Staff
+```
+
+Backward transitions:
+
+```text
+Cera Admin only
+```
+
+Doctor, Clinic Staff, and Scanning Staff cannot mutate Production status.
+
+Backward transitions require a reason.
+
+Forward transitions may include an optional note.
+
+### History
+
+Every Production transition appends history containing:
+
+```text
+previousStatus
+newStatus
+changedByUserId
+changedAt
+optional note/reason
+```
+
+Production creation itself is not treated as a status transition and therefore begins with empty transition history.
+
+### Timestamps
+
+`SUBMITTED → IN_PRODUCTION`:
+
+```text
+startedAt = now
+completedAt = null
+```
+
+`IN_PRODUCTION → COMPLETED`:
+
+```text
+startedAt preserved
+completedAt = now
+```
+
+`COMPLETED → IN_PRODUCTION`:
+
+```text
+startedAt preserved
+completedAt = null
+```
+
+`IN_PRODUCTION → SUBMITTED`:
+
+```text
+startedAt = null
+completedAt = null
+```
+
+History remains preserved during backward movement.
+
+### Lab Slip Editing
+
+Normal Lab Slip editing locks when Production reaches `IN_PRODUCTION`.
+
+The lock remains in effect for `COMPLETED`.
+
+Cera Admin may intentionally override the lock with a mandatory reason.
+
+Admin Lab Slip edit overrides are audited on the Lab Slip and are not recorded as Production status transitions.
+
+Cera Staff cannot override the lock.
+
+### Visibility
+
+Doctor and Clinic Staff see simplified wording:
+
+```text
+SUBMITTED      → Submitted
+IN_PRODUCTION  → In Progress
+COMPLETED      → Completed
+```
+
+Cera Admin and Cera Staff use internal wording:
+
+```text
+Submitted
+In Production
+Completed
+```
+
+Scanning Staff do not receive general Production access.
+
+### Completion
+
+`COMPLETED` means:
+
+```text
+fabrication completed
++
+final internal check completed
+```
+
+It does not mean delivered, dispatched, or handed over.
+
+### Assignment
+
+V1 has no Production assignee.
 
 ## Consequence
 
-No chatbot session may invent a production state machine or production persistence structure before these decisions are approved.
+Lab Slip status and Production status remain separate concepts.
+
+Production owns manufacturing lifecycle/history.
+
+Corrections, delivery/logistics, notifications, attachments, billing, inventory, and scanner integration remain separate concerns.
+
+The previous undecided-production restriction in this ADR is superseded by these confirmed Module 4D rules.
 
 ---
 

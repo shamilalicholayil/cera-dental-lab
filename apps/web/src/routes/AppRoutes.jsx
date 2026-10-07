@@ -32,6 +32,10 @@ import { ScanBookingsPage } from "../pages/ScanBookingsPage";
 
 import { ScanBookingDetailPage } from "../pages/ScanBookingDetailPage";
 
+import { ProductionQueuePage } from "../pages/ProductionQueuePage";
+
+import { ProductionDetailPage } from "../pages/ProductionDetailPage";
+
 import { EditLabSlipPage } from "../pages/EditLabSlipPage";
 
 const LAB_SLIP_ROLES = [
@@ -48,6 +52,8 @@ const SCAN_ROLES = [
   USER_ROLES.CLINIC_STAFF,
   USER_ROLES.SCANNING_STAFF,
 ];
+
+const PRODUCTION_ROLES = [USER_ROLES.CERA_ADMIN, USER_ROLES.CERA_STAFF];
 
 export function AppRoutes() {
   return (
@@ -143,6 +149,30 @@ export function AppRoutes() {
               fallback={<Navigate to="/portal" replace />}
             >
               <EditLabSlipPage />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/portal/production"
+          element={
+            <RoleGuard
+              allowedRoles={PRODUCTION_ROLES}
+              fallback={<Navigate to="/portal" replace />}
+            >
+              <ProductionQueuePage />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="/portal/production/:productionId"
+          element={
+            <RoleGuard
+              allowedRoles={PRODUCTION_ROLES}
+              fallback={<Navigate to="/portal" replace />}
+            >
+              <ProductionDetailPage />
             </RoleGuard>
           }
         />

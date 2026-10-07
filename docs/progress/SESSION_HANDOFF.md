@@ -438,7 +438,7 @@ Current immutable identity fields include:
 - creator
 - created timestamp
 
-The future production edit-lock point is **not yet decided**.
+Normal Lab Slip editing now locks when linked Production reaches `IN_PRODUCTION` and remains locked for `COMPLETED`. Cera Admin may override only with a mandatory audited reason.
 
 ---
 
@@ -590,7 +590,7 @@ Object-storage provider and permissions are not yet locked.
 
 ---
 
-# 21. Next Module — Module 4D
+# 21. Current Module — Module 4D
 
 Module:
 
@@ -601,239 +601,166 @@ Lab Production Workflow
 Status:
 
 ```text
-NEXT
-```
-
-Implementation has not begun.
-
-The next session should focus first on understanding Cera's real production workflow.
-
----
-
-# 22. Module 4D — Decisions Required Before Coding
-
-The next session must resolve:
-
-```text
-1. Production statuses
-2. Production readiness condition
-3. Who can start production
-4. Who can update production status
-5. Allowed transitions
-6. Whether backward transitions are allowed
-7. Lab Slip edit-lock point
-8. Whether production history is retained
-9. What Doctor can see
-10. What Clinic Staff can see
-11. What “completed” means
-12. Whether production has an assignee
-13. Whether production lives on LabSlip or a separate entity
-14. Whether completed production can reopen
-15. Whether transitions need notes/reasons
-```
-
-These questions are already listed in:
-
-```text
-docs/decisions/OPEN_QUESTIONS.md
+IN PROGRESS — IMPLEMENTED + VERIFIED, PENDING FINAL DOCUMENTATION/GIT FINALIZATION
 ```
 
 ---
 
-# 23. Module 4D — Do Not Assume
+# 22. Module 4D — Confirmed Business Rules
 
-Do **not** start by inventing a state machine such as:
+Production lifecycle:
 
 ```text
-SUBMITTED
-→ IN_PRODUCTION
-→ QUALITY_CHECK
-→ COMPLETED
+SUBMITTED → IN_PRODUCTION → COMPLETED
 ```
 
-unless Cera's actual business workflow confirms those statuses.
+Readiness:
 
-Do not assume:
+- non-scan case may start after submission
+- scan-required case requires related Scan Booking `COMPLETED`
+- scan completion does not auto-start Production
 
-- quality-check state exists
-- technician assignment exists
-- delivery status exists
-- scan completion always automatically starts production
-- urgent cases automatically receive a deadline
-- Doctors see every internal state
-- completed cases can be reopened
-- Cera Staff and Admin have identical production permissions
+Permissions:
+
+- Cera Admin + Cera Staff: forward transitions
+- Cera Admin only: backward transitions
+- backward reason required
+- Doctor / Clinic Staff / Scanning Staff cannot mutate Production
+
+Backward transitions:
+
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
+
+Direct `COMPLETED → SUBMITTED` is not allowed.
+
+Lab Slip editing:
+
+- normal editing locks at `IN_PRODUCTION`
+- remains locked at `COMPLETED`
+- Cera Admin may override with mandatory audited reason
+- Cera Staff / Doctor / Clinic Staff cannot override
+
+Visibility:
+
+```text
+Doctor/Clinic: Submitted → In Progress → Completed
+Cera:          Submitted → In Production → Completed
+```
+
+Completion means fabrication + final internal check complete; it does not mean delivery.
+
+No Production assignee in V1.
 
 ---
 
-# 24. Suggested Module 4D Session Start
+# 23. Module 4D — Implemented Technical Areas
 
-Use a new chat and paste:
+Backend:
+
+- `PRODUCTION_STATUS` shared constants
+- Production model + indexes + history
+- atomic Lab Slip + Production transaction
+- local MongoDB replica set `rs0` for transaction support
+- production validation/service/controller/routes/serializer
+- queue filtering/pagination/detail
+- readiness + role/state enforcement
+- Lab Slip production edit lock + Admin override audit
+
+Frontend:
+
+- Production queue
+- Production detail actions/history
+- role-aware controls
+- Lab Slip edit-lock screens
+- Admin override field
+- Doctor/Clinic production visibility
+
+---
+
+# 24. Module 4D — Verification
+
+Confirmed by user:
 
 ```text
-docs/progress/CHAT_CONTEXT.md
+focused tests passed
+full frontend tests passed
+full API tests passed
+frontend lint passed
+API lint passed
+frontend build passed
+manual QA passed
 ```
 
-Then state:
+Manual QA covered forward/backward transitions, scan readiness, role restrictions, edit lock/override, external/internal wording, and responsive behavior.
+
+---
+
+# 25. Deliberate Non-Changes / Technical Notes
+
+- Production creation history begins empty; creation is not a transition.
+- No Production assignee in V1.
+- `COMPLETED` does not mean delivery.
+- Notifications remain future Module 5 work.
+- Attachments remain Module 4E.
+- Corrections remain Module 4F.
+- Production transitions currently use read-modify-save; concurrency hardening remains cross-workflow technical debt.
+- Reference-number gaps after a rolled-back Lab Slip creation transaction are accepted.
+- Local MongoDB remains single-node replica set `rs0`.
+
+---
+
+# 26. Immediate Next Steps
+
+Do not start Module 4E yet.
+
+Finish Module 4D in this order:
 
 ```text
-This session is only for Module 4D — Lab Production Workflow.
-
-Do not write code yet.
-
-First understand:
-1. where this module fits,
-2. dependencies,
-3. current Lab Slip/Scan behavior,
-4. production business flow,
-5. unresolved decisions,
-6. acceptance criteria.
-
-Do not assume missing business rules.
-
-I am not using a coding agent.
-I manually run commands and copy/paste code into VS Code.
-Ask me for current files before modifying them.
+1. finish documentation consistency update
+2. run git status
+3. inspect git diff
+4. ensure only intended Module 4D/doc changes are present
+5. create one Module 4D commit
+6. push to GitHub
+7. confirm clean working tree
+8. then mark Module 4D COMPLETE
 ```
 
 ---
 
-# 25. Module 4D — Likely Existing Areas to Inspect Later
+# 27. Manual Development Protocol
 
-Only after business rules are approved, the next session will probably need current versions of relevant files such as:
+The user normally manually runs commands and copies code into VS Code.
 
-```text
-packages/shared/src/labSlip.js
-packages/shared/src/index.js
+For future source-code changes:
 
-apps/api/src/modules/labSlips/labSlip.model.js
-apps/api/src/modules/labSlips/labSlip.schemas.js
-apps/api/src/modules/labSlips/labSlip.serializer.js
-apps/api/src/modules/labSlips/labSlip.service.js
-apps/api/src/modules/labSlips/labSlip.controller.js
-apps/api/src/modules/labSlips/labSlip.routes.js
-apps/api/src/modules/labSlips/labSlip.test.js
-```
+1. inspect current files first
+2. give exact path and targeted/full replacement guidance
+3. run smallest relevant tests
+4. progress checkpoint by checkpoint
 
-Scan Booking files may also be relevant if production readiness depends on completed scanning.
-
-Do not request all files at once unless necessary.
+The user explicitly authorized direct editing of the uploaded documentation source files for this final documentation pass.
 
 ---
 
-# 26. Manual Development Protocol for the Next Session
+# 28. Next Planned Module
 
-The next chatbot session must remember:
-
-```text
-User is manually copying code.
-```
-
-Therefore:
-
-1. Ask for only the relevant current file(s).
-2. Review actual contents.
-3. Give exact file path.
-4. State whether change is:
-   - targeted edit, or
-   - full-file replacement.
-5. User pastes it.
-6. Ask user to run the smallest relevant test.
-7. Fix failures before continuing.
-8. Move checkpoint by checkpoint.
-
----
-
-# 27. Recommended Module 4D Checkpoints
-
-After business design is approved:
+After Module 4D is committed/pushed and the working tree is clean:
 
 ```text
-Checkpoint 1
-Production business rules + state machine
-
-Checkpoint 2
-Acceptance criteria
-
-Checkpoint 3
-Shared constants/contracts
-
-Checkpoint 4
-Persistence/model changes
-
-Checkpoint 5
-Backend business service
-
-Checkpoint 6
-Validation/controller/routes/serializer
-
-Checkpoint 7
-Backend tests
-
-Checkpoint 8
-Frontend API
-
-Checkpoint 9
-Frontend production UI
-
-Checkpoint 10
-Frontend tests
-
-Checkpoint 11
-Manual role/state QA
-
-Checkpoint 12
-Full regression / lint / build
-
-Checkpoint 13
-Git review
-
-Checkpoint 14
-Commit + push
-
-Checkpoint 15
-Update docs + handoff
+Module 4E — Private Attachments
 ```
 
-The actual technical structure must be chosen only after production design is confirmed.
-
----
-
-# 28. End-of-Next-Session Requirement
-
-When Module 4D is eventually complete, update:
-
-```text
-docs/progress/MODULE_STATUS.md
-docs/progress/SESSION_HANDOFF.md
-docs/progress/CHAT_CONTEXT.md
-```
-
-Also update:
-
-```text
-docs/decisions/ARCHITECTURE_DECISIONS.md
-docs/decisions/OPEN_QUESTIONS.md
-```
-
-for all production decisions made.
-
-If production rules change requirements/business flows, update the corresponding project/design docs too.
+Its ownership, permissions, deletion/retention, size, storage-provider, signed-access, and security-validation questions remain deferred until that module begins.
 
 ---
 
 # 29. Handoff State
 
-Current handoff status:
-
 ```text
-READY FOR MODULE 4D BUSINESS DESIGN
+MODULE 4D IMPLEMENTED + VERIFIED
+PENDING FINAL DOCUMENTATION / GIT REVIEW / COMMIT / PUSH
 ```
-
-Not yet ready for:
-
-```text
-MODULE 4D CODING
-```
-
-The next step is to understand and approve Cera's actual lab-production workflow.

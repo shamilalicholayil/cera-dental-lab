@@ -7,6 +7,7 @@ import {
   LAB_SLIP_STATUS_VALUES,
   LAB_SLIP_URGENCY,
   LAB_SLIP_URGENCY_VALUES,
+  PRODUCTION_STATUS_VALUES,
   TOOTH_VALUES,
 } from "@cera/shared";
 
@@ -95,6 +96,38 @@ const patientSchema = new mongoose.Schema(
       trim: true,
       default: null,
       maxlength: 120,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const productionEditOverrideSchema = new mongoose.Schema(
+  {
+    productionStatus: {
+      type: String,
+      enum: PRODUCTION_STATUS_VALUES,
+      required: true,
+    },
+
+    reason: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 500,
+    },
+
+    changedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    changedAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
     },
   },
   {
@@ -198,11 +231,23 @@ const labSlipSchema = new mongoose.Schema(
 
       required: true,
     },
+
+    productionEditOverrideHistory: {
+      type: [productionEditOverrideSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
   },
 );
+
+labSlipSchema.virtual("production", {
+  ref: "Production",
+  localField: "_id",
+  foreignField: "labSlipId",
+  justOne: true,
+});
 
 labSlipSchema.index({
   doctorId: 1,

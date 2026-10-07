@@ -12,6 +12,7 @@ import {
   LAB_SLIP_SOURCE,
   LAB_SLIP_STATUS,
   LAB_SLIP_URGENCY,
+  PRODUCTION_STATUS,
   USER_ROLES,
 } from "@cera/shared";
 
@@ -165,6 +166,10 @@ const labSlip = {
   notes: "General notes",
 
   scanRequired: true,
+
+  production: {
+    status: PRODUCTION_STATUS.SUBMITTED,
+  },
 
   createdAt: "2026-10-05T10:00:00.000Z",
 
@@ -472,6 +477,21 @@ describe("LabSlipsPage", () => {
   });
 });
 
+function renderLabSlipDetail(user = doctor) {
+  return render(
+    <Provider store={createTestStore(user)}>
+      <MemoryRouter initialEntries={["/portal/lab-slips/slip-1"]}>
+        <Routes>
+          <Route
+            path="/portal/lab-slips/:labSlipId"
+            element={<LabSlipDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </Provider>,
+  );
+}
+
 describe("LabSlipDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -483,17 +503,136 @@ describe("LabSlipDetailPage", () => {
     });
   });
 
+  it("shows Submitted production status to a Doctor", async () => {
+    renderLabSlipDetail(doctor);
+
+    await screen.findByRole("heading", {
+      name: "CDL-2026-000001",
+    });
+
+    expect(screen.getByText("Production")).toBeInTheDocument();
+
+    expect(screen.getByText("Submitted")).toBeInTheDocument();
+  });
+
+  it("shows In Progress to a Doctor when production has started", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.IN_PRODUCTION,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    expect(await screen.findByText("In Progress")).toBeInTheDocument();
+
+    expect(screen.queryByText("In Production")).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", {
+        name: "Edit Lab Slip",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Completed to a Doctor for completed production", async () => {
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.COMPLETED,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(doctor);
+
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", {
+        name: "Edit Lab Slip",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows In Production to Cera Staff", async () => {
+    const ceraStaff = {
+      id: "staff-1",
+
+      name: "Cera Staff",
+
+      role: USER_ROLES.CERA_STAFF,
+    };
+
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.IN_PRODUCTION,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(ceraStaff);
+
+    expect(await screen.findByText("In Production")).toBeInTheDocument();
+
+    expect(screen.queryByText("In Progress")).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", {
+        name: "Edit Lab Slip",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the Edit action available to Admin for a production-locked Lab Slip", async () => {
+    const admin = {
+      id: "admin-1",
+
+      name: "Cera Admin",
+
+      role: USER_ROLES.CERA_ADMIN,
+    };
+
+    getLabSlip.mockResolvedValue({
+      data: {
+        labSlip: {
+          ...labSlip,
+
+          production: {
+            status: PRODUCTION_STATUS.IN_PRODUCTION,
+          },
+        },
+      },
+    });
+
+    renderLabSlipDetail(admin);
+
+    expect(await screen.findByText("In Production")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", {
+        name: "Edit Lab Slip",
+      }),
+    ).toHaveAttribute("href", "/portal/lab-slips/slip-1/edit");
+  });
+
   it("displays the stored lab slip snapshot", async () => {
-    render(
-      <MemoryRouter initialEntries={["/portal/lab-slips/slip-1"]}>
-        <Routes>
-          <Route
-            path="/portal/lab-slips/:labSlipId"
-            element={<LabSlipDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>,
-    );
+    renderLabSlipDetail(doctor);
 
     expect(
       await screen.findByRole("heading", {

@@ -74,6 +74,12 @@ export function serializeLabSlip(labSlip) {
 
     scanRequired: labSlip.scanRequired,
 
+    production: labSlip.production
+      ? {
+          status: labSlip.production.status,
+        }
+      : null,
+
     createdAt: labSlip.createdAt,
 
     updatedAt: labSlip.updatedAt,

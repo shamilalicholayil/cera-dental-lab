@@ -91,16 +91,16 @@ Clinic + Doctor + Creator
           └── rescheduleHistory[]
 ```
 
-Future entities may include:
+Implemented and future operational entities include:
 
 ```text
-Production / Production history
-Attachments
-Corrections
-Notifications
+Production + embedded production transition history   IMPLEMENTED
+Attachments                                            FUTURE
+Corrections                                            FUTURE
+Notifications                                          FUTURE
 ```
 
-These must not be designed prematurely before their business rules are approved.
+Future entities must not be designed prematurely before their business rules are approved.
 
 ---
 
@@ -347,15 +347,13 @@ LabSlip
 └── timestamps
 ```
 
-Current confirmed Lab Slip status:
+The Lab Slip retains its own status:
 
 ```text
 SUBMITTED
 ```
 
-A production lifecycle has not yet been added.
-
-Do not add production statuses until Module 4D is designed and approved.
+Production lifecycle is stored separately in the linked Production entity rather than overloading `LabSlip.status`.
 
 ---
 
@@ -530,7 +528,7 @@ Identity fields remain immutable:
 
 `scanRequired` is managed through scan-booking behavior rather than normal Lab Slip editing.
 
-The future production edit-lock point remains an open Module 4D decision.
+Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and remains locked for `COMPLETED`. Admin override audit is retained on the Lab Slip.
 
 ---
 
@@ -887,36 +885,53 @@ Do not create attachment collections/schema before Module 4E design.
 
 ---
 
-# 37. Production — Future Database Design
+# 37. Production — Implemented Database Design
 
-Production workflow is the next major open area.
+Production is stored as a separate `Production` entity linked one-to-one to `LabSlip`.
 
-Before persistence is designed, the project must decide whether production state belongs:
+Conceptual structure:
 
-### Option A
+```text
+Production
+├── labSlipId        unique reference to LabSlip
+├── status
+├── startedAt
+├── completedAt
+├── history[]
+│   ├── previousStatus
+│   ├── newStatus
+│   ├── changedByUserId
+│   ├── note
+│   └── changedAt
+└── timestamps
+```
 
-Directly on `LabSlip`
+Supported Production status values:
 
-or
+```text
+SUBMITTED
+IN_PRODUCTION
+COMPLETED
+```
 
-### Option B
+Every new Lab Slip creates exactly one Production record in the same MongoDB transaction.
 
-In a separate production entity linked to `LabSlip`
+Production creation begins with:
 
-This must not be assumed.
+```text
+status      = SUBMITTED
+startedAt   = null
+completedAt = null
+history     = []
+```
 
-Required business decisions include:
+History is append-only for transitions. Creation itself is not represented as a transition event.
 
-- production states
-- production history
-- assignment/ownership
-- timestamps
-- readiness
-- completion
-- edit lock
-- backward transitions
+The Production model has no assignee in V1.
 
-Only after those decisions should database structure be chosen.
+Lab Slip retains a virtual one-to-one Production relationship for population/serialization.
+
+Lab Slip production-lock override audit is stored on the Lab Slip rather than in Production transition history because an edit override is not a Production status transition.
 
 ---
 
@@ -992,9 +1007,17 @@ ScanBooking created
 
 If one step fails after another succeeds, partial state is theoretically possible.
 
-More advanced transactionality may be introduced where a confirmed business risk justifies it.
+A confirmed transactional workflow now exists for Lab Slip creation:
 
-Do not add transaction complexity everywhere without need.
+```text
+create LabSlip
++
+create exactly one SUBMITTED Production
+```
+
+These writes execute in one MongoDB transaction. Local development MongoDB therefore runs as single-node replica set `rs0`.
+
+Other workflows should only gain transaction complexity when a confirmed business risk justifies it.
 
 ---
 
@@ -1121,14 +1144,12 @@ Catalogue categories
 Catalogue products
 Lab Slips
 Lab Slip item snapshots
+Lab Slip production-edit override audit
 Scan Bookings
 Scan assignments
-Scan reschedule state
-Scan reschedule history
+Scan reschedule state/history
+Production
+Production transition history
 ```
 
-The next database-design extension will depend on:
-
-**Module 4D — Lab Production Workflow**
-
-No production schema should be added until the module's business model is approved.
+The next planned database-design area is Module 4E — Private Attachments. Its ownership, metadata, retention, provider, and access rules remain deferred until that module begins.

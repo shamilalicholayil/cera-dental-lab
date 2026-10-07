@@ -49,7 +49,7 @@ Scan required?
    Correction / Issue if required
 ```
 
-The production and correction stages are planned but not yet fully designed.
+Production is implemented through completion. The correction stage remains planned and must be designed in Module 4F.
 
 ---
 
@@ -207,7 +207,7 @@ The Doctor may see:
 - current reschedule information
 - reschedule history
 
-The exact future production information visible to Doctors is not yet defined.
+Doctor-visible Production status is exposed through accessible Lab Slip detail using the simplified labels `Submitted`, `In Progress`, and `Completed`.
 
 ---
 
@@ -316,27 +316,31 @@ Doctor cannot edit identity fields such as:
 - creator
 - created timestamp
 
-The production edit-lock point is not yet defined and must be decided in Module 4D.
+Normal Doctor editing locks when linked Production reaches `IN_PRODUCTION` and remains locked for `COMPLETED`.
 
 ---
 
-## 3.9 Doctor — Future Production Flow
+## 3.9 Doctor — Production Flow
 
-Planned flow:
+Doctor-facing flow:
 
 ```text
-Lab Slip ready
+Lab Slip submitted
 ↓
-Cera begins production
+Production = Submitted
 ↓
-Doctor can view permitted production state
+Cera starts fabrication
 ↓
-Case completed
+Doctor sees In Progress
+↓
+Cera completes fabrication + final internal check
+↓
+Doctor sees Completed
 ```
 
-The exact statuses and visibility rules are not yet confirmed.
+Doctor cannot mutate Production status.
 
-Do not assume them before Module 4D design.
+When Production is `IN_PRODUCTION` or `COMPLETED`, the Doctor cannot edit the Lab Slip.
 
 ---
 
@@ -433,9 +437,19 @@ The same immutable Lab Slip identity rules apply.
 
 ## 4.5 Clinic Staff — Production / Corrections
 
-Future behavior must remain limited to clinic-authorized cases.
+Clinic Staff Production visibility remains limited to clinic-authorized cases.
 
-Exact production and correction permissions are not yet fully designed.
+Clinic Staff see the same simplified Production labels as Doctors:
+
+```text
+Submitted
+In Progress
+Completed
+```
+
+Clinic Staff cannot mutate Production status and cannot edit a Lab Slip after Production reaches `IN_PRODUCTION`.
+
+Correction permissions remain deferred to Module 4F.
 
 ---
 
@@ -623,32 +637,46 @@ Normally the assigned Scanning Staff member is expected to complete their visit.
 
 ## 5.9 Cera — Production
 
-This is the next planned operational module.
-
-Expected general direction:
+Cera Staff and Cera Admin operate the forward Production flow:
 
 ```text
-Case ready for fabrication
+SUBMITTED
 ↓
-Cera begins production
+Start Production
 ↓
-Production progresses
+IN_PRODUCTION
 ↓
-Case completed
+Complete Production
+↓
+COMPLETED
 ```
 
-However, before implementation, the project must explicitly define:
+If the Lab Slip requires scanning:
 
-- readiness conditions
-- statuses
-- transitions
-- role permissions
-- edit locking
-- Doctor/Clinic visibility
-- completion semantics
-- history requirements
+```text
+Scan Booking not COMPLETED
+↓
+Production start blocked
 
-No production workflow should be inferred from this high-level direction alone.
+Scan Booking COMPLETED
+↓
+Production may be started manually
+```
+
+Scan completion does not automatically start Production.
+
+Cera Staff may perform forward transitions only.
+
+Cera Admin may also move Production backward:
+
+```text
+COMPLETED → IN_PRODUCTION
+IN_PRODUCTION → SUBMITTED
+```
+
+A backward reason is mandatory.
+
+Production history remains preserved.
 
 ---
 
@@ -714,7 +742,7 @@ Historical Lab Slips retain their snapshots.
 
 Cera Admin may participate in operational Lab Slip and Scan Booking flows where current role rules allow.
 
-Future production permissions must be confirmed explicitly in Module 4D.
+Cera Admin has the same forward Production permissions as Cera Staff and additionally owns Admin-only backward transitions and production-lock Lab Slip override capability.
 
 ---
 
@@ -998,37 +1026,53 @@ This preserves historical accuracy.
 
 ---
 
-# 12. Future Production Flow
+# 12. Production Flow
 
-Only the high-level business direction is confirmed:
+Confirmed lifecycle:
 
 ```text
-Lab Slip / Case
+Lab Slip submitted
 ↓
-Required information available
+Production SUBMITTED
 ↓
-Production starts
+Readiness check
 ↓
-Production progresses
+Cera starts production
 ↓
+IN_PRODUCTION
+↓
+Cera completes fabrication + final internal check
+↓
+COMPLETED
+```
+
+For scan-required cases:
+
+```text
+Scan Booking must be COMPLETED
+```
+
+before Production starts.
+
+For non-scan cases, no Scan Booking completion is required.
+
+Doctor and Clinic Staff see:
+
+```text
+Submitted
+In Progress
 Completed
 ```
 
-Open decisions:
+Cera operational users see:
 
-- exact readiness condition
-- whether scan-required cases require completed scan before production
-- production statuses
-- transition order
-- backward transitions
-- production owner/assignee
-- Lab Slip edit lock
-- Doctor visibility
-- Clinic Staff visibility
-- production history
-- completion rules
+```text
+Submitted
+In Production
+Completed
+```
 
-These must be resolved in Module 4D.
+Production completion is an internal manufacturing milestone and does not represent delivery.
 
 ---
 
