@@ -82,6 +82,24 @@ function formatStatusLabel(value) {
     .join(" ");
 }
 
+function formatClinicAddress(address) {
+  if (!address) {
+    return "";
+  }
+
+  return [
+    address.line1,
+    address.line2,
+    address.locality,
+    address.city,
+    address.district,
+    address.state,
+    address.pincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 function DoctorDashboard({ user }) {
   const [recentLabSlips, setRecentLabSlips] = useState([]);
 
@@ -1386,6 +1404,264 @@ function CeraOperationsDashboard({ user }) {
   );
 }
 
+function ScanningStaffDashboard({ user }) {
+  const [todayVisits, setTodayVisits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVisits() {
+      setLoading(true);
+
+      try {
+        const { confirmedFrom, confirmedTo } = getTodayRange();
+
+        const response = await getScanBookings({
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
+          confirmedFrom,
+          confirmedTo,
+          page: 1,
+          limit: 20,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        setTodayVisits(response.data.scanBookings || []);
+        setError(null);
+      } catch (requestError) {
+        if (!cancelled) {
+          const offline =
+            typeof navigator !== "undefined" && navigator.onLine === false;
+
+          setError(
+            offline
+              ? "You're offline. Reconnect and try again."
+              : requestError.message ||
+                  "Unable to load today's assigned visits.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadVisits();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  return (
+    <main className="min-h-screen bg-[var(--cera-background)]">
+      <PortalHeader />
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+        <section>
+          <p className="text-sm font-medium text-[var(--cera-blue-600)]">
+            Scanning staff
+          </p>
+
+          <div className="mt-1 flex items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-[-0.025em] text-[var(--cera-navy-950)]">
+                Today&apos;s visits
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-[var(--cera-text-muted)]">
+                Welcome, {user.name}. Your assigned clinic visits are shown in
+                scheduled order.
+              </p>
+            </div>
+
+            {!loading && !error && (
+              <div className="shrink-0 text-right">
+                <p className="text-3xl font-semibold text-[var(--cera-navy-950)]">
+                  {todayVisits.length}
+                </p>
+
+                <p className="text-xs text-[var(--cera-text-muted)]">
+                  {todayVisits.length === 1 ? "visit" : "visits"}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="mt-5">
+          <Link
+            to="/portal/scans"
+            className="inline-flex h-10 items-center rounded-xl border border-[var(--cera-border)] bg-white px-4 text-sm font-medium text-[var(--cera-navy-950)] hover:bg-slate-50"
+          >
+            View all my visits
+          </Link>
+        </div>
+
+        {loading ? (
+          <div
+            aria-live="polite"
+            className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-8 text-center"
+          >
+            <p className="text-sm text-[var(--cera-text-muted)]">
+              Loading today&apos;s visits...
+            </p>
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5"
+          >
+            <p className="font-medium text-red-800">
+              Visits could not be loaded
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-red-700">{error}</p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setReloadKey((current) => current + 1);
+              }}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700"
+            >
+              Try again
+            </button>
+          </div>
+        ) : todayVisits.length === 0 ? (
+          <div className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-8 text-center">
+            <div
+              aria-hidden="true"
+              className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--cera-success-bg)] text-[var(--cera-success)]"
+            >
+              ✓
+            </div>
+
+            <h2 className="mt-4 font-semibold text-[var(--cera-navy-950)]">
+              No visits assigned today
+            </h2>
+
+            <p className="mt-1 text-sm leading-6 text-[var(--cera-text-muted)]">
+              You currently have no active scanning visits scheduled for today.
+            </p>
+          </div>
+        ) : (
+          <section aria-labelledby="scanner-visits-heading" className="mt-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                id="scanner-visits-heading"
+                className="text-lg font-semibold text-[var(--cera-navy-950)]"
+              >
+                Visit order
+              </h2>
+
+              <p className="text-xs text-[var(--cera-text-muted)]">
+                Earliest first
+              </p>
+            </div>
+
+            <ol className="mt-3 space-y-3">
+              {todayVisits.map((booking, index) => {
+                const clinicAddress = formatClinicAddress(
+                  booking.clinic?.address,
+                );
+
+                return (
+                  <li key={booking.id}>
+                    <Link
+                      to={`/portal/scans/${booking.id}`}
+                      className="block rounded-2xl border border-[var(--cera-border)] bg-white p-4 transition active:bg-slate-50 sm:p-5"
+                    >
+                      <div className="flex gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--cera-navy-900)] text-sm font-semibold text-white">
+                          {index + 1}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-medium uppercase tracking-wide text-[var(--cera-text-muted)]">
+                                Confirmed time
+                              </p>
+
+                              <p className="mt-1 text-lg font-semibold text-[var(--cera-navy-950)]">
+                                {formatDateTime(booking.confirmedStartAt)}
+                              </p>
+                            </div>
+
+                            {booking.urgency === LAB_SLIP_URGENCY.URGENT && (
+                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                Urgent
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-4 border-t border-[var(--cera-border)] pt-4">
+                            <p className="font-semibold text-[var(--cera-navy-950)]">
+                              {booking.labSlip?.patient?.name || "Patient"}
+                            </p>
+
+                            {booking.labSlip?.patient?.reference && (
+                              <p className="mt-1 text-xs text-[var(--cera-text-muted)]">
+                                Patient ref: {booking.labSlip.patient.reference}
+                              </p>
+                            )}
+
+                            <p className="mt-3 font-medium text-[var(--cera-navy-950)]">
+                              {booking.clinic?.name || "Clinic"}
+                            </p>
+
+                            {clinicAddress && (
+                              <p className="mt-1 text-sm leading-6 text-[var(--cera-text-muted)]">
+                                {clinicAddress}
+                              </p>
+                            )}
+                          </div>
+
+                          {booking.reschedule && (
+                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-sm font-semibold text-amber-800">
+                                Reschedule in progress
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-amber-700">
+                                The current confirmed visit time remains in
+                                effect until Cera and the clinic complete the
+                                reschedule.
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <p className="text-xs font-medium text-[var(--cera-text-muted)]">
+                              {booking.reference}
+                            </p>
+
+                            <span className="text-sm font-semibold text-[var(--cera-blue-600)]">
+                              Open visit →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}
+
 function GenericPortalHome({ user }) {
   const isAdmin = user.role === USER_ROLES.CERA_ADMIN;
 
@@ -1513,6 +1789,10 @@ export function PortalHomePage() {
     user.role === USER_ROLES.CERA_STAFF
   ) {
     return <CeraOperationsDashboard user={user} />;
+  }
+
+  if (user.role === USER_ROLES.SCANNING_STAFF) {
+    return <ScanningStaffDashboard user={user} />;
   }
 
   return <GenericPortalHome user={user} />;

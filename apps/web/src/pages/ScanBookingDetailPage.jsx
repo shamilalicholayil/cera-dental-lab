@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 
 import {
+  LAB_SLIP_URGENCY,
   SCAN_BOOKING_STATUS,
   SCAN_RESCHEDULE_STATUS,
   USER_ROLES,
@@ -42,6 +43,24 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function formatClinicAddress(address) {
+  if (!address) {
+    return "";
+  }
+
+  return [
+    address.line1,
+    address.line2,
+    address.locality,
+    address.city,
+    address.district,
+    address.state,
+    address.pincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export function ScanBookingDetailPage() {
   const { bookingId } = useParams();
 
@@ -68,6 +87,8 @@ export function ScanBookingDetailPage() {
   const [rescheduleProposalReason, setRescheduleProposalReason] = useState("");
 
   const [loading, setLoading] = useState(true);
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -126,7 +147,7 @@ export function ScanBookingDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [bookingId, ceraOperations]);
+  }, [bookingId, ceraOperations, reloadKey]);
 
   async function runAction(action) {
     try {
@@ -159,12 +180,36 @@ export function ScanBookingDetailPage() {
       <main className="min-h-screen bg-[var(--cera-background)]">
         <PortalHeader />
 
-        <div className="mx-auto max-w-5xl p-6">
+        <div
+          className={
+            scanner
+              ? "mx-auto max-w-3xl px-4 py-6 sm:px-6"
+              : "mx-auto max-w-5xl p-6"
+          }
+        >
           <div
             role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
+            className="rounded-2xl border border-red-200 bg-red-50 p-5"
           >
-            {error}
+            <p className="font-medium text-red-800">
+              {scanner
+                ? "Visit could not be loaded"
+                : "Scan booking could not be loaded"}
+            </p>
+
+            <p className="mt-1 text-sm text-red-700">{error}</p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                setReloadKey((current) => current + 1);
+              }}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700"
+            >
+              Try again
+            </button>
           </div>
         </div>
       </main>
@@ -175,119 +220,232 @@ export function ScanBookingDetailPage() {
     <main className="min-h-screen bg-[var(--cera-background)]">
       <PortalHeader />
 
-      <div className="mx-auto max-w-5xl px-5 py-8">
+      <div
+        className={
+          scanner
+            ? "mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8"
+            : "mx-auto max-w-5xl px-5 py-8"
+        }
+      >
         <Link
           to="/portal/scans"
           className="text-sm font-semibold text-[var(--cera-blue-600)]"
         >
-          ← Scan Bookings
+          {scanner ? "← My Visits" : "← Scan Bookings"}
         </Link>
 
         {/* =========================================================
             1. BOOKING SUMMARY
         ========================================================= */}
 
-        <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row">
-            <div>
-              <p className="text-sm text-[var(--cera-text-muted)]">
-                Patient Scan
-              </p>
+        <section
+          className={`mt-5 rounded-2xl border border-[var(--cera-border)] bg-white ${
+            scanner ? "p-4 sm:p-6" : "p-6"
+          }`}
+        >
+          {scanner ? (
+            <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-[var(--cera-blue-600)]">
+                    Patient scanning
+                  </p>
 
-              <h1 className="mt-1 text-3xl font-semibold text-[var(--cera-navy-950)]">
-                {booking.reference}
-              </h1>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-[var(--cera-navy-950)]">
+                    Scan visit
+                  </h1>
+                </div>
 
-              <span className="mt-3 inline-flex rounded-full border border-[var(--cera-border)] bg-slate-50 px-3 py-1 text-xs font-medium">
-                {SCAN_BOOKING_STATUS_LABELS[booking.status]}
-              </span>
-            </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="rounded-full border border-[var(--cera-border)] bg-slate-50 px-3 py-1 text-xs font-medium text-[var(--cera-navy-950)]">
+                    {SCAN_BOOKING_STATUS_LABELS[booking.status]}
+                  </span>
 
-            <div className="text-sm text-[var(--cera-text-muted)]">
-              {booking.labSlip.reference}
-            </div>
-          </div>
+                  {booking.urgency === LAB_SLIP_URGENCY.URGENT && (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                      Urgent
+                    </span>
+                  )}
+                </div>
+              </div>
 
-          <div className="mt-7 grid gap-5 border-t border-[var(--cera-border)] pt-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-xs uppercase text-[var(--cera-text-muted)]">
-                Patient
-              </p>
-
-              <p className="mt-1 font-medium">{booking.labSlip.patient.name}</p>
-            </div>
-
-            <div>
-              <p className="text-xs uppercase text-[var(--cera-text-muted)]">
-                Clinic
-              </p>
-
-              <p className="mt-1 font-medium">{booking.clinic.name}</p>
-            </div>
-
-            {!scanner && (
-              <div>
-                <p className="text-xs uppercase text-[var(--cera-text-muted)]">
-                  Doctor
+              <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--cera-text-muted)]">
+                  Confirmed visit time
                 </p>
 
-                <p className="mt-1 font-medium">{booking.doctor?.name}</p>
+                <p className="mt-1 text-xl font-semibold text-[var(--cera-navy-950)]">
+                  {formatDateTime(booking.confirmedStartAt)}
+                </p>
               </div>
-            )}
 
-            <div>
-              <p className="text-xs uppercase text-[var(--cera-text-muted)]">
-                Priority
-              </p>
+              <div className="mt-5 space-y-5 border-t border-[var(--cera-border)] pt-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--cera-text-muted)]">
+                    Patient
+                  </p>
 
-              <p className="mt-1 font-medium">{booking.urgency}</p>
-            </div>
-          </div>
+                  <p className="mt-1 font-semibold text-[var(--cera-navy-950)]">
+                    {booking.labSlip?.patient?.name || "Patient"}
+                  </p>
 
-          <div className="mt-7 grid gap-4 border-t border-[var(--cera-border)] pt-6 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-[var(--cera-text-muted)]">Requested</p>
+                  {booking.labSlip?.patient?.reference && (
+                    <p className="mt-1 text-sm text-[var(--cera-text-muted)]">
+                      Patient ref: {booking.labSlip.patient.reference}
+                    </p>
+                  )}
+                </div>
 
-              <p className="mt-1 font-medium">
-                {formatDateTime(booking.requestedStartAt)}
-              </p>
-            </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--cera-text-muted)]">
+                    Clinic
+                  </p>
 
-            <div>
-              <p className="text-xs text-[var(--cera-text-muted)]">Proposed</p>
+                  <p className="mt-1 font-semibold text-[var(--cera-navy-950)]">
+                    {booking.clinic?.name || "Clinic"}
+                  </p>
 
-              <p className="mt-1 font-medium">
-                {formatDateTime(booking.proposedStartAt)}
-              </p>
-            </div>
+                  {formatClinicAddress(booking.clinic?.address) && (
+                    <p className="mt-1 text-sm leading-6 text-[var(--cera-text-muted)]">
+                      {formatClinicAddress(booking.clinic.address)}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-            <div>
-              <p className="text-xs text-[var(--cera-text-muted)]">Confirmed</p>
+              {booking.status === SCAN_BOOKING_STATUS.COMPLETED &&
+                booking.completedAt && (
+                  <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-semibold text-emerald-800">
+                      Scan completed
+                    </p>
 
-              <p className="mt-1 font-medium">
-                {formatDateTime(booking.confirmedStartAt)}
-              </p>
-            </div>
-          </div>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Completed at {formatDateTime(booking.completedAt)}
+                    </p>
+                  </div>
+                )}
 
-          {booking.assignedScanningStaff && (
-            <div className="mt-6 border-t border-[var(--cera-border)] pt-5">
-              <p className="text-xs text-[var(--cera-text-muted)]">
-                Assigned scanning staff
-              </p>
+              <div className="mt-5 border-t border-[var(--cera-border)] pt-4">
+                <p className="text-xs text-[var(--cera-text-muted)]">
+                  Visit reference
+                </p>
 
-              <p className="mt-1 font-medium">
-                {booking.assignedScanningStaff.name}
-              </p>
-            </div>
-          )}
+                <p className="mt-1 text-sm font-medium text-[var(--cera-navy-950)]">
+                  {booking.reference}
+                </p>
+              </div>
 
-          {scanner && booking.labSlip?.id && (
-            <LabSlipAttachments
-              labSlipId={booking.labSlip.id}
-              allowUpload={false}
-              showReadOnlyNotice={false}
-            />
+              {booking.labSlip?.id && (
+                <LabSlipAttachments
+                  labSlipId={booking.labSlip.id}
+                  allowUpload={false}
+                  showReadOnlyNotice={false}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col justify-between gap-4 sm:flex-row">
+                <div>
+                  <p className="text-sm text-[var(--cera-text-muted)]">
+                    Patient Scan
+                  </p>
+
+                  <h1 className="mt-1 text-3xl font-semibold text-[var(--cera-navy-950)]">
+                    {booking.reference}
+                  </h1>
+
+                  <span className="mt-3 inline-flex rounded-full border border-[var(--cera-border)] bg-slate-50 px-3 py-1 text-xs font-medium">
+                    {SCAN_BOOKING_STATUS_LABELS[booking.status]}
+                  </span>
+                </div>
+
+                <div className="text-sm text-[var(--cera-text-muted)]">
+                  {booking.labSlip.reference}
+                </div>
+              </div>
+
+              <div className="mt-7 grid gap-5 border-t border-[var(--cera-border)] pt-6 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="text-xs uppercase text-[var(--cera-text-muted)]">
+                    Patient
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {booking.labSlip.patient.name}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase text-[var(--cera-text-muted)]">
+                    Clinic
+                  </p>
+
+                  <p className="mt-1 font-medium">{booking.clinic.name}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase text-[var(--cera-text-muted)]">
+                    Doctor
+                  </p>
+
+                  <p className="mt-1 font-medium">{booking.doctor?.name}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase text-[var(--cera-text-muted)]">
+                    Priority
+                  </p>
+
+                  <p className="mt-1 font-medium">{booking.urgency}</p>
+                </div>
+              </div>
+
+              <div className="mt-7 grid gap-4 border-t border-[var(--cera-border)] pt-6 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-[var(--cera-text-muted)]">
+                    Requested
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(booking.requestedStartAt)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-[var(--cera-text-muted)]">
+                    Proposed
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(booking.proposedStartAt)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-[var(--cera-text-muted)]">
+                    Confirmed
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(booking.confirmedStartAt)}
+                  </p>
+                </div>
+              </div>
+
+              {booking.assignedScanningStaff && (
+                <div className="mt-6 border-t border-[var(--cera-border)] pt-5">
+                  <p className="text-xs text-[var(--cera-text-muted)]">
+                    Assigned scanning staff
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {booking.assignedScanningStaff.name}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -520,21 +678,45 @@ export function ScanBookingDetailPage() {
             </section>
           )}
 
-        {(scanner || ceraOperations) &&
-          booking.status === SCAN_BOOKING_STATUS.ASSIGNED && (
-            <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
-              <h2 className="text-lg font-semibold">Scan visit</h2>
+        {scanner && booking.status === SCAN_BOOKING_STATUS.ASSIGNED && (
+          <section className="mt-5 rounded-2xl border border-[var(--cera-navy-900)] bg-white p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cera-blue-600)]">
+              Visit completion
+            </p>
 
-              <button
-                type="button"
-                disabled={actionBusy}
-                onClick={() => runAction(() => completeScanBooking(booking.id))}
-                className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Mark scan completed
-              </button>
-            </section>
-          )}
+            <h2 className="mt-1 text-lg font-semibold text-[var(--cera-navy-950)]">
+              Complete this visit
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-[var(--cera-text-muted)]">
+              When the patient scan is finished, mark this visit as completed.
+            </p>
+
+            <button
+              type="button"
+              disabled={actionBusy}
+              onClick={() => runAction(() => completeScanBooking(booking.id))}
+              className="mt-4 h-12 w-full rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--cera-navy-800)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionBusy ? "Completing..." : "Mark scan completed"}
+            </button>
+          </section>
+        )}
+
+        {ceraOperations && booking.status === SCAN_BOOKING_STATUS.ASSIGNED && (
+          <section className="mt-5 rounded-2xl border border-[var(--cera-border)] bg-white p-6">
+            <h2 className="text-lg font-semibold">Scan visit</h2>
+
+            <button
+              type="button"
+              disabled={actionBusy}
+              onClick={() => runAction(() => completeScanBooking(booking.id))}
+              className="mt-5 h-11 rounded-xl bg-[var(--cera-navy-900)] px-5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Mark scan completed
+            </button>
+          </section>
+        )}
 
         {/* =========================================================
             5. RESCHEDULE ACTIONS

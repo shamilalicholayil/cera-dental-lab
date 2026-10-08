@@ -1,3 +1,22 @@
+import { USER_ROLES } from "@cera/shared";
+
+function serializeBasicUser(user) {
+  if (!user) {
+    return null;
+  }
+
+  if (typeof user !== "object" || !user.name) {
+    return {
+      id: String(user),
+    };
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+  };
+}
+
 function serializeUser(user) {
   if (!user) {
     return null;
@@ -20,7 +39,9 @@ function serializeUser(user) {
   };
 }
 
-export function serializeScanBooking(booking) {
+export function serializeScanBooking(booking, { viewerRole } = {}) {
+  const scannerView = viewerRole === USER_ROLES.SCANNING_STAFF;
+
   const clinic = booking.clinicId;
 
   const labSlip = booking.labSlipId;
@@ -66,9 +87,11 @@ export function serializeScanBooking(booking) {
             id: String(booking.clinicId),
           },
 
-    doctor: serializeUser(booking.doctorId),
+    doctor: scannerView ? null : serializeUser(booking.doctorId),
 
-    assignedScanningStaff: serializeUser(booking.assignedScanningStaffId),
+    assignedScanningStaff: scannerView
+      ? serializeBasicUser(booking.assignedScanningStaffId)
+      : serializeUser(booking.assignedScanningStaffId),
 
     requestedStartAt: booking.requestedStartAt,
 
@@ -92,9 +115,13 @@ export function serializeScanBooking(booking) {
 
           reason: booking.rescheduleReason || null,
 
-          requestedBy: serializeUser(booking.rescheduleRequestedByUserId),
+          requestedBy: scannerView
+            ? null
+            : serializeUser(booking.rescheduleRequestedByUserId),
 
-          reviewedBy: serializeUser(booking.rescheduleReviewedByUserId),
+          reviewedBy: scannerView
+            ? null
+            : serializeUser(booking.rescheduleReviewedByUserId),
 
           requestedAt: booking.rescheduleRequestedAt || null,
         }
@@ -109,9 +136,9 @@ export function serializeScanBooking(booking) {
 
       confirmedStartAt: entry.confirmedStartAt,
 
-      requestedBy: serializeUser(entry.requestedByUserId),
+      requestedBy: scannerView ? null : serializeUser(entry.requestedByUserId),
 
-      reviewedBy: serializeUser(entry.reviewedByUserId),
+      reviewedBy: scannerView ? null : serializeUser(entry.reviewedByUserId),
 
       reason: entry.reason || null,
 

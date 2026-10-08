@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  LAB_SLIP_URGENCY,
   SCAN_BOOKING_STATUS,
   SCAN_RESCHEDULE_STATUS,
   USER_ROLES,
@@ -92,8 +93,18 @@ function bookingWith(patch = {}) {
 
     clinic: {
       id: "clinic-1",
-
       name: "Test Clinic",
+
+      address: {
+        line1: "10 Main Road",
+        line2: null,
+        locality: "Town Centre",
+        city: "Kozhikode",
+        district: "Kozhikode",
+        state: "Kerala",
+        pincode: "673001",
+        country: "India",
+      },
     },
 
     doctor: {
@@ -938,5 +949,167 @@ describe("ScanBookingDetailPage", () => {
         name: "Reschedule management",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("prioritizes the confirmed visit information for Scanning Staff", async () => {
+    mocked.user = {
+      id: "scanner-1",
+      role: USER_ROLES.SCANNING_STAFF,
+    };
+
+    const confirmedStartAt = "2099-10-10T05:00:00.000Z";
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
+
+          urgency: LAB_SLIP_URGENCY.URGENT,
+
+          confirmedStartAt,
+
+          doctor: null,
+
+          assignedScanningStaff: {
+            id: "scanner-1",
+            name: "Scanner One",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Scan visit",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Confirmed visit time")).toBeInTheDocument();
+
+    expect(
+      screen.getByText(new Date(confirmedStartAt).toLocaleString()),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Test Patient")).toBeInTheDocument();
+
+    expect(screen.getByText("Test Clinic")).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "10 Main Road, Town Centre, Kozhikode, Kozhikode, Kerala, 673001",
+      ),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Urgent")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", {
+        name: /My Visits/i,
+      }),
+    ).toHaveAttribute("href", "/portal/scans");
+
+    expect(screen.queryByText("Dr Example")).not.toBeInTheDocument();
+
+    expect(screen.queryByText("Requested")).not.toBeInTheDocument();
+
+    expect(screen.queryByText("Proposed")).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Mark scan completed",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows scanner completion information after the visit is completed", async () => {
+    mocked.user = {
+      id: "scanner-1",
+      role: USER_ROLES.SCANNING_STAFF,
+    };
+
+    const completedAt = "2099-10-10T06:00:00.000Z";
+
+    getScanBooking.mockResolvedValue({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.COMPLETED,
+
+          confirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+          completedAt,
+
+          doctor: null,
+
+          assignedScanningStaff: {
+            id: "scanner-1",
+            name: "Scanner One",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Scan completed")).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        `Completed at ${new Date(completedAt).toLocaleString()}`,
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Mark scan completed",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets Scanning Staff retry when the visit cannot be loaded", async () => {
+    mocked.user = {
+      id: "scanner-1",
+      role: USER_ROLES.SCANNING_STAFF,
+    };
+
+    getScanBooking.mockRejectedValueOnce(new Error("Visit request failed."));
+
+    getScanBooking.mockResolvedValueOnce({
+      data: {
+        scanBooking: bookingWith({
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
+
+          confirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+          doctor: null,
+
+          assignedScanningStaff: {
+            id: "scanner-1",
+            name: "Scanner One",
+          },
+        }),
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Visit request failed.",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Try again",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Scan visit",
+      }),
+    ).toBeInTheDocument();
+
+    expect(getScanBooking).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 
 import { Provider } from "react-redux";
 
@@ -269,6 +275,95 @@ const activeCorrection = {
     patient: {
       name: "Correction Queue Patient",
     },
+  },
+};
+
+const scanningStaff = {
+  id: "scanner-1",
+  name: "Scanner One",
+  role: USER_ROLES.SCANNING_STAFF,
+  status: "ACTIVE",
+};
+
+const scannerVisitOne = {
+  id: "scanner-visit-1",
+  reference: "SCAN-VISIT-001",
+  status: SCAN_BOOKING_STATUS.ASSIGNED,
+  urgency: LAB_SLIP_URGENCY.URGENT,
+  confirmedStartAt: "2099-10-10T05:00:00.000Z",
+
+  labSlip: {
+    patient: {
+      name: "First Patient",
+      reference: "PAT-001",
+    },
+  },
+
+  clinic: {
+    id: "clinic-1",
+    name: "First Clinic",
+
+    address: {
+      line1: "10 Main Road",
+      line2: null,
+      locality: "Town Centre",
+      city: "Kozhikode",
+      district: "Kozhikode",
+      state: "Kerala",
+      pincode: "673001",
+      country: "India",
+    },
+  },
+
+  assignedScanningStaff: {
+    id: "scanner-1",
+    name: "Scanner One",
+  },
+
+  reschedule: null,
+};
+
+const scannerVisitTwo = {
+  id: "scanner-visit-2",
+  reference: "SCAN-VISIT-002",
+  status: SCAN_BOOKING_STATUS.ASSIGNED,
+  urgency: LAB_SLIP_URGENCY.STANDARD,
+  confirmedStartAt: "2099-10-10T08:00:00.000Z",
+
+  labSlip: {
+    patient: {
+      name: "Second Patient",
+      reference: "PAT-002",
+    },
+  },
+
+  clinic: {
+    id: "clinic-2",
+    name: "Second Clinic",
+
+    address: {
+      line1: "20 Clinic Road",
+      line2: null,
+      locality: null,
+      city: "Malappuram",
+      district: "Malappuram",
+      state: "Kerala",
+      pincode: "676505",
+      country: "India",
+    },
+  },
+
+  assignedScanningStaff: {
+    id: "scanner-1",
+    name: "Scanner One",
+  },
+
+  reschedule: {
+    status: "REQUESTED",
+    requestedStartAt: "2099-10-11T08:00:00.000Z",
+    proposedStartAt: null,
+    reason: "Patient requested another time",
+    requestedAt: "2099-10-09T08:00:00.000Z",
   },
 };
 
@@ -807,5 +902,138 @@ describe("PortalHomePage Doctor dashboard", () => {
         expect(getProductions).toHaveBeenCalled();
       });
     });
+  });
+});
+
+describe("PortalHomePage Scanning Staff dashboard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    getScanBookings.mockResolvedValue({
+      data: {
+        scanBookings: [scannerVisitOne, scannerVisitTwo],
+
+        pagination: pagination(2),
+      },
+    });
+  });
+
+  it("shows today's assigned visits for Scanning Staff", async () => {
+    renderPortal(scanningStaff);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Today's visits",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText(/Welcome, Scanner One/i)).toBeInTheDocument();
+
+    expect(await screen.findByText("First Patient")).toBeInTheDocument();
+
+    expect(screen.getByText("Second Patient")).toBeInTheDocument();
+
+    expect(screen.getByText("First Clinic")).toBeInTheDocument();
+
+    expect(screen.getByText("Second Clinic")).toBeInTheDocument();
+
+    expect(screen.getByText("Urgent")).toBeInTheDocument();
+
+    expect(screen.getByText("Reschedule in progress")).toBeInTheDocument();
+  });
+
+  it("requests only today's active assigned visits", async () => {
+    renderPortal(scanningStaff);
+
+    await waitFor(() => {
+      expect(getScanBookings).toHaveBeenCalledWith({
+        status: SCAN_BOOKING_STATUS.ASSIGNED,
+        confirmedFrom: expect.any(String),
+        confirmedTo: expect.any(String),
+        page: 1,
+        limit: 20,
+      });
+    });
+
+    expect(getScanBookings).toHaveBeenCalledTimes(1);
+
+    expect(getLabSlips).not.toHaveBeenCalled();
+    expect(getProductions).not.toHaveBeenCalled();
+    expect(getCorrections).not.toHaveBeenCalled();
+  });
+
+  it("links each assigned visit to its scan detail page", async () => {
+    renderPortal(scanningStaff);
+
+    const firstVisit = await screen.findByRole("link", {
+      name: /First Patient/i,
+    });
+
+    expect(firstVisit).toHaveAttribute("href", "/portal/scans/scanner-visit-1");
+
+    const secondVisit = screen.getByRole("link", {
+      name: /Second Patient/i,
+    });
+
+    expect(secondVisit).toHaveAttribute(
+      "href",
+      "/portal/scans/scanner-visit-2",
+    );
+  });
+
+  it("shows the scanner empty state when there are no visits today", async () => {
+    getScanBookings.mockResolvedValue({
+      data: {
+        scanBookings: [],
+        pagination: pagination(0),
+      },
+    });
+
+    renderPortal(scanningStaff);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "No visits assigned today",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "You currently have no active scanning visits scheduled for today.",
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", {
+        name: "View all my visits",
+      }),
+    ).toHaveAttribute("href", "/portal/scans");
+  });
+
+  it("shows a retryable failure state", async () => {
+    getScanBookings.mockRejectedValueOnce(new Error("Visit request failed."));
+
+    getScanBookings.mockResolvedValueOnce({
+      data: {
+        scanBookings: [scannerVisitOne],
+        pagination: pagination(1),
+      },
+    });
+
+    renderPortal(scanningStaff);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Visit request failed.",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Try again",
+      }),
+    );
+
+    expect(await screen.findByText("First Patient")).toBeInTheDocument();
+
+    expect(getScanBookings).toHaveBeenCalledTimes(2);
   });
 });

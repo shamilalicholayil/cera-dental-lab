@@ -804,6 +804,25 @@ describe("Scan Bookings", () => {
       "Zirconia Crown",
     );
 
+    const scannerBooking = listA.body.data.scanBookings[0];
+
+    expect(scannerBooking.doctor).toBeNull();
+
+    expect(scannerBooking.assignedScanningStaff).toEqual({
+      id: context.scannerA.id,
+      name: context.scannerA.name,
+    });
+
+    expect(scannerBooking.assignedScanningStaff).not.toHaveProperty("phone");
+
+    expect(scannerBooking.assignedScanningStaff).not.toHaveProperty("email");
+
+    expect(scannerBooking.clinic.name).toBe(context.clinicA.name);
+
+    expect(scannerBooking.clinic.address).toBeTruthy();
+
+    expect(scannerBooking.labSlip.patient.name).toBeTruthy();
+
     const listB = await scannerB.get("/api/v1/scan-bookings");
 
     expect(listB.status).toBe(200);
@@ -831,6 +850,19 @@ describe("Scan Bookings", () => {
     expect(allowed.body.data.scanBooking.id).toBe(booking.id);
 
     expect(allowed.body.data.scanBooking.labSlip).not.toHaveProperty("items");
+
+    const scannerBooking = allowed.body.data.scanBooking;
+
+    expect(scannerBooking.doctor).toBeNull();
+
+    expect(scannerBooking.assignedScanningStaff).toEqual({
+      id: context.scannerA.id,
+      name: context.scannerA.name,
+    });
+
+    expect(scannerBooking.assignedScanningStaff).not.toHaveProperty("phone");
+
+    expect(scannerBooking.assignedScanningStaff).not.toHaveProperty("email");
 
     const denied = await scannerBAgent.get(
       `/api/v1/scan-bookings/${booking.id}`,
@@ -1034,6 +1066,10 @@ describe("Scan Bookings", () => {
 
     expect(response.body.data.scanBookings[0].doctor.id).toBe(
       context.doctorA.id,
+    );
+
+    expect(response.body.data.scanBookings[0].doctor.phone).toBe(
+      context.doctorA.phone,
     );
   });
 

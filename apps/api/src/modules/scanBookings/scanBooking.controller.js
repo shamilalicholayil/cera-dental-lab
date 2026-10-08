@@ -19,6 +19,12 @@ import { listActiveScanningStaff } from "./scanningStaff.service.js";
 
 import { serializeScanBooking } from "./scanBooking.serializer.js";
 
+function serializeForRequest(req, booking) {
+  return serializeScanBooking(booking, {
+    viewerRole: req.user.role,
+  });
+}
+
 export async function create(req, res, next) {
   try {
     const booking = await createScanBooking({
@@ -31,7 +37,7 @@ export async function create(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -51,7 +57,9 @@ export async function list(req, res, next) {
       success: true,
 
       data: {
-        scanBookings: result.bookings.map(serializeScanBooking),
+        scanBookings: result.bookings.map((booking) =>
+          serializeForRequest(req, booking),
+        ),
 
         pagination: result.pagination,
       },
@@ -73,7 +81,7 @@ export async function getOne(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -93,7 +101,7 @@ export async function confirm(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -115,7 +123,7 @@ export async function proposeAlternate(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -135,7 +143,7 @@ export async function acceptAlternate(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -157,7 +165,7 @@ export async function reject(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -179,7 +187,7 @@ export async function assign(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -199,7 +207,7 @@ export async function complete(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -221,7 +229,7 @@ export async function cancel(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -269,7 +277,7 @@ export async function requestReschedule(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -289,7 +297,7 @@ export async function confirmReschedule(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -313,7 +321,7 @@ export async function proposeReschedule(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
@@ -333,7 +341,7 @@ export async function acceptReschedule(req, res, next) {
       success: true,
 
       data: {
-        scanBooking: serializeScanBooking(booking),
+        scanBooking: serializeForRequest(req, booking),
       },
     });
   } catch (error) {
