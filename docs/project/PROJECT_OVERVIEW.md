@@ -310,10 +310,18 @@ Completed:
 - Module 4A — Digital Lab Slip
 - Module 4B — Scan Booking + Lab Slip Editing
 - Module 4C — Scan Rescheduling
+- Module 4D — Lab Production Workflow
+- Module 4E — Private Attachments
+- Module 4F — Corrections / Issues
 
 Next planned module:
 
-- Module 4D — Lab Production Workflow
+- Module 6A — Doctor Dashboard Refinement
+
+Roadmap note:
+
+- Modules 5A and 5B (notifications) are intentionally deferred until after Module 9 — Production Deployment.
+- Current sequence after 4F is `6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10`.
 
 Detailed status is maintained in `docs/progress/MODULE_STATUS.md`.
 

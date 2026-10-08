@@ -505,7 +505,7 @@ Dependencies completed: Modules 4D and 4E.
 
 ## Module 5A — In-App Notifications
 
-Status: **NEXT**
+Status: **DEFERRED**
 
 Purpose:
 
@@ -535,12 +535,18 @@ Required design decisions:
 Dependencies:
 
 - stable operational workflows
+- Module 9 — Production Deployment completed
+
+Scheduling:
+
+- intentionally deferred until after the initial production deployment
+- implemented before Module 5B and Module 10
 
 ---
 
 ## Module 5B — WhatsApp Notifications
 
-Status: **PLANNED**
+Status: **DEFERRED**
 
 Purpose:
 
@@ -565,6 +571,13 @@ Dependencies:
 
 - Module 5A or shared notification-event design
 - stable production/scan/correction workflows
+- Module 9 — Production Deployment completed
+
+Scheduling:
+
+- intentionally deferred until after the initial production deployment
+- follows Module 5A
+- completes before Module 10 — Final Documentation & Monitoring
 
 ---
 
@@ -576,7 +589,7 @@ These modules refine the overall experience after the major workflows are stable
 
 ## Module 6A — Doctor Dashboard
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Purpose:
 
@@ -699,7 +712,6 @@ Coverage should include:
 - production
 - corrections
 - attachments
-- notifications
 - responsive behavior
 - failure states
 - concurrency-sensitive workflows where relevant
@@ -731,6 +743,8 @@ Likely areas:
 - deployment rollback procedure
 
 Exact infrastructure must be confirmed before implementation.
+
+The initial production deployment intentionally does not require Modules 5A or 5B. After Module 9 is complete, implement 5A and 5B as post-deployment feature work, run their own regression/security checks, and then proceed to Module 10.
 
 ---
 
@@ -807,21 +821,29 @@ Notifications
       Scan / Production / Corrections
 ```
 
-Refinement follows stable workflows:
+Execution order after the completed core workflows:
 
 ```text
-Core workflows
+Module 6A Doctor Dashboard Refinement
 ↓
-Dashboards / UX refinement
+Module 6B Cera Operations Dashboard
 ↓
-Security hardening
+Module 6C Scanning Staff Mobile Refinement
 ↓
-End-to-end testing
+Module 7 Security & Cross-Module Hardening
 ↓
-Deployment
+Module 8 End-to-End Regression Testing
 ↓
-Monitoring
+Module 9 Production Deployment
+↓
+Module 5A In-App Notifications
+↓
+Module 5B WhatsApp Notifications
+↓
+Module 10 Final Documentation & Monitoring
 ```
+
+Notifications are intentionally deferred until after the initial production deployment. Their implementation must include focused regression/security testing because Module 8 occurs before them.
 
 ---
 
@@ -849,6 +871,10 @@ Current completed boundary:
 
 Current next module:
 
-**Module 5A — In-App Notifications**
+**Module 6A — Doctor Dashboard Refinement**
 
-Before Module 5A implementation, notification events, recipients, read/unread behavior, retention, and deep-link behavior must be confirmed. Do not assume every workflow event needs a notification.
+Current execution sequence:
+
+**6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10**
+
+Before Module 6A implementation, confirm which Doctor dashboard cards/actions are useful based on real operational needs. Do not add vanity metrics. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment.

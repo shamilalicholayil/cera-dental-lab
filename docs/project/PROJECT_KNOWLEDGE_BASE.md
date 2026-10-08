@@ -1123,9 +1123,9 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Module 5A — In-App Notifications. Define notification events, recipients, read/unread behavior, retention, deep links, and deduplication before coding.
+**Canonical answer:** Module 6A — Doctor Dashboard Refinement. Confirm which Doctor dashboard cards, summaries, queues, and actions are genuinely useful before coding. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment.
 
-**Keywords:** next module, 5A, notifications
+**Keywords:** next module, 6A, doctor dashboard
 
 **Source docs:** MODULE_STATUS.md; MODULE_PLAN.md
 
@@ -1135,7 +1135,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Modules 4E Private Attachments and 4F Corrections/Issues are now complete. The next module is 5A In-App Notifications, followed by 5B WhatsApp Notifications and the remaining refinement/hardening/deployment modules.
+**Canonical answer:** Modules 4E Private Attachments and 4F Corrections/Issues are complete. Current execution order is 6A Doctor Dashboard → 6B Cera Operations Dashboard → 6C Scanning Staff refinement → 7 Security hardening → 8 End-to-End Regression → 9 Production Deployment → 5A In-App Notifications → 5B WhatsApp Notifications → 10 Final Documentation & Monitoring.
 
 **Keywords:** roadmap, after 4D
 
@@ -1301,9 +1301,9 @@ Status: **CONFIRMED**
 
 ## KB-107 — Are notification event/recipient/template rules decided?
 
-Status: **OPEN**
+Status: **DEFERRED**
 
-**Canonical answer:** Not yet. Module 5A is NEXT and must define in-app notification events, recipients, read/unread behavior, retention, deep links, and deduplication. WhatsApp templates/delivery behavior remain Module 5B.
+**Canonical answer:** Not yet. Notification design is intentionally deferred until after Module 9 — Production Deployment. Module 5A will then define in-app notification events, recipients, read/unread behavior, retention, deep links, and deduplication; Module 5B will define WhatsApp templates and delivery behavior.
 
 **Keywords:** Module 5, notifications, WhatsApp
 

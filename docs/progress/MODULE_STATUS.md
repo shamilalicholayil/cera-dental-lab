@@ -55,10 +55,10 @@ Module 4F — Corrections / Issues
 Next planned module:
 
 ```text
-Module 5A — In-App Notifications
+Module 6A — Doctor Dashboard Refinement
 ```
 
-Modules 4D, 4E, and 4F are implemented and verified. Module 5A should begin with notification-event and recipient design before coding.
+Modules 4D, 4E, and 4F are implemented and verified. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment. Module 6A is the next development module and should begin by confirming which Doctor dashboard information is genuinely useful.
 
 ---
 
@@ -81,9 +81,9 @@ Modules 4D, 4E, and 4F are implemented and verified. Module 5A should begin with
 | 4D | Lab Production Workflow | COMPLETE |
 | 4E | Private Attachments | COMPLETE |
 | 4F | Corrections / Issues | COMPLETE |
-| 5A | In-App Notifications | NEXT |
-| 5B | WhatsApp Notifications | PLANNED |
-| 6A | Doctor Dashboard Refinement | PLANNED |
+| 5A | In-App Notifications | DEFERRED |
+| 5B | WhatsApp Notifications | DEFERRED |
+| 6A | Doctor Dashboard Refinement | NEXT |
 | 6B | Cera Operations Dashboard | PLANNED |
 | 6C | Scanning Staff Mobile Refinement | PLANNED |
 | 7 | Security & Cross-Module Hardening | PLANNED |
@@ -691,7 +691,13 @@ Verification completed:
 
 # 20. Module 5A — In-App Notifications
 
-Status: **NEXT**
+Status: **DEFERRED**
+
+Scheduling decision:
+
+- intentionally postponed until after Module 9 — Production Deployment
+- complete Module 5A before Module 5B
+- notification-specific regression/security checks will run when this module is implemented
 
 Needs:
 
@@ -706,7 +712,13 @@ Needs:
 
 # 21. Module 5B — WhatsApp Notifications
 
-Status: **PLANNED**
+Status: **DEFERRED**
+
+Scheduling decision:
+
+- intentionally postponed until after Module 9 — Production Deployment
+- follows Module 5A
+- remains before Module 10 — Final Documentation & Monitoring
 
 Confirmed direction:
 
@@ -729,7 +741,7 @@ Still open:
 
 # 22. Module 6A — Doctor Dashboard Refinement
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Potential purpose:
 
@@ -818,7 +830,6 @@ Will verify:
 - production
 - corrections
 - attachments
-- notifications
 - responsive/error/edge cases
 
 ---
@@ -845,6 +856,8 @@ Future areas:
 - production QA
 
 Do not assume provider/topology yet.
+
+Notifications are intentionally excluded from the initial production-deployment milestone. Modules 5A and 5B will be implemented after Module 9 and released as post-deployment feature work before Module 10.
 
 ---
 
@@ -967,13 +980,13 @@ Do not assume the repository is still unchanged after this document was written.
 The next development chat should focus only on:
 
 ```text
-Module 5A — In-App Notifications
+Module 6A — Doctor Dashboard Refinement
 ```
 
 First task:
 
 ```text
-define which operational events create notifications, who receives them, and how read/unread behavior works
+define which Doctor dashboard information and actions are genuinely useful based on the implemented Lab Slip, Scan, Production, and Correction workflows
 ```
 
-Do not automatically mirror every operational event into a notification or WhatsApp message. Define the business value and recipient rules first.
+Do not add vanity metrics or speculative dashboard cards. Modules 5A and 5B remain deferred until after Module 9 — Production Deployment.

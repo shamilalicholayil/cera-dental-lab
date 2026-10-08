@@ -784,26 +784,29 @@ Identify the conflict and resolve it before implementing dependent behavior.
 
 Current completed work reaches through:
 
-- Module 4C — Scan Rescheduling
+- Module 4F — Corrections / Issues
 
 The next planned area is:
 
-- Module 4D — Lab Production Workflow
+- Module 6A — Doctor Dashboard Refinement
 
-Later planned areas include:
+Current execution sequence:
 
-- attachments
-- corrections/issues
-- notifications
-- dashboard refinement
-- scanning staff UX refinement
-- security hardening
-- end-to-end regression
-- deployment
-- production documentation
-- monitoring
+```text
+6A Doctor Dashboard Refinement
+→ 6B Cera Operations Dashboard
+→ 6C Scanning Staff Mobile Refinement
+→ 7 Security & Cross-Module Hardening
+→ 8 End-to-End Regression Testing
+→ 9 Production Deployment
+→ 5A In-App Notifications
+→ 5B WhatsApp Notifications
+→ 10 Final Documentation & Monitoring
+```
 
-Exact sequencing is maintained in:
+Modules 5A and 5B are intentionally deferred until after the initial production deployment. Notification-specific regression/security checks must run when those modules are implemented because the main Module 8 regression pass occurs before them.
+
+Exact module scope and sequencing are maintained in:
 
 `docs/project/MODULE_PLAN.md`
 

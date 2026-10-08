@@ -31,7 +31,7 @@ Module 4F — Corrections / Issues
 Current next module:
 
 ```text
-Module 5A — In-App Notifications
+Module 6A — Doctor Dashboard Refinement
 ```
 
 Current development mode:
@@ -42,7 +42,7 @@ Manual copy/paste into VS Code
 No coding agent
 ```
 
-The next module should begin with notification business/design rules before notification code is written.
+The next module should begin by confirming which Doctor dashboard information and actions are useful based on the implemented workflows. Notifications are intentionally deferred until after Module 9 — Production Deployment.
 
 ---
 
@@ -347,7 +347,7 @@ Module 4F implementation and verification are complete.
 The working tree still contains the Module 4F changes until the final commit/push.
 ```
 
-Before starting Module 5A:
+Before starting Module 6A:
 
 ```bash
 git status
@@ -567,7 +567,19 @@ In-app notifications are also planned.
 
 However, notification events, recipients, templates, and retry behavior are not yet defined.
 
-Module 5A covers in-app notifications. Do not add automatic WhatsApp behavior until Module 5B rules are explicitly decided.
+Scheduling decision:
+
+```text
+Module 9 — Production Deployment
+↓
+Module 5A — In-App Notifications
+↓
+Module 5B — WhatsApp Notifications
+↓
+Module 10 — Final Documentation & Monitoring
+```
+
+Notifications are intentionally deferred until after the initial production deployment. Do not add notification or WhatsApp behavior while working on Modules 6–9 unless the roadmap is explicitly changed again.
 
 ---
 
@@ -592,12 +604,12 @@ Large raw scanner files remain excluded. Correction evidence reuses this private
 
 ---
 
-# 21. Next Module — Module 5A
+# 21. Next Module — Module 6A
 
 Module:
 
 ```text
-In-App Notifications
+Doctor Dashboard Refinement
 ```
 
 Status:
@@ -606,7 +618,13 @@ Status:
 NEXT
 ```
 
-Before coding, define which events are genuinely actionable, who receives them, read/unread behavior, retention, deep links, and deduplication.
+Before coding, define which Doctor dashboard cards, queues, summaries, and actions are genuinely useful based on the existing Lab Slip, Scan Booking, Production, and Correction workflows.
+
+Current execution sequence:
+
+```text
+6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10
+```
 
 ---
 
@@ -694,22 +712,22 @@ These outcomes are descriptive in Module 4F; they do not automatically create a 
 
 ---
 
-# 25. Suggested Module 5A Session Start
+# 25. Suggested Module 6A Session Start
 
-Start by resolving only notification decisions that block Module 5A:
+Start by resolving only Doctor-dashboard decisions that block Module 6A:
 
 ```text
-1. Which events create in-app notifications?
-2. Who receives each event?
-3. What notification content is safe/useful?
-4. Read/unread behavior?
-5. Retention?
-6. Deep links?
-7. Deduplication?
-8. Which events must NOT create notifications?
+1. What does a Doctor need to see immediately after login?
+2. Which active Lab Slips require attention?
+3. Which Scan Bookings require Doctor action or awareness?
+4. Which Production states are useful at dashboard level?
+5. Which Corrections require Doctor attention?
+6. Which shortcuts/actions should exist?
+7. Which information belongs on the dashboard versus existing list/detail pages?
+8. What empty/loading/error states are required?
 ```
 
-Do not automatically add WhatsApp behavior during 5A. WhatsApp remains Module 5B.
+Do not add vanity metrics or notification features during Module 6A. Notifications remain deferred until after Module 9 — Production Deployment.
 
 ---
 
@@ -732,7 +750,8 @@ The user is manually copying code into VS Code. Continue checkpoint-by-checkpoin
 
 ```text
 MODULE 4F FUNCTIONALLY COMPLETE AND VERIFIED
-NEXT: MODULE 5A — IN-APP NOTIFICATIONS
+NEXT: MODULE 6A — DOCTOR DASHBOARD REFINEMENT
+NOTIFICATIONS: DEFERRED UNTIL AFTER MODULE 9 — PRODUCTION DEPLOYMENT
 ```
 
 Current source-control step: review the final Module 4F diff, then commit and push.

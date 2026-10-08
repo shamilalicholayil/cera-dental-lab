@@ -37,10 +37,10 @@ RESOLVED
 The next planned module is:
 
 ```text
-Module 5A — In-App Notifications
+Module 6A — Doctor Dashboard Refinement
 ```
 
-Modules 4D, 4E, and 4F are resolved and implemented. Current blocking questions are in the notification section.
+Modules 4D, 4E, and 4F are resolved and implemented. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment. The current blocking design question is Q-6-001 for the Doctor dashboard.
 
 ---
 
@@ -715,7 +715,7 @@ Patient/case privacy must be considered.
 
 ## Q-6-001 — Which Doctor dashboard cards are actually useful?
 
-Status: **DEFERRED**
+Status: **OPEN**
 
 Do not invent vanity metrics.
 
@@ -930,19 +930,15 @@ Then ensure implementation follows the confirmed decision.
 
 Modules 4D, 4E, and 4F are resolved.
 
-Current priority: **Module 5A — In-App Notifications**.
+Current priority: **Module 6A — Doctor Dashboard Refinement**.
 
-Before Module 5A coding begins, resolve at minimum:
+Before Module 6A coding begins, resolve:
 
 ```text
-Q-5-001 Which events create in-app notifications?
-Q-5-003 Who receives each notification?
-Q-5-005 What notification content is safe/useful?
-Read/unread behavior
-Retention
-Deep-link behavior
-Deduplication
-Which workflow events should not notify
+Q-6-001 Which Doctor dashboard cards/actions are actually useful?
 ```
 
-WhatsApp-specific delivery, templates, retry/failure behavior, and provider details remain Module 5B unless explicitly pulled forward.
+Q-6-002 remains deferred until Module 6B.
+Q-6-003 remains deferred until Module 6C.
+
+All Module 5 notification questions remain **DEFERRED** by roadmap decision until after Module 9 — Production Deployment. After deployment, resolve Module 5A in-app notification rules first, then Module 5B WhatsApp-specific delivery/template/retry rules.

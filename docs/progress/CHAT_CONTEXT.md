@@ -885,7 +885,7 @@ A fresh session must still verify Git state.
 # 29. Next Module
 
 ```text
-Module 5A — In-App Notifications
+Module 6A — Doctor Dashboard Refinement
 ```
 
 Status:
@@ -894,7 +894,7 @@ Status:
 NEXT
 ```
 
-Define notification events and recipients before coding. Do not assume every workflow state change deserves a notification.
+Define useful Doctor dashboard information/actions before coding. Do not add vanity metrics. Modules 5A and 5B are deferred until after Module 9 — Production Deployment.
 
 ---
 
@@ -1180,13 +1180,13 @@ docs/progress/
 We are continuing the Cera Dental Lab project.
 
 Module 4F — Corrections / Issues is complete and verified.
-The next module is Module 5A — In-App Notifications.
+The next module is Module 6A — Doctor Dashboard Refinement.
 
-Do not write notification code yet.
-First define the notification events, recipients, read/unread behavior, retention, deep links, deduplication, and events that should not notify.
+Do not write dashboard code yet.
+First define which Doctor dashboard information, queues, summaries, and actions are genuinely useful based on the implemented Lab Slip, Scan Booking, Production, and Correction workflows.
 
-Do not assume every workflow change needs a notification.
-Do not add WhatsApp behavior unless we are explicitly working on Module 5B.
+Do not add vanity metrics or duplicate existing list/detail screens without a clear reason.
+Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment.
 
 I am not using a coding agent.
 I manually run commands and copy/paste code into VS Code.
@@ -1199,5 +1199,6 @@ Before modifying an existing file, inspect its current contents.
 
 ```text
 MODULE 4F COMPLETE AND VERIFIED
-NEXT: MODULE 5A — IN-APP NOTIFICATIONS
+NEXT: MODULE 6A — DOCTOR DASHBOARD REFINEMENT
+EXECUTION ORDER: 6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10
 ```
