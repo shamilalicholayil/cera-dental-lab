@@ -15,6 +15,7 @@ import {
   deleteCorrectionAttachment,
   getCorrectionAttachmentAccess,
   listCorrectionAttachments,
+  preflightCorrectionAttachmentUpload,
 } from "./correctionAttachment.service.js";
 
 import {
@@ -103,6 +104,19 @@ export async function listAttachments(req, res, next) {
         ),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function preflightAttachmentUpload(req, res, next) {
+  try {
+    await preflightCorrectionAttachmentUpload({
+      user: req.user,
+      correctionId: req.params.correctionId,
+    });
+
+    next();
   } catch (error) {
     next(error);
   }

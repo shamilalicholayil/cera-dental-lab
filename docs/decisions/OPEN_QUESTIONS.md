@@ -34,27 +34,23 @@ RESOLVED
 
 # 3. Current Priority
 
-The next planned module is:
+Current implementation is complete through Module 7.
+
+The next module is:
 
 ```text
-Module 6A — Doctor Dashboard Refinement
+Module 8 — End-to-End Regression Testing
 ```
 
-Modules 4D, 4E, and 4F are resolved and implemented. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment. The current blocking design question is Q-6-001 for the Doctor dashboard.
+There are no known Module 8 business-design questions that should block regression testing. Do not reopen already implemented workflow decisions merely because older planning sections remain in this document.
 
----
+Security questions Q-7-002 through Q-7-004 were resolved during Module 7. Q-7-001 (Admin MFA) remains intentionally deferred.
 
 # 4. Module 4D — Lab Production Workflow
 
-All Module 4D blocking decisions are now **RESOLVED** and implemented. The original question context is retained below for history.
-
 ## Q-4D-001 — What production statuses should exist?
 
-Status: **RESOLVED**
-
-### Decision
-
-`SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`.
+Status: **OPEN**
 
 ### Known
 
@@ -66,7 +62,7 @@ SUBMITTED
 
 Cera must eventually manufacture the case and mark it completed.
 
-### Historical uncertainty before resolution
+### Unknown
 
 The exact production lifecycle.
 
@@ -83,7 +79,7 @@ This affects:
 - completion behavior
 - correction workflow later
 
-### Historical decision needed
+### Decision needed
 
 Define the minimum real-world statuses Cera actually uses.
 
@@ -93,17 +89,13 @@ Do not create statuses just because they are common in other lab systems.
 
 ## Q-4D-002 — What makes a case ready for production?
 
-Status: **RESOLVED**
-
-### Decision
-
-Non-scan cases may start production immediately; scan-required cases require a `COMPLETED` Scan Booking first.
+Status: **OPEN**
 
 ### Known
 
 Some cases require Cera scanning and some do not.
 
-### Historical uncertainty before resolution
+### Unknown
 
 What conditions must be true before production can begin.
 
@@ -118,7 +110,7 @@ Questions include:
 
 This determines when the production-start action becomes valid.
 
-### Historical decision needed
+### Decision needed
 
 Define production readiness separately for:
 
@@ -129,11 +121,7 @@ Define production readiness separately for:
 
 ## Q-4D-003 — Who can start production?
 
-Status: **RESOLVED**
-
-### Decision
-
-Cera Staff and Cera Admin may start production.
+Status: **OPEN**
 
 ### Possible actors to decide between
 
@@ -145,7 +133,7 @@ Cera Staff and Cera Admin may start production.
 
 This is a backend authorization rule and affects operational UI.
 
-### Historical decision needed
+### Decision needed
 
 Confirm exactly which roles may start production.
 
@@ -153,13 +141,9 @@ Confirm exactly which roles may start production.
 
 ## Q-4D-004 — Who can update production status?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Cera Staff/Admin may move production forward; approved backward transitions are Cera Admin-only.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether:
 
@@ -171,7 +155,7 @@ Whether:
 
 State transition authorization must be explicit.
 
-### Historical decision needed
+### Decision needed
 
 Map each production transition to the permitted role(s).
 
@@ -179,11 +163,7 @@ Map each production transition to the permitted role(s).
 
 ## Q-4D-005 — Are backward production transitions allowed?
 
-Status: **RESOLVED**
-
-### Decision
-
-Backward transitions are allowed only for Cera Admin: `COMPLETED → IN_PRODUCTION` and `IN_PRODUCTION → SUBMITTED`; a reason is required.
+Status: **OPEN**
 
 ### Example
 
@@ -199,7 +179,7 @@ This affects:
 - UI controls
 - error handling
 
-### Historical decision needed
+### Decision needed
 
 For each production state, define allowed next states.
 
@@ -209,17 +189,13 @@ Do not assume a simple linear workflow.
 
 ## Q-4D-006 — When should Lab Slip editing become locked?
 
-Status: **RESOLVED**
-
-### Decision
-
-Doctor/Clinic manufacturing edits lock after Production leaves `SUBMITTED`; Cera Admin retains controlled edit access.
+Status: **OPEN**
 
 ### Known
 
 Lab Slips are currently editable after submission.
 
-### Historical uncertainty before resolution
+### Unknown
 
 The exact point when manufacturing instructions should become immutable.
 
@@ -231,7 +207,7 @@ Allowing edits after Cera begins fabrication could cause production mistakes.
 
 Lock manufacturing-relevant fields when production officially starts.
 
-### Historical decision needed
+### Decision needed
 
 Confirm:
 
@@ -246,13 +222,9 @@ No rule is approved yet.
 
 ## Q-4D-007 — Should production history be retained?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Production history is retained with previous/new status, actor, timestamp, and note/reason.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether the system must record:
 
@@ -271,7 +243,7 @@ History may be needed for:
 - future corrections
 - customer communication
 
-### Historical decision needed
+### Decision needed
 
 Confirm whether production transitions need append-only history.
 
@@ -279,13 +251,9 @@ Confirm whether production transitions need append-only history.
 
 ## Q-4D-008 — What production status should Doctors see?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Doctor sees simplified production labels: Submitted, In Progress, Completed.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether Doctors should see:
 
@@ -297,7 +265,7 @@ Whether Doctors should see:
 
 Internal operational terminology may not be useful or appropriate for Doctors.
 
-### Historical decision needed
+### Decision needed
 
 Define Doctor-visible production information.
 
@@ -305,13 +273,9 @@ Define Doctor-visible production information.
 
 ## Q-4D-009 — What production status should Clinic Staff see?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Clinic Staff sees the same simplified external production labels as Doctor.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether Clinic Staff should see the same external status as Doctors.
 
@@ -319,7 +283,7 @@ Whether Clinic Staff should see the same external status as Doctors.
 
 Clinic Staff permissions and UI may differ from Doctor access.
 
-### Historical decision needed
+### Decision needed
 
 Confirm Clinic Staff visibility.
 
@@ -327,13 +291,9 @@ Confirm Clinic Staff visibility.
 
 ## Q-4D-010 — What does “completed” mean?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-`COMPLETED` means lab production is complete in this workflow; it does not imply a delivery/logistics state.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether completion means:
 
@@ -346,7 +306,7 @@ Whether completion means:
 
 The project currently does not include a defined delivery/logistics module.
 
-### Historical decision needed
+### Decision needed
 
 Define the exact business meaning of case completion.
 
@@ -354,13 +314,9 @@ Define the exact business meaning of case completion.
 
 ## Q-4D-011 — Does the system need a production assignee?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-No production assignee is introduced in V1.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether a case is assigned to:
 
@@ -378,7 +334,7 @@ This changes:
 - workload views
 - dashboard design
 
-### Historical decision needed
+### Decision needed
 
 Confirm whether production ownership/assignment exists in Cera's real workflow.
 
@@ -386,11 +342,7 @@ Confirm whether production ownership/assignment exists in Cera's real workflow.
 
 ## Q-4D-012 — Should production be stored directly on LabSlip or as a separate entity?
 
-Status: **RESOLVED**
-
-### Decision
-
-Production is stored as a separate entity linked to the Lab Slip.
+Status: **OPEN**
 
 ### Option A
 
@@ -415,7 +367,7 @@ It affects:
 - history
 - future repeat production cycles
 
-### Historical decision needed
+### Decision needed
 
 Choose architecture only after Q-4D-001 through Q-4D-011 are resolved.
 
@@ -423,13 +375,9 @@ Choose architecture only after Q-4D-001 through Q-4D-011 are resolved.
 
 ## Q-4D-013 — Can a completed production case be reopened?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Cera Admin may move `COMPLETED → IN_PRODUCTION` with a required reason; this remains independent of Corrections.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether production may move out of completed state.
 
@@ -442,7 +390,7 @@ This affects:
 - correction workflow
 - accidental changes
 
-### Historical decision needed
+### Decision needed
 
 Confirm whether completion is terminal.
 
@@ -452,13 +400,9 @@ If post-completion issues must be handled only through Corrections, that should 
 
 ## Q-4D-014 — Is a production note/reason required for status changes?
 
-Status: **RESOLVED**
+Status: **OPEN**
 
-### Decision
-
-Forward transition notes are optional; backward movement requires a reason.
-
-### Historical uncertainty before resolution
+### Unknown
 
 Whether any transition needs an operational note.
 
@@ -466,7 +410,7 @@ Whether any transition needs an operational note.
 
 Requiring notes for every transition may create unnecessary work, but some exceptions may need explanation.
 
-### Historical decision needed
+### Decision needed
 
 Identify whether notes/reasons are required for:
 
@@ -480,17 +424,13 @@ Identify whether notes/reasons are required for:
 
 # 5. Module 4E — Attachments
 
-These questions were resolved during Module 4E. The original context is retained below for decision history.
+These questions are intentionally deferred until the attachment module.
 
 ---
 
 ## Q-4E-001 — Which records can have attachments?
 
-Status: **RESOLVED**
-
-### Decision
-
-Private supporting attachments are implemented for Lab Slip workflows and reused for Correction evidence.
+Status: **DEFERRED**
 
 Possible targets must be confirmed, for example:
 
@@ -504,11 +444,7 @@ Do not implement generic attachment ownership yet.
 
 ## Q-4E-002 — Who can upload attachments?
 
-Status: **RESOLVED**
-
-### Decision
-
-Upload is limited to authenticated users authorized for the owning operational resource and allowed by its current workflow state.
+Status: **DEFERRED**
 
 Need role/resource rules.
 
@@ -516,11 +452,7 @@ Need role/resource rules.
 
 ## Q-4E-003 — Who can view attachments?
 
-Status: **RESOLVED**
-
-### Decision
-
-Viewing follows authorization to the owning record; objects remain private and are accessed with signed temporary URLs.
+Status: **DEFERRED**
 
 Must follow least-privilege access.
 
@@ -528,11 +460,7 @@ Must follow least-privilege access.
 
 ## Q-4E-004 — Who can delete attachments, and until when?
 
-Status: **RESOLVED**
-
-### Decision
-
-Deletion is authorization/state controlled; terminal Correction evidence is immutable.
+Status: **DEFERRED**
 
 Deletion/retention rules are not yet confirmed.
 
@@ -540,11 +468,7 @@ Deletion/retention rules are not yet confirmed.
 
 ## Q-4E-005 — What is the maximum file size?
 
-Status: **RESOLVED**
-
-### Decision
-
-JPEG/JPG, PNG, WEBP, and PDF; maximum 10 MB per file and 5 attachments per supported record. Large raw scan files remain excluded.
+Status: **DEFERRED**
 
 Planned file types:
 
@@ -559,11 +483,7 @@ Large raw intraoral scan files remain out of scope.
 
 ## Q-4E-006 — Which private object-storage provider will be used?
 
-Status: **RESOLVED**
-
-### Decision
-
-Cloudflare R2 through the S3-compatible SDK, with signed temporary access.
+Status: **DEFERRED**
 
 Provider has not been selected.
 
@@ -571,17 +491,13 @@ Provider has not been selected.
 
 # 6. Module 4F — Corrections / Issues
 
-These questions were resolved during Module 4F. The original context is retained below for decision history.
+These questions are deferred until the correction module.
 
 ---
 
 ## Q-4F-001 — Who can create a correction?
 
-Status: **RESOLVED**
-
-### Decision
-
-Doctor, permitted Clinic Staff, Cera Staff, and Cera Admin may create a Correction for a Lab Slip whose Production is `COMPLETED`; Scanning Staff is excluded.
+Status: **DEFERRED**
 
 Need exact Doctor/Clinic/Cera rules.
 
@@ -589,11 +505,7 @@ Need exact Doctor/Clinic/Cera rules.
 
 ## Q-4F-002 — What correction statuses should exist?
 
-Status: **RESOLVED**
-
-### Decision
-
-`OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`, with strict transitions.
+Status: **DEFERRED**
 
 Do not invent a support-ticket lifecycle.
 
@@ -601,11 +513,7 @@ Do not invent a support-ticket lifecycle.
 
 ## Q-4F-003 — Who reviews/accepts/rejects a correction?
 
-Status: **RESOLVED**
-
-### Decision
-
-Cera Staff/Admin review, request clarification, resolve, or reject; Doctor/Clinic may respond to clarification.
+Status: **DEFERRED**
 
 Need explicit Cera role rules.
 
@@ -613,11 +521,7 @@ Need explicit Cera role rules.
 
 ## Q-4F-004 — Can a correction require a rescan?
 
-Status: **RESOLVED**
-
-### Decision
-
-Yes via `RESCAN_REQUIRED` resolution outcome; Module 4F does not automatically create a Scan Booking.
+Status: **DEFERRED**
 
 If yes, relationship to Scan Booking must be designed.
 
@@ -625,11 +529,7 @@ If yes, relationship to Scan Booking must be designed.
 
 ## Q-4F-005 — Does a correction create a new production cycle?
 
-Status: **RESOLVED**
-
-### Decision
-
-No automatic production cycle is created. `REPRODUCTION_REQUIRED` is recorded as an outcome only.
+Status: **DEFERRED**
 
 This may affect whether production should be a separate entity.
 
@@ -637,11 +537,7 @@ This may affect whether production should be a separate entity.
 
 ## Q-4F-006 — Does a correction create a new Lab Slip?
 
-Status: **RESOLVED**
-
-### Decision
-
-No. Correction links to the original Lab Slip/Production; the original completed case remains historically intact.
+Status: **DEFERRED**
 
 Current confirmed principle:
 
@@ -650,15 +546,6 @@ The original completed case must remain historically intact.
 Exact implementation is unresolved.
 
 ---
-
-### Additional locked Module 4F rules
-
-- multiple historical Corrections per Lab Slip are allowed
-- only one unresolved Correction per Lab Slip may exist at once
-- description is required; affected Lab Slip item IDs and evidence are optional
-- clarification request and response notes are required
-- terminal Correction evidence is read-only
-- resolution requires `HANDLED`, `RESCAN_REQUIRED`, or `REPRODUCTION_REQUIRED`
 
 # 7. Module 5 — Notifications
 
@@ -715,7 +602,7 @@ Patient/case privacy must be considered.
 
 ## Q-6-001 — Which Doctor dashboard cards are actually useful?
 
-Status: **OPEN**
+Status: **DEFERRED**
 
 Do not invent vanity metrics.
 
@@ -745,35 +632,57 @@ No maps/geolocation integration should be assumed.
 
 Status: **DEFERRED**
 
-MFA is planned for evaluation but not implemented.
+Decision:
+
+Admin MFA is not required for the current V1 hardening checkpoint. Re-evaluate when deployment/risk requirements justify it.
+
+This deferral does not block Module 7 completion.
 
 ---
 
 ## Q-7-002 — What CSRF protection mechanism should production use?
 
-Status: **DEFERRED**
+Status: **RESOLVED**
 
-Decision depends on final deployment origins/cookie topology.
+Decision:
+
+For V1, the authenticated operational browser client is the Cera React frontend only. Unsafe browser methods require an `Origin` whose normalized origin exactly matches configured `CLIENT_URL`.
+
+Future provider/webhook routes must use provider-specific signature/authentication and explicit bypass only where appropriate.
+
+Resolved on: 2026-10-09
+
+Recorded in: `SECURITY_DESIGN.md`, `ARCHITECTURE_DECISIONS.md`
 
 ---
 
 ## Q-7-003 — Should disabling a user immediately revoke all refresh sessions?
 
-Status: **DEFERRED**
+Status: **RESOLVED**
 
-Current refresh flow checks user active status.
+Decision:
 
-Proactive revocation may be added during hardening.
+Yes. Disabling an operational user increments `authVersion` and revokes refresh-session records so existing access behavior is invalidated and refresh cannot restore the session.
+
+Resolved on: 2026-10-09
+
+Recorded in: `SECURITY_DESIGN.md`, `ARCHITECTURE_DECISIONS.md`
 
 ---
 
 ## Q-7-004 — Should invitation-token hashing use a dedicated secret?
 
-Status: **DEFERRED**
+Status: **RESOLVED**
 
-Future hardening decision.
+Decision:
 
----
+Yes. Invitation hashing uses `INVITATION_TOKEN_SECRET`, which must be distinct from `REFRESH_TOKEN_SECRET`.
+
+A temporary legacy verification fallback may remain only for the migration window. Remove it after at least the maximum legacy invitation lifetime (168 hours / 7 days) has elapsed after rollout.
+
+Resolved on: 2026-10-09
+
+Recorded in: `SECURITY_DESIGN.md`, `ARCHITECTURE_DECISIONS.md`
 
 # 10. Deployment Questions
 
@@ -849,6 +758,10 @@ The following are **not** open questions and should not be reopened casually:
 ✓ reschedule history is preserved
 ✓ Scanning Staff cannot manage rescheduling
 ✓ backend is authorization source of truth
+✓ CSRF strategy for V1 browser client resolved
+✓ disabled-user proactive session invalidation implemented
+✓ dedicated invitation-token secret implemented
+✓ Module 7 dependency/secrets/logging/private-upload hardening completed
 ✓ routes stay outside App.jsx
 ✓ Redux Toolkit is not used for every local state value
 ✓ one module per chat session where practical
@@ -928,17 +841,17 @@ Then ensure implementation follows the confirmed decision.
 
 # 14. Current Blocking Questions
 
-Modules 4D, 4E, and 4F are resolved.
+There are currently no known business/design questions that block Module 8 regression testing.
 
-Current priority: **Module 6A — Doctor Dashboard Refinement**.
-
-Before Module 6A coding begins, resolve:
+Still deferred for later modules:
 
 ```text
-Q-6-001 Which Doctor dashboard cards/actions are actually useful?
+Q-7-001  Admin MFA evaluation
+Q-9-001  Production hosting/topology
+Q-9-002  Production MongoDB placement
+Q-9-003  Production Redis topology
+Q-9-004  Production object-storage topology
+Q-9-005  Monitoring/error-tracking stack
 ```
 
-Q-6-002 remains deferred until Module 6B.
-Q-6-003 remains deferred until Module 6C.
-
-All Module 5 notification questions remain **DEFERRED** by roadmap decision until after Module 9 — Production Deployment. After deployment, resolve Module 5A in-app notification rules first, then Module 5B WhatsApp-specific delivery/template/retry rules.
+Module 8 should test existing confirmed behavior rather than reopen earlier resolved implementation decisions.

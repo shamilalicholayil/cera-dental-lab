@@ -11,6 +11,7 @@ const accessSecret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
 export async function createAccessToken(user) {
   return new SignJWT({
     role: user.role,
+    authVersion: user.authVersion ?? 0,
   })
     .setProtectedHeader({
       alg: "HS256",

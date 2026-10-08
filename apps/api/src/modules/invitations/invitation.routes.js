@@ -9,10 +9,25 @@ import {
   invitationTokenSchema,
 } from "./invitation.schemas.js";
 
+import {
+  invitationAcceptRateLimiter,
+  invitationPreviewRateLimiter,
+} from "./invitation.rateLimit.js";
+
 const router = Router();
 
-router.post("/preview", validateBody(invitationTokenSchema), preview);
+router.post(
+  "/preview",
+  invitationPreviewRateLimiter,
+  validateBody(invitationTokenSchema),
+  preview,
+);
 
-router.post("/accept", validateBody(acceptInvitationSchema), accept);
+router.post(
+  "/accept",
+  invitationAcceptRateLimiter,
+  validateBody(acceptInvitationSchema),
+  accept,
+);
 
 export default router;

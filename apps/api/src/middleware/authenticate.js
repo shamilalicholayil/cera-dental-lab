@@ -30,9 +30,19 @@ export async function authenticate(req, res, next) {
       return next(authenticationRequired());
     }
 
-    const user = await User.findById(payload.sub);
+    const user = await User.findById(payload.sub).select("+authVersion");
 
     if (!user || user.status !== USER_STATUS.ACTIVE) {
+      return next(authenticationRequired());
+    }
+
+    const tokenAuthVersion = Number.isInteger(payload.authVersion)
+      ? payload.authVersion
+      : 0;
+
+    const userAuthVersion = user.authVersion ?? 0;
+
+    if (tokenAuthVersion !== userAuthVersion) {
       return next(authenticationRequired());
     }
 

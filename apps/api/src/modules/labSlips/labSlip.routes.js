@@ -16,6 +16,7 @@ import {
   getOne,
   list,
   listAttachments,
+  preflightAttachmentUpload,
   removeAttachment,
   update,
   uploadAttachment,
@@ -62,6 +63,13 @@ router.post(
 router.post(
   "/:labSlipId/attachments",
   authorizeRoles(...LAB_SLIP_WRITE_ROLES),
+
+  /*
+   * Reject unauthorized/locked/full targets before Multer
+   * buffers as much as 10 MB into application memory.
+   */
+  preflightAttachmentUpload,
+
   parseLabSlipAttachmentUpload,
   uploadAttachment,
 );

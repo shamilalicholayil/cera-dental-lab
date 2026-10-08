@@ -219,18 +219,111 @@ function buildObjectKey({ labSlipId, detectedExtension }) {
   ].join("/");
 }
 
+function createAttachmentLimitError() {
+  return new AppError(
+    `A Lab Slip can have a maximum of ${LAB_SLIP_ATTACHMENT_MAX_COUNT} attachments`,
+    409,
+    "ATTACHMENT_LIMIT_REACHED",
+  );
+}
+
 async function assertAttachmentLimit(labSlipId) {
   const attachmentCount = await LabSlipAttachment.countDocuments({
     labSlipId,
   });
 
   if (attachmentCount >= LAB_SLIP_ATTACHMENT_MAX_COUNT) {
-    throw new AppError(
-      `A Lab Slip can have a maximum of ${LAB_SLIP_ATTACHMENT_MAX_COUNT} attachments`,
-      409,
-      "ATTACHMENT_LIMIT_REACHED",
-    );
+    throw createAttachmentLimitError();
   }
+}
+
+function isCapacitySlotDuplicate(error) {
+  if (error?.code !== 11000) {
+    return false;
+  }
+
+  return (
+    error?.keyPattern?.capacitySlot === 1 ||
+    Object.prototype.hasOwnProperty.call(error?.keyValue ?? {}, "capacitySlot")
+  );
+}
+
+async function getAvailableCapacitySlot(labSlipId) {
+  const attachments = await LabSlipAttachment.find({
+    labSlipId,
+  })
+    .select({
+      capacitySlot: 1,
+    })
+    .lean();
+
+  if (attachments.length >= LAB_SLIP_ATTACHMENT_MAX_COUNT) {
+    throw createAttachmentLimitError();
+  }
+
+  /*
+   * Attachments created before capacitySlot was introduced
+   * still consume capacity.
+   */
+  const legacyAttachmentCount = attachments.filter(
+    (attachment) => !Number.isInteger(attachment.capacitySlot),
+  ).length;
+
+  const usableSlotCount = LAB_SLIP_ATTACHMENT_MAX_COUNT - legacyAttachmentCount;
+
+  const occupiedSlots = new Set(
+    attachments
+      .filter((attachment) => Number.isInteger(attachment.capacitySlot))
+      .map((attachment) => attachment.capacitySlot),
+  );
+
+  for (let slot = 0; slot < usableSlotCount; slot += 1) {
+    if (!occupiedSlots.has(slot)) {
+      return slot;
+    }
+  }
+
+  throw createAttachmentLimitError();
+}
+
+async function createAttachmentMetadataWithCapacity({
+  labSlipId,
+  objectKey,
+  originalFilename,
+  contentType,
+  sizeBytes,
+  uploadedByUserId,
+}) {
+  /*
+   * Concurrent requests deliberately choose the same lowest
+   * available slot.
+   *
+   * MongoDB's unique compound index decides which request wins.
+   * A loser recalculates capacity and tries the next free slot.
+   */
+  for (let attempt = 0; attempt < LAB_SLIP_ATTACHMENT_MAX_COUNT; attempt += 1) {
+    const capacitySlot = await getAvailableCapacitySlot(labSlipId);
+
+    try {
+      return await LabSlipAttachment.create({
+        labSlipId,
+        capacitySlot,
+        objectKey,
+        originalFilename,
+        contentType,
+        sizeBytes,
+        uploadedByUserId,
+      });
+    } catch (error) {
+      if (isCapacitySlotDuplicate(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw createAttachmentLimitError();
 }
 
 function assertProductionAllowsAttachments(labSlip) {
@@ -251,21 +344,9 @@ function assertProductionAllowsAttachments(labSlip) {
   }
 }
 
-export async function createLabSlipAttachment({ user, labSlipId, file }) {
+export async function preflightLabSlipAttachmentUpload({ user, labSlipId }) {
   assertUploadRole(user);
 
-  /*
-   * Reuse the existing Lab Slip resource authorization.
-   *
-   * Doctor:
-   *   own Lab Slip only
-   *
-   * Clinic Staff:
-   *   active clinic membership
-   *
-   * Cera roles:
-   *   operational access
-   */
   const labSlip = await getLabSlip({
     user,
     labSlipId,
@@ -274,6 +355,22 @@ export async function createLabSlipAttachment({ user, labSlipId, file }) {
   assertProductionAllowsAttachments(labSlip);
 
   await assertAttachmentLimit(labSlip._id);
+
+  return labSlip;
+}
+
+export async function createLabSlipAttachment({ user, labSlipId, file }) {
+  /*
+   * Revalidate after upload parsing.
+   *
+   * The route performs a preflight before Multer buffers the file,
+   * but authorization/state may theoretically change between
+   * preflight and persistence.
+   */
+  const labSlip = await preflightLabSlipAttachmentUpload({
+    user,
+    labSlipId,
+  });
 
   const detectedType = await validateAttachmentContent(file);
 
@@ -289,21 +386,12 @@ export async function createLabSlipAttachment({ user, labSlipId, file }) {
   });
 
   try {
-    return await LabSlipAttachment.create({
+    return await createAttachmentMetadataWithCapacity({
       labSlipId: labSlip._id,
-
       objectKey,
-
-      /*
-       * Keep the user's original filename only as metadata.
-       * It is never used as the R2 object key.
-       */
       originalFilename: file.originalname,
-
       contentType: detectedType.mime,
-
       sizeBytes: file.size,
-
       uploadedByUserId: user._id,
     });
   } catch (error) {

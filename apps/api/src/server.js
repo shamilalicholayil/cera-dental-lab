@@ -7,6 +7,24 @@ import { connectDatabase, disconnectDatabase } from "./config/database.js";
 
 let server;
 
+function getLifecycleErrorMetadata(error) {
+  const metadata = {
+    errorName: error?.name || "Error",
+  };
+
+  /*
+   * Keep detailed diagnostics during local development,
+   * but do not copy arbitrary provider/database error
+   * messages or stacks into production logs.
+   */
+  if (env.NODE_ENV !== "production") {
+    metadata.message = error?.message || "Unknown error";
+    metadata.stack = error?.stack;
+  }
+
+  return metadata;
+}
+
 async function startServer() {
   try {
     await connectDatabase();
@@ -18,9 +36,10 @@ async function startServer() {
       });
     });
   } catch (error) {
-    logger.error("Application startup failed", {
-      error: error.message,
-    });
+    logger.error(
+      "Application startup failed",
+      getLifecycleErrorMetadata(error),
+    );
 
     process.exit(1);
   }
@@ -51,9 +70,7 @@ async function shutdown(signal) {
 
     process.exit(0);
   } catch (error) {
-    logger.error("Graceful shutdown failed", {
-      error: error.message,
-    });
+    logger.error("Graceful shutdown failed", getLifecycleErrorMetadata(error));
 
     process.exit(1);
   }

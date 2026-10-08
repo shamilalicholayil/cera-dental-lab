@@ -5,32 +5,27 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
+import { env } from "../../config/env.js";
+
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let r2Client = null;
 
-function getRequiredEnvironmentVariable(name) {
-  const value = process.env[name];
+function getR2Config() {
+  const config = {
+    accountId: env.R2_ACCOUNT_ID,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    bucketName: env.R2_BUCKET_NAME,
+  };
 
-  if (!value) {
-    throw new Error(`${name} is not configured`);
+  const missing = Object.entries(config).find(([, value]) => !value);
+
+  if (missing) {
+    throw new Error(`R2 storage is not configured: missing ${missing[0]}`);
   }
 
-  return value;
-}
-
-function getR2Config() {
-  const accountId = getRequiredEnvironmentVariable("R2_ACCOUNT_ID");
-
-  return {
-    accountId,
-
-    accessKeyId: getRequiredEnvironmentVariable("R2_ACCESS_KEY_ID"),
-
-    secretAccessKey: getRequiredEnvironmentVariable("R2_SECRET_ACCESS_KEY"),
-
-    bucketName: getRequiredEnvironmentVariable("R2_BUCKET_NAME"),
-  };
+  return config;
 }
 
 function getR2Client() {

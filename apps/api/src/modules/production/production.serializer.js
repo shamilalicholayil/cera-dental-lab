@@ -12,8 +12,6 @@ function serializeUser(user) {
   return {
     id: user.id,
     name: user.name,
-    phone: user.phone || null,
-    email: user.email || null,
   };
 }
 

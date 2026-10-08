@@ -407,4 +407,126 @@ describe("catalogue", () => {
 
     expect(response.body.error.code).toBe("CATEGORY_DISABLED");
   });
+
+  it("allows Clinic Staff to read the active catalogue", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    await createUser({
+      name: "Clinic Staff",
+      phone: "9876543211",
+      role: USER_ROLES.CLINIC_STAFF,
+    });
+
+    const category = await createCategoryRecord(admin);
+
+    await Product.create({
+      categoryId: category._id,
+      name: "Zirconia Crown",
+      slug: "zirconia-crown",
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, "9876543211");
+
+    const response = await agent.get("/api/v1/catalog/products");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.products).toHaveLength(1);
+  });
+
+  it("does not allow Cera Staff to use catalogue admin routes", async () => {
+    await createUser({
+      name: "Cera Staff",
+      phone: "9876543212",
+      role: USER_ROLES.CERA_STAFF,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, "9876543212");
+
+    const response = await agent.post("/api/v1/admin/catalog/categories").send({
+      name: "Unauthorized Category",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("returns 404 when directly requesting a disabled product", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const category = await createCategoryRecord(admin);
+
+    const product = await Product.create({
+      categoryId: category._id,
+      name: "Disabled Product",
+      slug: "disabled-product",
+      status: CATALOG_STATUS.DISABLED,
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, "9876543211");
+
+    const response = await agent.get(`/api/v1/catalog/products/${product.id}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("PRODUCT_NOT_FOUND");
+  });
+
+  it("returns 404 when directly requesting an active product under a disabled category", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const category = await createCategoryRecord(admin, {
+      status: CATALOG_STATUS.DISABLED,
+    });
+
+    const product = await Product.create({
+      categoryId: category._id,
+      name: "Hidden Product",
+      slug: "hidden-product",
+      status: CATALOG_STATUS.ACTIVE,
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, "9876543211");
+
+    const response = await agent.get(`/api/v1/catalog/products/${product.id}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("PRODUCT_NOT_FOUND");
+  });
 });

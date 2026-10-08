@@ -1413,4 +1413,58 @@ describe("Scan Bookings", () => {
 
     expect(ids).not.toContain(context.doctorA.id);
   });
+
+  it("removes Scanning Staff access when an assigned booking is cancelled", async () => {
+    const context = await createContext();
+
+    const { booking, ceraAgent } = await createAssignedBooking({
+      context,
+    });
+
+    const scannerAgent = await loginAgent(context.scannerA);
+
+    await scannerAgent.get(`/api/v1/scan-bookings/${booking.id}`).expect(200);
+
+    await ceraAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/cancel`)
+      .send({
+        reason: "Operational cancellation",
+      })
+      .expect(200);
+
+    const detailResponse = await scannerAgent.get(
+      `/api/v1/scan-bookings/${booking.id}`,
+    );
+
+    expect(detailResponse.status).toBe(404);
+    expect(detailResponse.body.error.code).toBe("SCAN_BOOKING_NOT_FOUND");
+
+    const listResponse = await scannerAgent.get("/api/v1/scan-bookings");
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.data.scanBookings).toHaveLength(0);
+  });
+
+  it("keeps completed booking history visible to the assigned Scanning Staff", async () => {
+    const context = await createContext();
+
+    const { booking } = await createAssignedBooking({
+      context,
+    });
+
+    const scannerAgent = await loginAgent(context.scannerA);
+
+    await scannerAgent
+      .post(`/api/v1/scan-bookings/${booking.id}/complete`)
+      .expect(200);
+
+    const response = await scannerAgent.get(
+      `/api/v1/scan-bookings/${booking.id}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.scanBooking.status).toBe(
+      SCAN_BOOKING_STATUS.COMPLETED,
+    );
+  });
 });

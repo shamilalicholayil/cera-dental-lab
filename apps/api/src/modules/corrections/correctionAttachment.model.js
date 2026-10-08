@@ -9,6 +9,15 @@ const correctionAttachmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    capacitySlot: {
+      type: Number,
+      min: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: "capacitySlot must be an integer",
+      },
+    },
+
     objectKey: {
       type: String,
       required: true,
@@ -49,6 +58,24 @@ correctionAttachmentSchema.index({
   correctionId: 1,
   createdAt: 1,
 });
+
+correctionAttachmentSchema.index(
+  {
+    correctionId: 1,
+    capacitySlot: 1,
+  },
+  {
+    unique: true,
+
+    partialFilterExpression: {
+      capacitySlot: {
+        $exists: true,
+      },
+    },
+
+    name: "uniq_correction_attachment_capacity_slot",
+  },
+);
 
 export const CorrectionAttachment = mongoose.model(
   "CorrectionAttachment",

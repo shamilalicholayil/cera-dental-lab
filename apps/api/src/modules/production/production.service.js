@@ -72,6 +72,66 @@ async function getProductionOrThrow(productionId) {
   return production;
 }
 
+async function applyProductionTransition({
+  production,
+  expectedStatus,
+  newStatus,
+  user,
+  note,
+  set = {},
+}) {
+  const changedAt = new Date();
+
+  const updatedProduction = await Production.findOneAndUpdate(
+    {
+      _id: production._id,
+      status: expectedStatus,
+    },
+    {
+      $set: {
+        status: newStatus,
+        ...set,
+      },
+
+      $push: {
+        history: {
+          previousStatus: expectedStatus,
+          newStatus,
+          changedByUserId: user._id,
+          note: normalizeOptional(note),
+          changedAt,
+        },
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  );
+
+  if (updatedProduction) {
+    return populateProduction(updatedProduction);
+  }
+
+  /*
+   * Another request changed the state after this request
+   * originally read it.
+   *
+   * Re-read only to return an accurate conflict response.
+   */
+  const currentProduction = await Production.findById(production._id);
+
+  if (!currentProduction) {
+    throw new AppError("Production not found", 404, "PRODUCTION_NOT_FOUND");
+  }
+
+  throw new AppError(
+    `Production cannot transition from ${currentProduction.status}`,
+    409,
+    "INVALID_PRODUCTION_TRANSITION",
+  );
+}
+
 async function populateProduction(production) {
   await production.populate([
     {
@@ -80,7 +140,7 @@ async function populateProduction(production) {
     },
     {
       path: "history.changedByUserId",
-      select: "name phone email role status",
+      select: "name",
     },
   ]);
 
@@ -194,25 +254,22 @@ export async function startProduction({ user, productionId, note }) {
 
   await assertProductionReady(production);
 
-  const changedAt = new Date();
+  return applyProductionTransition({
+    production,
 
-  production.history.push({
-    previousStatus: PRODUCTION_STATUS.SUBMITTED,
+    expectedStatus: PRODUCTION_STATUS.SUBMITTED,
+
     newStatus: PRODUCTION_STATUS.IN_PRODUCTION,
-    changedByUserId: user._id,
-    note: normalizeOptional(note),
-    changedAt,
+
+    user,
+
+    note,
+
+    set: {
+      startedAt: new Date(),
+      completedAt: null,
+    },
   });
-
-  production.status = PRODUCTION_STATUS.IN_PRODUCTION;
-
-  production.startedAt = changedAt;
-
-  production.completedAt = null;
-
-  await production.save();
-
-  return populateProduction(production);
 }
 
 export async function completeProduction({ user, productionId, note }) {
@@ -222,23 +279,21 @@ export async function completeProduction({ user, productionId, note }) {
 
   assertStatus(production, [PRODUCTION_STATUS.IN_PRODUCTION]);
 
-  const changedAt = new Date();
+  return applyProductionTransition({
+    production,
 
-  production.history.push({
-    previousStatus: PRODUCTION_STATUS.IN_PRODUCTION,
+    expectedStatus: PRODUCTION_STATUS.IN_PRODUCTION,
+
     newStatus: PRODUCTION_STATUS.COMPLETED,
-    changedByUserId: user._id,
-    note: normalizeOptional(note),
-    changedAt,
+
+    user,
+
+    note,
+
+    set: {
+      completedAt: new Date(),
+    },
   });
-
-  production.status = PRODUCTION_STATUS.COMPLETED;
-
-  production.completedAt = changedAt;
-
-  await production.save();
-
-  return populateProduction(production);
 }
 
 export async function moveProductionBack({
@@ -279,45 +334,38 @@ export async function moveProductionBack({
 
   const previousStatus = production.status;
 
-  const changedAt = new Date();
-
-  production.history.push({
-    previousStatus,
-    newStatus: targetStatus,
-    changedByUserId: user._id,
-    note: normalizedReason,
-    changedAt,
-  });
-
-  production.status = targetStatus;
+  const set = {};
 
   if (isCompletedToInProduction) {
     /*
-     * Current-state timestamp policy:
+     * Production is active again.
      *
-     * Production has returned to active work,
-     * so it is no longer completed.
-     *
-     * Keep startedAt because this production cycle
-     * originally began at that time.
+     * Keep startedAt as historical/current cycle context,
+     * but it is no longer completed.
      */
-    production.completedAt = null;
+    set.completedAt = null;
   }
 
   if (isInProductionToSubmitted) {
     /*
-     * Production has returned completely to its
-     * pre-start state.
-     *
-     * Historical start information still exists
-     * inside production.history.
+     * Return current state completely to pre-production.
+     * Transition history still preserves the previous start.
      */
-    production.startedAt = null;
-
-    production.completedAt = null;
+    set.startedAt = null;
+    set.completedAt = null;
   }
 
-  await production.save();
+  return applyProductionTransition({
+    production,
 
-  return populateProduction(production);
+    expectedStatus: previousStatus,
+
+    newStatus: targetStatus,
+
+    user,
+
+    note: normalizedReason,
+
+    set,
+  });
 }

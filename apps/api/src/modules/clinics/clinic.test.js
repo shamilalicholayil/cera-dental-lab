@@ -431,4 +431,118 @@ describe("clinics and memberships", () => {
 
     expect(response.body.error.code).toBe("FORBIDDEN");
   });
+
+  it("allows Clinic Staff to access an assigned clinic", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const clinicStaff = await createUser({
+      name: "Clinic Staff",
+      phone: "9876543211",
+      role: USER_ROLES.CLINIC_STAFF,
+    });
+
+    const clinic = await Clinic.create({
+      ...clinicPayload,
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    await ClinicMembership.create({
+      clinicId: clinic._id,
+      userId: clinicStaff._id,
+      addedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, clinicStaff.phone);
+
+    const response = await agent.get(`/api/v1/clinics/${clinic.id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.clinic.id).toBe(clinic.id);
+  });
+
+  it("does not expose an unrelated clinic to Clinic Staff", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const clinicStaff = await createUser({
+      name: "Clinic Staff",
+      phone: "9876543211",
+      role: USER_ROLES.CLINIC_STAFF,
+    });
+
+    const assignedClinic = await Clinic.create({
+      ...clinicPayload,
+      name: "Assigned Clinic",
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    const unrelatedClinic = await Clinic.create({
+      ...clinicPayload,
+      name: "Unrelated Clinic",
+      email: "unrelated@example.com",
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    await ClinicMembership.create({
+      clinicId: assignedClinic._id,
+      userId: clinicStaff._id,
+      addedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, clinicStaff.phone);
+
+    const response = await agent.get(`/api/v1/clinics/${unrelatedClinic.id}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("CLINIC_NOT_FOUND");
+  });
+
+  it("does not allow Doctor to access the clinic Doctor directory", async () => {
+    const admin = await createUser({
+      name: "Admin",
+      phone: "9876543210",
+      role: USER_ROLES.CERA_ADMIN,
+    });
+
+    const doctor = await createUser({
+      name: "Doctor",
+      phone: "9876543211",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    const clinic = await Clinic.create({
+      ...clinicPayload,
+      createdByUserId: admin._id,
+      updatedByUserId: admin._id,
+    });
+
+    await ClinicMembership.create({
+      clinicId: clinic._id,
+      userId: doctor._id,
+      addedByUserId: admin._id,
+    });
+
+    const agent = request.agent(app);
+
+    await login(agent, doctor.phone);
+
+    const response = await agent.get(`/api/v1/clinics/${clinic.id}/doctors`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+  });
 });

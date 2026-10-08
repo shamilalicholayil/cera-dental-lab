@@ -1403,3 +1403,64 @@ The next major security design work will accompany:
 **Module 4D — Lab Production Workflow**
 
 Its production permissions and edit-lock rules must be explicitly approved before implementation.
+
+---
+
+# 40. Module 7 Hardening Baseline
+
+Module 7 established the following current security baseline:
+
+## Session invalidation
+
+- access JWTs include the user's `authVersion`
+- authentication compares token version to the current user
+- disabling a user increments `authVersion` and revokes refresh-session records
+- re-enabling does not make old tokens valid again
+
+## Invitation protection
+
+- invitation tokens are hashed with `INVITATION_TOKEN_SECRET`
+- invitation and refresh secrets must differ
+- preview and accept endpoints are rate-limited
+- temporary legacy-hash verification is migration-only
+
+## Browser CSRF / CORS
+
+- credentialed CORS allows the configured React client origin
+- unsafe browser methods require an exact normalized `Origin` match to `CLIENT_URL`
+- safe methods (`GET`, `HEAD`, `OPTIONS`) bypass the CSRF Origin check
+- future webhook/provider endpoints must use provider-specific authentication/signatures and explicitly scoped bypasses
+
+## Private attachments
+
+- authorization/state/count preflight occurs before multipart buffering where possible
+- supported files: JPEG, PNG, WEBP, PDF
+- declared type/extension and detected file signature are validated
+- files remain private and are accessed through short-lived signed URLs
+- internal object keys are not exposed in normal API serialization
+- deletion is restricted according to resource/uploader/state rules
+- database capacity slots prevent concurrent requests from exceeding attachment-count limits
+
+## Workflow integrity
+
+- Production and Correction transitions use atomic expected-state updates
+- stale concurrent transitions fail with conflict behavior rather than silently overwriting state
+
+## Logging / privacy
+
+- request logging avoids raw query strings where patient identifiers may appear
+- production error/lifecycle logs exclude stack traces and unnecessary raw messages
+- logs must not contain passwords, raw tokens, invitation tokens/hashes, patient notes, attachment contents, or unnecessary patient identifiers
+
+## Dependencies / environment
+
+- dependency audit must remain clean before release checkpoints
+- Node built-in `--watch` is used instead of the removed vulnerable dev-only nodemon chain
+- R2 configuration is centralized through validated environment config
+- partial R2 configuration is rejected; production requires complete R2 configuration
+- real `.env` files remain untracked
+
+## Deferred
+
+- Cera Admin MFA remains deferred until required
+- final HTTPS, reverse-proxy `trust proxy`, Secure/SameSite cookie topology is reviewed in Module 9

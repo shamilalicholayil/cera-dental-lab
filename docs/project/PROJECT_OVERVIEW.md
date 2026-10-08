@@ -296,7 +296,7 @@ A module is completed, tested, committed, and pushed to GitHub before the next m
 
 ## 17. Current Development Status
 
-Completed:
+Completed implementation modules:
 
 - Module 0 — Foundation
 - Module 1A — User + Password
@@ -313,17 +313,18 @@ Completed:
 - Module 4D — Lab Production Workflow
 - Module 4E — Private Attachments
 - Module 4F — Corrections / Issues
+- Module 5A — In-App Notifications
+- Module 5B — WhatsApp Notifications
+- Module 6A — Doctor Dashboard Refinement
+- Module 6B — Cera Operations Dashboard
+- Module 6C — Scanning Staff Mobile Refinement
+- Module 7 — Security & Cross-Module Hardening
 
 Next planned module:
 
-- Module 6A — Doctor Dashboard Refinement
+- Module 8 — End-to-End Regression Testing
 
-Roadmap note:
-
-- Modules 5A and 5B (notifications) are intentionally deferred until after Module 9 — Production Deployment.
-- Current sequence after 4F is `6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10`.
-
-Detailed status is maintained in `docs/progress/MODULE_STATUS.md`.
+Module 7 has passed the full test/lint/build/dependency-audit checkpoint. Detailed status is maintained in `docs/progress/MODULE_STATUS.md`.
 
 ## 18. Important Terminology
 

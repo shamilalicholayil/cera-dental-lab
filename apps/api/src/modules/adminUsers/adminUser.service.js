@@ -4,6 +4,8 @@ import { AppError } from "../../utils/AppError.js";
 
 import { User } from "../users/user.model.js";
 
+import { RefreshToken } from "../auth/refreshToken.model.js";
+
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -102,6 +104,10 @@ export async function disableUser({ userId, currentUserId }) {
       $set: {
         status: USER_STATUS.DISABLED,
       },
+
+      $inc: {
+        authVersion: 1,
+      },
     },
     {
       returnDocument: "after",
@@ -115,6 +121,18 @@ export async function disableUser({ userId, currentUserId }) {
       "USER_CANNOT_BE_DISABLED",
     );
   }
+
+  await RefreshToken.updateMany(
+    {
+      userId: user._id,
+      revokedAt: null,
+    },
+    {
+      $set: {
+        revokedAt: new Date(),
+      },
+    },
+  );
 
   return user;
 }

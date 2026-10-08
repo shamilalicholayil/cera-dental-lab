@@ -1,3 +1,5 @@
+import { createHmac, randomBytes } from "node:crypto";
+
 import request from "supertest";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -5,6 +7,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { USER_ROLES, USER_STATUS } from "@cera/shared";
 
 import { app } from "../../app.js";
+
+import { env } from "../../config/env.js";
 
 import {
   clearTestDatabase,
@@ -92,6 +96,23 @@ describe("invitations", () => {
     }).select("+tokenHash");
 
     expect(invitation.tokenHash).toBeTruthy();
+
+    const rawToken = response.body.data.inviteUrl.split("#token=")[1];
+
+    const expectedInvitationHash = createHmac(
+      "sha256",
+      env.INVITATION_TOKEN_SECRET,
+    )
+      .update(rawToken)
+      .digest("hex");
+
+    const legacyRefreshHash = createHmac("sha256", env.REFRESH_TOKEN_SECRET)
+      .update(rawToken)
+      .digest("hex");
+
+    expect(invitation.tokenHash).toBe(expectedInvitationHash);
+
+    expect(invitation.tokenHash).not.toBe(legacyRefreshHash);
 
     expect(response.body.data.inviteUrl).not.toContain(invitation.tokenHash);
   });
@@ -248,5 +269,55 @@ describe("invitations", () => {
     expect(response.status).toBe(409);
 
     expect(response.body.error.code).toBe("USER_ALREADY_INVITED");
+  });
+
+  it("accepts an invitation created with the legacy hashing secret", async () => {
+    const admin = await createAdmin();
+
+    const invitedUser = await User.create({
+      name: "Legacy Invite Doctor",
+
+      phone: "9876543211",
+
+      role: USER_ROLES.DOCTOR,
+
+      status: USER_STATUS.INVITED,
+    });
+
+    const rawToken = randomBytes(48).toString("base64url");
+
+    const legacyHash = createHmac("sha256", env.REFRESH_TOKEN_SECRET)
+      .update(rawToken)
+      .digest("hex");
+
+    await Invitation.create({
+      userId: invitedUser._id,
+
+      createdByUserId: admin._id,
+
+      tokenHash: legacyHash,
+
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+
+    await request(app)
+      .post("/api/v1/invitations/preview")
+      .send({
+        token: rawToken,
+      })
+      .expect(200);
+
+    await request(app)
+      .post("/api/v1/invitations/accept")
+      .send({
+        token: rawToken,
+
+        password: "DoctorPass123",
+      })
+      .expect(200);
+
+    const updatedUser = await User.findById(invitedUser._id);
+
+    expect(updatedUser.status).toBe(USER_STATUS.ACTIVE);
   });
 });

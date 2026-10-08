@@ -51,7 +51,7 @@ export async function authenticateUser({ identifier, password }) {
     throw authenticationFailed();
   }
 
-  const user = await User.findOne(query).select("+passwordHash");
+  const user = await User.findOne(query).select("+passwordHash +authVersion");
 
   if (!user) {
     throw authenticationFailed();
@@ -77,6 +77,7 @@ export async function authenticateUser({ identifier, password }) {
 
   await RefreshToken.create({
     userId: user._id,
+    authVersion: user.authVersion ?? 0,
     tokenHash,
     expiresAt,
   });

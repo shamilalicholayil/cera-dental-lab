@@ -726,7 +726,7 @@ Immutable top-level identity fields must be rejected rather than silently ignore
 
 Strict validation is preferred for security and predictability.
 
-Production-aware edit locking is enforced by the Lab Slip update service. Normal edits are blocked once linked Production is `IN_PRODUCTION` or `COMPLETED`; Cera Admin may override only with a mandatory audited reason.
+Future production edit-lock rules must be enforced here once Module 4D is designed.
 
 ---
 
@@ -1060,82 +1060,22 @@ Do not create arbitrary generic endpoints if ownership is clear.
 
 ---
 
-# 43. Production API
+# 43. Future Production API
 
-Base resource:
+Module 4D is not yet designed.
 
-```text
-/api/v1/productions
-```
+Possible production APIs must not be invented before business rules are approved.
 
-Implemented endpoints:
+Open decisions include:
 
-```text
-GET  /api/v1/productions
-GET  /api/v1/productions/:productionId
-POST /api/v1/productions/:productionId/start
-POST /api/v1/productions/:productionId/complete
-POST /api/v1/productions/:productionId/move-back
-```
+- whether production is part of `/lab-slips`
+- whether a separate `/production` resource exists
+- whether transitions use action endpoints
+- whether there is an assignee
+- what Doctor/Clinic can see
+- what history is returned
 
-### List / Detail
-
-Cera Admin and Cera Staff may list and view Production records.
-
-Default queue behavior returns active Production states (`SUBMITTED` and `IN_PRODUCTION`) ordered by most recently updated. `COMPLETED` and `ALL` are explicit filters.
-
-### Start
-
-Allowed roles:
-
-```text
-Cera Admin
-Cera Staff
-```
-
-Valid transition:
-
-```text
-SUBMITTED → IN_PRODUCTION
-```
-
-For scan-required Lab Slips, the related Scan Booking must be `COMPLETED`. Optional note supported.
-
-### Complete
-
-Allowed roles:
-
-```text
-Cera Admin
-Cera Staff
-```
-
-Valid transition:
-
-```text
-IN_PRODUCTION → COMPLETED
-```
-
-Optional note supported.
-
-### Move Back
-
-Allowed role:
-
-```text
-Cera Admin only
-```
-
-Valid transitions:
-
-```text
-COMPLETED → IN_PRODUCTION
-IN_PRODUCTION → SUBMITTED
-```
-
-A non-empty reason is required. Direct `COMPLETED → SUBMITTED` is invalid.
-
-Doctor, Clinic Staff, and Scanning Staff do not receive general Production mutation/list/detail API access. Doctor/Clinic production status visibility is exposed through accessible Lab Slip detail serialization.
+Only after Module 4D design should route structure be finalized.
 
 ---
 
@@ -1258,13 +1198,69 @@ Clinics/memberships
 ↓
 Catalogue
 ↓
-Digital Lab Slips + production-aware editing
+Digital Lab Slips
 ↓
-Scan Booking lifecycle + rescheduling
+Lab Slip editing
 ↓
-Production queue/detail
+Scan Booking
 ↓
-Production forward/backward transitions + history
+Scan confirmation/proposal
+↓
+Scanner assignment
+↓
+Scan completion
+↓
+Scan cancellation/rejection
+↓
+Scan rescheduling
 ```
 
-Module 4D API behavior is complete. The next planned API area is Module 4E — Private Attachments.
+The next major API area is:
+
+**Module 4D — Lab Production Workflow**
+
+Its endpoint design must follow approved business rules rather than assumptions.
+
+---
+
+# 31. Module 7 Browser/API Hardening
+
+## Credentialed browser origin
+
+The V1 authenticated browser client is the Cera React frontend. Credentialed CORS is restricted to configured `CLIENT_URL`.
+
+## CSRF
+
+For unsafe methods, the API validates the request `Origin` and requires its normalized origin to exactly match the trusted client origin.
+
+Safe methods:
+
+```text
+GET
+HEAD
+OPTIONS
+```
+
+do not require the unsafe-method Origin check.
+
+Rejected unsafe requests use the structured application error code:
+
+```text
+CSRF_ORIGIN_REJECTED
+```
+
+Future webhook/provider routes must use provider-specific signatures/authentication and explicit narrowly scoped CSRF bypasses.
+
+## Rate limiting
+
+Current targeted abuse protection includes:
+
+- login rate limiting
+- invitation preview rate limiting
+- invitation accept rate limiting
+
+Do not add a harsh global limiter that could interfere with normal operational use without a concrete requirement.
+
+## Upload preflight
+
+Attachment routes should perform resource/state/count authorization before multipart buffering where the route architecture allows it. File bytes are still validated after parsing before private persistence metadata is accepted.

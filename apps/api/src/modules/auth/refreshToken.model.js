@@ -12,6 +12,13 @@ const refreshTokenSchema = new mongoose.Schema(
       index: true,
     },
 
+    authVersion: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+
     tokenHash: {
       type: String,
 

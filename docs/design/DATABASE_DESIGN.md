@@ -91,16 +91,16 @@ Clinic + Doctor + Creator
           └── rescheduleHistory[]
 ```
 
-Implemented and future operational entities include:
+Future entities may include:
 
 ```text
-Production + embedded production transition history   IMPLEMENTED
-Attachments                                            FUTURE
-Corrections                                            FUTURE
-Notifications                                          FUTURE
+Production / Production history
+Attachments
+Corrections
+Notifications
 ```
 
-Future entities must not be designed prematurely before their business rules are approved.
+These must not be designed prematurely before their business rules are approved.
 
 ---
 
@@ -347,13 +347,15 @@ LabSlip
 └── timestamps
 ```
 
-The Lab Slip retains its own status:
+Current confirmed Lab Slip status:
 
 ```text
 SUBMITTED
 ```
 
-Production lifecycle is stored separately in the linked Production entity rather than overloading `LabSlip.status`.
+A production lifecycle has not yet been added.
+
+Do not add production statuses until Module 4D is designed and approved.
 
 ---
 
@@ -528,7 +530,7 @@ Identity fields remain immutable:
 
 `scanRequired` is managed through scan-booking behavior rather than normal Lab Slip editing.
 
-Normal Lab Slip editing locks when linked Production reaches `IN_PRODUCTION` and remains locked for `COMPLETED`. Admin override audit is retained on the Lab Slip.
+The future production edit-lock point remains an open Module 4D decision.
 
 ---
 
@@ -885,53 +887,36 @@ Do not create attachment collections/schema before Module 4E design.
 
 ---
 
-# 37. Production — Implemented Database Design
+# 37. Production — Future Database Design
 
-Production is stored as a separate `Production` entity linked one-to-one to `LabSlip`.
+Production workflow is the next major open area.
 
-Conceptual structure:
+Before persistence is designed, the project must decide whether production state belongs:
 
-```text
-Production
-├── labSlipId        unique reference to LabSlip
-├── status
-├── startedAt
-├── completedAt
-├── history[]
-│   ├── previousStatus
-│   ├── newStatus
-│   ├── changedByUserId
-│   ├── note
-│   └── changedAt
-└── timestamps
-```
+### Option A
 
-Supported Production status values:
+Directly on `LabSlip`
 
-```text
-SUBMITTED
-IN_PRODUCTION
-COMPLETED
-```
+or
 
-Every new Lab Slip creates exactly one Production record in the same MongoDB transaction.
+### Option B
 
-Production creation begins with:
+In a separate production entity linked to `LabSlip`
 
-```text
-status      = SUBMITTED
-startedAt   = null
-completedAt = null
-history     = []
-```
+This must not be assumed.
 
-History is append-only for transitions. Creation itself is not represented as a transition event.
+Required business decisions include:
 
-The Production model has no assignee in V1.
+- production states
+- production history
+- assignment/ownership
+- timestamps
+- readiness
+- completion
+- edit lock
+- backward transitions
 
-Lab Slip retains a virtual one-to-one Production relationship for population/serialization.
-
-Lab Slip production-lock override audit is stored on the Lab Slip rather than in Production transition history because an edit override is not a Production status transition.
+Only after those decisions should database structure be chosen.
 
 ---
 
@@ -1007,17 +992,9 @@ ScanBooking created
 
 If one step fails after another succeeds, partial state is theoretically possible.
 
-A confirmed transactional workflow now exists for Lab Slip creation:
+More advanced transactionality may be introduced where a confirmed business risk justifies it.
 
-```text
-create LabSlip
-+
-create exactly one SUBMITTED Production
-```
-
-These writes execute in one MongoDB transaction. Local development MongoDB therefore runs as single-node replica set `rs0`.
-
-Other workflows should only gain transaction complexity when a confirmed business risk justifies it.
+Do not add transaction complexity everywhere without need.
 
 ---
 
@@ -1144,12 +1121,44 @@ Catalogue categories
 Catalogue products
 Lab Slips
 Lab Slip item snapshots
-Lab Slip production-edit override audit
 Scan Bookings
 Scan assignments
-Scan reschedule state/history
-Production
-Production transition history
+Scan reschedule state
+Scan reschedule history
 ```
 
-The next planned database-design area is Module 4E — Private Attachments. Its ownership, metadata, retention, provider, and access rules remain deferred until that module begins.
+The next database-design extension will depend on:
+
+**Module 4D — Lab Production Workflow**
+
+No production schema should be added until the module's business model is approved.
+
+---
+
+# 25. Module 7 Security Persistence Additions
+
+## User `authVersion`
+
+Operational users include an `authVersion` integer used to invalidate previously issued access tokens when security-sensitive account state changes. Disabling a user increments this version.
+
+## Refresh-session revocation
+
+Refresh-token/session records can be revoked in bulk for a disabled user. Account disable therefore invalidates both existing access-token version checks and refresh-session continuation.
+
+## Attachment capacity slots
+
+Lab Slip and Correction attachment records may include an internal integer `capacitySlot`.
+
+A partial unique compound index is enforced on:
+
+```text
+(parent resource id, capacitySlot)
+```
+
+The index applies only when `capacitySlot` exists, allowing legacy slotless documents to remain valid. Legacy records still count toward the configured attachment maximum.
+
+Purpose:
+
+- close the concurrent `count -> insert` race
+- keep the attachment maximum enforceable by MongoDB
+- avoid exposing the slot as part of the public API contract

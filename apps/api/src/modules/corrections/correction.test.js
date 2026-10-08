@@ -1443,6 +1443,73 @@ describe("Corrections", () => {
     ).toBe(2);
   });
 
+  it("allows only one competing terminal transition from under review", async () => {
+    const context = await createContext();
+
+    const { labSlip } = await createCase({
+      context,
+    });
+
+    const correction = await createCorrection({
+      user: context.doctor,
+      labSlipId: labSlip.id,
+      data: {
+        description: "Concurrent correction decision",
+      },
+    });
+
+    await startCorrectionReview({
+      user: context.ceraStaff,
+      correctionId: correction.id,
+    });
+
+    const results = await Promise.allSettled([
+      resolveCorrection({
+        user: context.ceraStaff,
+        correctionId: correction.id,
+        outcome: CORRECTION_OUTCOME.HANDLED,
+        note: "Resolve competing request",
+      }),
+
+      rejectCorrection({
+        user: context.admin,
+        correctionId: correction.id,
+        note: "Reject competing request",
+      }),
+    ]);
+
+    const fulfilled = results.filter((result) => result.status === "fulfilled");
+
+    const rejected = results.filter((result) => result.status === "rejected");
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+
+    expect(rejected[0].reason).toMatchObject({
+      code: "INVALID_CORRECTION_TRANSITION",
+    });
+
+    const stored = await Correction.findById(correction.id);
+
+    expect([CORRECTION_STATUS.RESOLVED, CORRECTION_STATUS.REJECTED]).toContain(
+      stored.status,
+    );
+
+    /*
+     * One transition entered UNDER_REVIEW and exactly one
+     * competing terminal transition was allowed afterward.
+     */
+    expect(stored.history).toHaveLength(2);
+
+    expect(stored.history[1].previousStatus).toBe(
+      CORRECTION_STATUS.UNDER_REVIEW,
+    );
+
+    expect([CORRECTION_STATUS.RESOLVED, CORRECTION_STATUS.REJECTED]).toContain(
+      stored.history[1].newStatus,
+    );
+  });
+
   it("creates a correction through the HTTP API", async () => {
     const context = await createContext();
 
@@ -2896,6 +2963,103 @@ describe("Corrections", () => {
         correctionId: correction._id,
       }),
     ).toBe(5);
+  });
+
+  it("prevents concurrent uploads from exceeding the Correction attachment limit", async () => {
+    const context = await createContext();
+
+    const { labSlip } = await createCase({
+      context,
+    });
+
+    const correction = await createCorrection({
+      user: context.doctor,
+      labSlipId: labSlip.id,
+      data: {
+        description: "Concurrent attachment limit",
+      },
+    });
+
+    /*
+     * Leave exactly one capacity slot available.
+     */
+    for (let index = 1; index <= 4; index += 1) {
+      await createCorrectionAttachment({
+        user: context.doctor,
+        correctionId: correction.id,
+        file: attachmentFile({
+          filename: `existing-${index}.png`,
+        }),
+      });
+    }
+
+    expect(
+      await CorrectionAttachment.countDocuments({
+        correctionId: correction._id,
+      }),
+    ).toBe(4);
+
+    vi.clearAllMocks();
+
+    let waitingUploads = 0;
+    let releaseUploads;
+
+    const uploadGate = new Promise((resolve) => {
+      releaseUploads = resolve;
+    });
+
+    storeCorrectionAttachment.mockImplementation(async () => {
+      waitingUploads += 1;
+
+      if (waitingUploads === 2) {
+        releaseUploads();
+      }
+
+      await uploadGate;
+    });
+
+    try {
+      const results = await Promise.allSettled([
+        createCorrectionAttachment({
+          user: context.doctor,
+          correctionId: correction.id,
+          file: attachmentFile({
+            filename: "concurrent-a.png",
+          }),
+        }),
+
+        createCorrectionAttachment({
+          user: context.doctor,
+          correctionId: correction.id,
+          file: attachmentFile({
+            filename: "concurrent-b.png",
+          }),
+        }),
+      ]);
+
+      const fulfilled = results.filter(
+        (result) => result.status === "fulfilled",
+      );
+
+      const rejected = results.filter((result) => result.status === "rejected");
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      expect(rejected[0].reason).toMatchObject({
+        code: "ATTACHMENT_LIMIT_REACHED",
+      });
+
+      expect(
+        await CorrectionAttachment.countDocuments({
+          correctionId: correction._id,
+        }),
+      ).toBe(5);
+
+      expect(deleteCorrectionAttachmentObject).toHaveBeenCalledTimes(1);
+    } finally {
+      storeCorrectionAttachment.mockResolvedValue(undefined);
+    }
   });
 
   it("returns canDelete true only for the original uploader while correction is active", async () => {

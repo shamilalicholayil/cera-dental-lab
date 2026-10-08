@@ -14,6 +14,7 @@ import { Invitation } from "./invitation.model.js";
 
 import {
   createInvitationToken,
+  getInvitationTokenHashCandidates,
   hashInvitationToken,
 } from "./invitation.token.js";
 
@@ -146,10 +147,12 @@ export async function previewInvitation(rawToken) {
     throw invalidInvitation();
   }
 
-  const tokenHash = hashInvitationToken(rawToken);
+  const tokenHashes = getInvitationTokenHashCandidates(rawToken);
 
   const invitation = await Invitation.findOne({
-    tokenHash,
+    tokenHash: {
+      $in: tokenHashes,
+    },
 
     consumedAt: null,
 
@@ -181,7 +184,7 @@ export async function acceptInvitation({ rawToken, password }) {
     throw invalidInvitation();
   }
 
-  const tokenHash = hashInvitationToken(rawToken);
+  const tokenHashes = getInvitationTokenHashCandidates(rawToken);
 
   const now = new Date();
 
@@ -192,7 +195,9 @@ export async function acceptInvitation({ rawToken, password }) {
    */
   const invitation = await Invitation.findOneAndUpdate(
     {
-      tokenHash,
+      tokenHash: {
+        $in: tokenHashes,
+      },
 
       consumedAt: null,
 

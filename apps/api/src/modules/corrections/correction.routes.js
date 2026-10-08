@@ -24,6 +24,7 @@ import {
   startReview,
   uploadAttachment,
   getActiveForLabSlip,
+  preflightAttachmentUpload,
 } from "./correction.controller.js";
 
 import { parseCorrectionAttachmentUpload } from "./correctionAttachment.upload.js";
@@ -51,6 +52,13 @@ router.use(authenticate);
 router.post(
   "/:correctionId/attachments",
   authorizeRoles(...CORRECTION_ROLES),
+
+  /*
+   * Reject inaccessible, terminal, or already-full
+   * corrections before buffering up to 10 MB in memory.
+   */
+  preflightAttachmentUpload,
+
   parseCorrectionAttachmentUpload,
   uploadAttachment,
 );

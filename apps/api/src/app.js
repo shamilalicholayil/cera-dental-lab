@@ -23,6 +23,8 @@ import { notFound } from "./middleware/notFound.js";
 
 import { errorHandler } from "./middleware/errorHandler.js";
 
+import { csrfProtection } from "./middleware/csrfProtection.js";
+
 import clinicRoutes from "./modules/clinics/clinic.routes.js";
 
 import adminClinicRoutes from "./modules/clinics/adminClinic.routes.js";
@@ -55,6 +57,8 @@ app.use(
     credentials: true,
   }),
 );
+
+app.use(csrfProtection);
 
 app.use(
   express.json({

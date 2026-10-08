@@ -1,8 +1,5 @@
 # Cera Dental Lab — Module Status
 
-> **Current implementation baseline — 2026-10-08**  
-> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
-
 ## 1. Purpose of This Document
 
 This document tracks the current implementation status of each project module.
@@ -49,32 +46,19 @@ DEFERRED
 
 # 3. Current Project Position
 
-Current completed feature boundary:
-
-```text
-Module 6C — Scanning Staff Mobile Workflow Refinement
-```
-
-Modules still planned and not yet implemented:
-
-```text
-Module 5A — In-App Notifications
-Module 5B — WhatsApp Notifications
-```
-
-Next planned module:
+Current completed implementation boundary:
 
 ```text
 Module 7 — Security & Cross-Module Hardening
 ```
 
-Module 6C was fully tested, committed, and pushed. Last reported Git commit:
+Next planned module:
 
 ```text
-253178a feat: refine scanning staff mobile workflow
+Module 8 — End-to-End Regression Testing
 ```
 
----
+Module 7 implementation and repository-wide verification are complete. Documentation/source-control closeout is the final checkpoint before Module 8 begins.
 
 # 4. Module Summary
 
@@ -95,13 +79,13 @@ Module 6C was fully tested, committed, and pushed. Last reported Git commit:
 | 4D | Lab Production Workflow | COMPLETE |
 | 4E | Private Attachments | COMPLETE |
 | 4F | Corrections / Issues | COMPLETE |
-| 5A | In-App Notifications | PLANNED |
-| 5B | WhatsApp Notifications | PLANNED |
+| 5A | In-App Notifications | COMPLETE |
+| 5B | WhatsApp Notifications | COMPLETE |
 | 6A | Doctor Dashboard Refinement | COMPLETE |
 | 6B | Cera Operations Dashboard | COMPLETE |
 | 6C | Scanning Staff Mobile Refinement | COMPLETE |
-| 7 | Security & Cross-Module Hardening | NEXT |
-| 8 | End-to-End Regression Testing | PLANNED |
+| 7 | Security & Cross-Module Hardening | COMPLETE |
+| 8 | End-to-End Regression Testing | NEXT |
 | 9 | Production Deployment | PLANNED |
 | 10 | Final Documentation & Monitoring | PLANNED |
 
@@ -624,70 +608,83 @@ Verification completed:
 
 # 17. Module 4D — Lab Production Workflow
 
-Status: **COMPLETE**
+Status: **NEXT**
 
-Implemented production lifecycle:
+Implementation has **not started**.
+
+This module is blocked from coding until production business rules are resolved.
+
+Required decisions include:
+
+- production statuses
+- production readiness
+- who starts production
+- who changes status
+- allowed transitions
+- backward transitions
+- edit-lock point
+- production history
+- Doctor visibility
+- Clinic Staff visibility
+- meaning of completion
+- whether a production assignee exists
+- whether production belongs directly on LabSlip or a separate entity
+- whether completed production can reopen
+- whether transitions need notes/reasons
+
+See:
 
 ```text
-SUBMITTED
-→ IN_PRODUCTION
-→ COMPLETED
+docs/decisions/OPEN_QUESTIONS.md
 ```
 
-Implemented rules include:
-
-- production is a separate record linked to a Lab Slip
-- Cera Staff/Admin can start and complete production
-- scan-required cases cannot start production until an associated scan is completed
-- production transition history is retained
-- Cera Admin may move production backward through the supported transitions with a required reason
-- Lab Slip editing is locked after production starts, with the implemented Admin override behavior
-- Doctor/Clinic-facing production visibility is read-only and simplified
-- active production queue defaults to `SUBMITTED` + `IN_PRODUCTION`
+No production state machine should be invented before those decisions are approved.
 
 ---
 
 # 18. Module 4E — Private Attachments
 
-Status: **COMPLETE**
+Status: **PLANNED**
 
-Implemented direction:
+Confirmed direction:
 
-- private supporting attachments
-- JPEG, PNG, WEBP, PDF validation
-- large raw intraoral scan files remain excluded
-- Lab Slip attachment listing/upload/access flows
-- private access is mediated by backend authorization/storage abstraction rather than exposing raw storage URLs
-- upload availability follows the implemented production/editability rules
-- attachment behavior is also reused by the correction workflow where permitted
+- supporting files only
+- private access
+- JPEG
+- PNG
+- WEBP
+- PDF
+- large raw intraoral scan files excluded
+
+Open:
+
+- ownership
+- permissions
+- deletion/retention
+- max size
+- object-storage provider
+- signed access
+- security validation
 
 ---
 
 # 19. Module 4F — Corrections / Issues
 
-Status: **COMPLETE**
+Status: **PLANNED**
 
-Implemented correction lifecycle includes:
+Confirmed principle:
 
-```text
-OPEN
-UNDER_REVIEW
-AWAITING_CLARIFICATION
-RESOLVED
-REJECTED
-```
+The original completed case must remain historically intact.
 
-Implemented capabilities include:
+Still open:
 
-- corrections can be raised only for completed production cases
-- Doctor, Clinic Staff, Cera Staff, and Cera Admin may create/read within resource scope
-- Cera Staff/Admin review corrections
-- Cera may request clarification; Doctor/Clinic Staff may respond
-- resolution outcomes include handled, rescan required, and reproduction required
-- resolved/rejected corrections are terminal
-- a later new correction may be opened after a previous terminal correction
-- correction history and supporting attachments are retained
-- the original completed case remains historically intact
+- correction statuses
+- who creates/reviews
+- rescan behavior
+- reproduction behavior
+- relationship to Lab Slip
+- relationship to production
+- attachment needs
 
 ---
 
@@ -695,7 +692,14 @@ Implemented capabilities include:
 
 Status: **PLANNED**
 
-Still requires explicit event, recipient, read/unread, retention, deep-link, and deduplication decisions.
+Needs:
+
+- event definitions
+- recipient rules
+- read/unread behavior
+- retention
+- related-resource navigation
+- deduplication
 
 ---
 
@@ -703,84 +707,127 @@ Still requires explicit event, recipient, read/unread, retention, deep-link, and
 
 Status: **PLANNED**
 
-Confirmed direction remains WhatsApp Business Cloud API as the preferred external operational channel. Event/template/recipient/compliance/retry/logging behavior is still to be designed.
+Confirmed direction:
+
+```text
+WhatsApp Business Cloud API
+```
+
+WhatsApp is the preferred external operational notification channel.
+
+Still open:
+
+- events
+- templates
+- recipients
+- retry behavior
+- delivery logging
+- safe message content
 
 ---
 
 # 22. Module 6A — Doctor Dashboard Refinement
 
-Status: **COMPLETE**
+Status: **PLANNED**
 
-Implemented Doctor dashboard includes:
+Potential purpose:
 
-- needs-attention queue for scan confirmations and correction clarifications
-- upcoming confirmed/assigned scans
-- recent Lab Slips
-- quick actions
-- responsive loading/error/empty states
-- no unnecessary production-management controls
+- surface active work
+- scans requiring attention
+- upcoming scans
+- case progress
+- completed cases
+- corrections
+
+Actual cards/metrics must be based on real workflow needs.
 
 ---
 
 # 23. Module 6B — Cera Operations Dashboard
 
-Status: **COMPLETE**
+Status: **PLANNED**
 
-Implemented operational queues include:
+Potential operational views:
 
 - pending scan reviews
-- unassigned confirmed scans
-- today's scan visits
-- active production workload
-- urgent cases
-- open corrections
+- upcoming confirmed scans
+- unassigned scans
+- urgent work
+- production workload
+- correction queue
 
-Supporting API refinements include confirmed-time date filters, chronological date-filtered scan ordering, production urgency filtering, and active correction filtering.
+Do not turn this into a generic ERP dashboard.
 
 ---
 
 # 24. Module 6C — Scanning Staff Mobile Refinement
 
+Status: **PLANNED**
+
+Potential improvements:
+
+- today's visits
+- assigned visits
+- clearer visit detail
+- reschedule notice
+- completion flow
+- mobile usability
+
+No direct scanner integration.
+
+---
+
+# 25. Module 7 — Security & Cross-Module Hardening
+
 Status: **COMPLETE**
 
 Implemented and verified:
 
-- role-aware Scan Booking serialization minimizes Scanner data exposure
-- `/portal` scanner dashboard shows today's assigned visits in chronological order
-- mobile-first `My Visits` list with scanner-relevant status filters
-- prominent confirmed visit time, patient, clinic/address, urgency and read-only reschedule notice
-- scanner cannot manage rescheduling
-- read-only attachment access remains resource-authorized
-- assigned Scanner can mark the visit completed
-- completed state removes the completion action
-- loading, empty, offline/failure and retry states
-- frontend/backend tests, lint and frontend build passed
-- committed and pushed as `253178a feat: refine scanning staff mobile workflow`
+- immediate disabled-user access/session invalidation through `authVersion`
+- refresh-session revocation when an operational user is disabled
+- dedicated invitation-token secret, distinct from the refresh-token secret
+- temporary legacy invitation-hash compatibility for migration
+- invitation preview/accept rate limiting
+- cross-module role/resource authorization regression hardening
+- Scanning Staff access limited to currently assigned scan work; stale sensitive access removed
+- atomic Production state transitions with stale-state conflict handling
+- atomic Correction state transitions with stale-state conflict handling
+- private attachment authorization/state preflight before multipart buffering
+- JPEG/PNG/WEBP/PDF signature/type validation and private signed access
+- attachment uploader-only deletion rules and terminal-state locking where applicable
+- attachment maximum-count enforcement under concurrent uploads using database capacity slots
+- exact credentialed CORS allowlist behavior for the React client
+- Origin-based CSRF protection for unsafe browser requests
+- Helmet / `x-powered-by` / JSON payload-size review
+- production-safe request, error, and lifecycle logging
+- query-string/patient-data logging exposure reduction
+- dependency audit; vulnerable dev-only `nodemon -> chokidar -> braces` chain removed
+- API development now uses Node's built-in `--watch`
+- centralized secrets/environment validation, including R2 configuration
+- tracked-secret and debug-output review
+- Clinic and Catalogue authorization regression coverage
 
-# 25. Module 7 — Security & Cross-Module Hardening
+Verification completed at the Module 7 checkpoint:
 
-Status: **NEXT**
+- full API tests pass
+- full web tests pass
+- API/web lint pass
+- web production build passes
+- `npm audit --workspaces` passes with zero vulnerabilities
+- `git diff --check` clean
+- tracked-secret pattern scan clean
+- added debug-output scan clean
 
-Potential scope:
+Intentional deferrals:
 
-- full resource-authorization review
-- CSRF review
-- admin MFA
-- invitation hardening
-- session revocation improvements
-- upload security
-- rate-limit coverage
-- dependency audit
-- logging/privacy audit
-- production secrets review
+- Cera Admin MFA remains deferred until required
+- final HTTPS, reverse-proxy trust, secure-cookie/SameSite topology review belongs to Module 9
 
-Security continues to be handled in every module before this pass.
-
----
+Security remains continuous after this module; Module 7 is the system-wide hardening checkpoint.
 
 # 26. Module 8 — End-to-End Regression Testing
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Will verify:
 
@@ -897,63 +944,61 @@ Do not casually reopen these:
 
 # 30. Current Known Technical Debt / Future Hardening
 
-These are known future considerations, not blockers for already completed modules:
+Remaining future considerations after Module 7:
 
-- stronger invitation endpoint abuse protection
+- Cera Admin MFA, intentionally deferred until required
+- final production HTTPS/reverse-proxy trust/cookie topology review in Module 9
+- final production database/network security in Module 9
+- production monitoring/error tracking in Module 10
+
+Resolved during Module 7 and no longer future debt:
+
+- invitation endpoint abuse protection
 - dedicated invitation secret
-- proactive session revocation on user disable
-- CSRF strategy review
-- admin MFA
-- transaction review for cross-model operations
-- final production database/network security
-- private upload security
-- final monitoring/error tracking
+- proactive disabled-user session invalidation
+- CSRF strategy for the V1 browser client
+- private upload security review
+- dependency audit
+- secrets/environment audit
+- logging/privacy hardening
 
-Do not implement these opportunistically inside unrelated modules without discussion.
-
----
+Do not reintroduce resolved hardening items as open work unless a new requirement or deployment topology changes the threat model.
 
 # 31. Current Repository/Git Boundary
 
-Last completed module:
-
-```text
-Module 6C — Scanning Staff Mobile Workflow Refinement
-```
-
-Last Git state reported by the user:
-
-```text
-working tree clean
-master == origin/master
-253178a feat: refine scanning staff mobile workflow
-```
-
-A fresh session must still verify dynamic Git state before changing code.
-
----
-
-# 32. Next Session Goal
-
-The next development chat should focus on:
+Current implementation boundary:
 
 ```text
 Module 7 — Security & Cross-Module Hardening
 ```
 
-Start source-first with a repository security inventory before changing code.
+At the final Module 7 checkpoint, the user reported the full test/lint/build/audit gates passing and the final diff/secret/debug scans clean.
 
-Priority review areas:
+Module 7 source changes are not considered fully closed until the documentation changes are committed and pushed.
 
-- cross-module authentication/resource authorization
-- patient-data and role-specific serialization exposure
-- CSRF strategy for cookie-based authentication
-- CORS and browser security
-- invitation/reset/session revocation hardening
-- upload validation/private file access
-- rate-limit coverage
-- logging/privacy
-- dependency audit
-- environment/secrets handling
+A fresh session must still verify dynamic repository state with:
 
-Do not introduce unrelated business features while performing the hardening pass.
+```bash
+git status
+git log -1 --oneline
+```
+
+Do not assume the working tree or remote sync state after this handoff.
+
+# 32. Next Session Goal
+
+After Module 7 documentation is committed and pushed, the next development module is:
+
+```text
+Module 8 — End-to-End Regression Testing
+```
+
+Primary purpose:
+
+```text
+validate complete cross-role journeys and edge cases across the integrated product before production deployment
+```
+
+Module 8 should verify Doctor, Clinic Staff, Cera Admin, Cera Staff, and Scanning Staff journeys, role isolation, state transitions, disabled resources, auth/session behavior, scans, production, corrections, attachments, notifications, and responsive/error/edge-case behavior.
+
+Do not begin Module 9 deployment work until Module 8 is closed.

@@ -460,6 +460,18 @@ describe("Production Workflow", () => {
       context.ceraStaff.id,
     );
 
+    expect(response.body.data.production.history[0].changedBy.name).toBe(
+      context.ceraStaff.name,
+    );
+
+    expect(
+      response.body.data.production.history[0].changedBy,
+    ).not.toHaveProperty("phone");
+
+    expect(
+      response.body.data.production.history[0].changedBy,
+    ).not.toHaveProperty("email");
+
     expect(response.body.data.production.history[0].note).toBe(
       "Fabrication started",
     );
@@ -571,6 +583,57 @@ describe("Production Workflow", () => {
 
     expect(response.body.data.production.history[0].changedBy.id).toBe(
       context.ceraStaff.id,
+    );
+  });
+
+  it("allows only one concurrent request to start the same production case", async () => {
+    const context = await createContext();
+
+    const { production } = await createProductionCase({
+      context,
+      scanRequired: false,
+    });
+
+    const firstAgent = await loginAgent(context.ceraStaff);
+
+    const secondAgent = await loginAgent(context.ceraStaff);
+
+    const [firstResponse, secondResponse] = await Promise.all([
+      firstAgent.post(`/api/v1/productions/${production.id}/start`).send({
+        note: "Start request one",
+      }),
+
+      secondAgent.post(`/api/v1/productions/${production.id}/start`).send({
+        note: "Start request two",
+      }),
+    ]);
+
+    const statuses = [firstResponse.status, secondResponse.status].sort();
+
+    expect(statuses).toEqual([200, 409]);
+
+    const conflictResponse =
+      firstResponse.status === 409 ? firstResponse : secondResponse;
+
+    expect(conflictResponse.body.error.code).toBe(
+      "INVALID_PRODUCTION_TRANSITION",
+    );
+
+    const storedProduction = await Production.findById(production.id);
+
+    expect(storedProduction.status).toBe(PRODUCTION_STATUS.IN_PRODUCTION);
+
+    /*
+     * Only the winning transition may enter history.
+     */
+    expect(storedProduction.history).toHaveLength(1);
+
+    expect(storedProduction.history[0].previousStatus).toBe(
+      PRODUCTION_STATUS.SUBMITTED,
+    );
+
+    expect(storedProduction.history[0].newStatus).toBe(
+      PRODUCTION_STATUS.IN_PRODUCTION,
     );
   });
 

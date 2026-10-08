@@ -29,6 +29,11 @@ const RESCHEDULABLE_STATUSES = [
   SCAN_BOOKING_STATUS.ASSIGNED,
 ];
 
+const SCANNING_STAFF_VISIBLE_STATUSES = [
+  SCAN_BOOKING_STATUS.ASSIGNED,
+  SCAN_BOOKING_STATUS.COMPLETED,
+];
+
 function assertObjectId(value, code, message) {
   if (!mongoose.isValidObjectId(value)) {
     throw new AppError(message, 400, code);
@@ -156,10 +161,15 @@ async function assertBookingAccess(user, booking) {
   }
 
   if (user.role === USER_ROLES.SCANNING_STAFF) {
-    if (
+    const assignedToUser =
       booking.assignedScanningStaffId &&
-      booking.assignedScanningStaffId.equals(user._id)
-    ) {
+      booking.assignedScanningStaffId.equals(user._id);
+
+    const visibleStatus = SCANNING_STAFF_VISIBLE_STATUSES.includes(
+      booking.status,
+    );
+
+    if (assignedToUser && visibleStatus) {
       return;
     }
 
@@ -359,6 +369,14 @@ export async function listScanBookings({ user, query }) {
 
   if (user.role === USER_ROLES.SCANNING_STAFF) {
     filter.assignedScanningStaffId = user._id;
+
+    filter.status = query.status
+      ? SCANNING_STAFF_VISIBLE_STATUSES.includes(query.status)
+        ? query.status
+        : { $in: [] }
+      : {
+          $in: SCANNING_STAFF_VISIBLE_STATUSES,
+        };
   }
 
   const skip = (query.page - 1) * query.limit;

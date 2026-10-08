@@ -1,8 +1,5 @@
 # Cera Dental Lab — Module Plan
 
-> **Current implementation baseline — 2026-10-08**  
-> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
-
 ## 1. Purpose of This Document
 
 This document defines the module structure, sequencing, dependencies, responsibilities, and planned scope for the Cera Dental Lab project.
@@ -449,23 +446,52 @@ Status: **COMPLETE**
 
 Purpose:
 
-Model and operate Cera's fabrication lifecycle after the Lab Slip is ready for production.
+Model what happens after Cera has the information needed to manufacture the case.
 
-Implemented capabilities:
+This module must be designed before coding.
 
-- separate Production record linked to Lab Slip
-- statuses `SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`
-- Cera Staff/Admin start and complete production
-- completed scan required before starting scan-required cases
-- production history and timestamps
-- Admin-only supported backward transitions with required reason
-- production-aware Lab Slip edit locking
-- Doctor/Clinic read-only production visibility
-- active production queue and filtering
+Required decisions include:
+
+- production statuses
+- who can start production
+- who can move production states
+- valid state transitions
+- whether backward transitions are allowed
+- when Lab Slip editing becomes locked
+- whether scan completion is required before production for scan-required cases
+- what Doctors can see
+- what Clinic Staff can see
+- whether status history is required
+- what constitutes completion
+- whether Cera Admin and Cera Staff have identical production permissions
+
+Possible output areas may include:
+
+- production lifecycle
+- operational status controls
+- Doctor/Clinic production visibility
+- edit-lock enforcement
+- production timestamps/history
+- list/filter refinements
+
+Important:
+
+No production state machine should be implemented until these business decisions are approved.
 
 Dependencies:
 
-- Modules 4A–4C
+- Module 4A
+- Module 4B
+- Module 4C where scan state affects production readiness
+
+Out of scope unless explicitly approved:
+
+- correction workflow
+- attachment system
+- WhatsApp notifications
+- billing
+- delivery logistics
+- inventory
 
 ---
 
@@ -475,16 +501,38 @@ Status: **COMPLETE**
 
 Purpose:
 
-Provide authorized private supporting-file handling without treating raw intraoral scan files as normal website uploads.
+Allow permitted users to attach supporting documents/images to operational records without storing large intraoral scan files.
 
-Implemented direction:
+Planned file types:
 
-- private attachment metadata/access flow
-- JPEG, PNG, WEBP, PDF support
-- upload/list/access/delete behavior under resource authorization
-- storage abstraction/private-access URLs
-- Lab Slip integration and reuse by correction attachments
-- raw scanner files remain out of scope
+- JPEG
+- PNG
+- WEBP
+- PDF
+
+Required design decisions:
+
+- which entities support attachments
+- who can upload
+- who can view
+- who can delete
+- maximum file size
+- retention rules
+- whether attachments become immutable after production/completion
+- object-storage provider
+- signed/private access rules
+- virus/content validation strategy
+
+Explicitly out of scope:
+
+- direct scanner integration
+- large raw intraoral scan-file storage
+
+Dependencies:
+
+- Lab Slip workflow
+- security design
+- production state rules may affect editability
 
 ---
 
@@ -494,18 +542,30 @@ Status: **COMPLETE**
 
 Purpose:
 
-Allow permitted users to raise and process post-production correction issues while preserving original case history.
+Allow Doctor/Clinic users to raise a correction or issue for a finished product while preserving the original completed case.
 
-Implemented capabilities:
+Required design decisions:
 
-- create correction only after production completion
-- statuses `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`
-- Cera review and clarification flow
-- Doctor/Clinic clarification response
-- outcomes `HANDLED`, `RESCAN_REQUIRED`, `REPRODUCTION_REQUIRED`
-- history
-- correction attachments
-- one active correction per Lab Slip with later corrections allowed after terminal resolution/rejection
+- correction reasons
+- correction statuses
+- who may open a correction
+- who may review/accept/reject
+- whether Cera may request clarification
+- whether a correction triggers a new production cycle
+- whether rescanning may be requested
+- whether a new Lab Slip is created
+- what historical data remains immutable
+- notification behavior
+
+Core rule already established:
+
+The original finished case must remain historically intact.
+
+Dependencies:
+
+- Module 4D
+- possibly Module 4E
+- Scan Booking if corrections can trigger rescans
 
 ---
 
@@ -513,7 +573,7 @@ Implemented capabilities:
 
 ## Module 5A — In-App Notifications
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
 Purpose:
 
@@ -548,7 +608,7 @@ Dependencies:
 
 ## Module 5B — WhatsApp Notifications
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
 Purpose:
 
@@ -586,14 +646,20 @@ These modules refine the overall experience after the major workflows are stable
 
 Status: **COMPLETE**
 
-Implemented:
+Purpose:
 
-- needs-attention work
-- upcoming scans
+Improve Doctor visibility into active cases and important actions.
+
+Potential content:
+
 - recent Lab Slips
-- correction clarification visibility
-- quick actions
-- responsive loading/error/empty states
+- scans needing confirmation
+- upcoming scans
+- production status
+- completed cases
+- corrections requiring attention
+
+Exact metrics/cards must be confirmed from real usage needs.
 
 ---
 
@@ -601,14 +667,22 @@ Implemented:
 
 Status: **COMPLETE**
 
-Implemented operational queues:
+Purpose:
+
+Give Cera Staff/Admin an efficient operational view across active work.
+
+Potential areas:
 
 - pending scan reviews
-- unassigned confirmed scans
+- confirmed scans
+- unassigned scans
 - today's scan visits
-- active production workload
+- production workload
 - urgent cases
-- open corrections
+- completed cases
+- correction queue
+
+Do not turn this into a full ERP unless explicitly required.
 
 ---
 
@@ -616,17 +690,19 @@ Implemented operational queues:
 
 Status: **COMPLETE**
 
-Implemented:
+Purpose:
 
-- today's assigned visits and visit order
-- mobile-first scanner dashboard/list/detail
-- minimized scanner API response data
-- confirmed time, patient and clinic/address prominence
-- urgency and read-only reschedule notices
-- scanner-relevant list filtering
-- scan completion action
-- read-only attachments
-- loading/empty/offline/failure/retry states
+Polish the mobile workflow for personnel visiting clinics/hospitals.
+
+Potential improvements:
+
+- today's assigned visits
+- visit order
+- minimal clinic/contact information
+- clear current confirmed time
+- reschedule notice
+- completion action
+- empty/offline/failure states
 
 No direct scanner hardware integration.
 
@@ -634,40 +710,44 @@ No direct scanner hardware integration.
 
 # 10. Module 7 — Security & Cross-Module Hardening
 
-Status: **NEXT**
+Status: **COMPLETE**
 
 Purpose:
 
-Perform a system-wide security and authorization review after major feature development.
+Perform a system-wide hardening pass after the major workflows were implemented.
 
-Potential areas:
+Completed areas:
 
-- cross-module resource authorization
-- CSRF protection review
-- CORS hardening
-- rate-limit coverage
-- admin MFA
-- refresh-session revocation rules
-- invitation/reset hardening
-- private upload security
-- content-type validation
-- security headers
-- logging review
-- patient-data exposure review
+- cross-module resource authorization and exposure review
+- disabled-user session invalidation and refresh revocation
+- invitation secret separation and abuse rate limiting
+- exact credentialed CORS and V1 browser Origin-based CSRF protection
+- upload authorization/type/signature/private-access hardening
+- concurrent attachment-count enforcement
+- atomic Production and Correction transition hardening
+- logging/patient-data privacy review
+- dependency audit and vulnerable dev-only watcher-chain removal
+- secrets/environment/R2 configuration audit
+- authorization regression coverage
+
+Intentional deferrals:
+
+- Admin MFA until required
+- final HTTPS/reverse-proxy/cookie topology to Module 9
+
+Verification:
+
+- full API/web tests
+- lint
+- web build
 - dependency audit
-- secrets/environment review
+- diff/secret/debug scans
 
-Important:
-
-Security is already handled continuously in every module.
-
-This module is an additional cross-system hardening pass, not the first time security is considered.
-
----
+Security remains continuous after this checkpoint.
 
 # 11. Module 8 — End-to-End Regression & Edge-Case Testing
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Purpose:
 
@@ -835,14 +915,16 @@ Only then should implementation begin.
 
 # 16. Current Position
 
-Current completed boundary:
+Current completed implementation boundary:
 
-**Module 4C — Scan Rescheduling**
+```text
+Module 7 — Security & Cross-Module Hardening
+```
 
-Current next module:
+Next:
 
-**Module 4D — Lab Production Workflow**
+```text
+Module 8 — End-to-End Regression & Edge-Case Testing
+```
 
-Before Module 4D implementation, the production lifecycle and permissions must be designed and approved.
-
-No production statuses or transitions should be invented by the chatbot.
+Module 8 begins only after Module 7 documentation is committed/pushed and the repository is verified clean/synced.

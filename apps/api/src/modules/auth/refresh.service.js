@@ -93,9 +93,18 @@ export async function rotateRefreshToken(rawToken) {
     throw invalidRefreshToken();
   }
 
-  const user = await User.findById(consumedToken.userId);
+  const user = await User.findById(consumedToken.userId).select("+authVersion");
 
   if (!user || user.status !== USER_STATUS.ACTIVE) {
+    await revokeUserSessions(consumedToken.userId);
+
+    throw invalidRefreshToken();
+  }
+
+  const tokenAuthVersion = consumedToken.authVersion ?? 0;
+  const userAuthVersion = user.authVersion ?? 0;
+
+  if (tokenAuthVersion !== userAuthVersion) {
     await revokeUserSessions(consumedToken.userId);
 
     throw invalidRefreshToken();
@@ -107,6 +116,8 @@ export async function rotateRefreshToken(rawToken) {
 
   const replacement = await RefreshToken.create({
     userId: user._id,
+
+    authVersion: user.authVersion ?? 0,
 
     tokenHash: newTokenHash,
 

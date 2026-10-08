@@ -748,30 +748,11 @@ Current Lab Slip edit support includes:
 - design notes
 - general notes
 
-## Production Edit Lock
+## Important Limitation
 
-Module 4D resolved the production edit-lock rule.
+The future point at which production locks these edits has **not yet been decided**.
 
-Normal Lab Slip editing is allowed while the linked Production status is:
-
-```text
-SUBMITTED
-```
-
-When Production reaches:
-
-```text
-IN_PRODUCTION
-COMPLETED
-```
-
-normal Lab Slip editing is locked.
-
-Cera Admin may intentionally override this lock only with a mandatory reason. The override is retained in Lab Slip audit history.
-
-Cera Staff, Doctor, and Clinic Staff cannot bypass the lock.
-
-See ADR-050 for the complete Production workflow.
+That decision belongs to Module 4D and must not be inferred from this ADR.
 
 ---
 
@@ -1185,195 +1166,28 @@ Do not introduce branch-process complexity without a reason.
 
 ---
 
-# ADR-050 — Production Workflow Architecture and Rules
+# ADR-050 — Production Workflow Is Not Yet Architecturally Decided
 
 Status: **ACCEPTED**
 
 ## Decision
 
-Production is modeled as a separate `Production` entity with a one-to-one relationship to `LabSlip`.
+Module 4D production architecture is intentionally **not decided yet**.
 
-Every newly created Lab Slip must atomically create exactly one Production record.
+Open questions include:
 
-Initial Production state:
-
-```text
-SUBMITTED
-```
-
-Confirmed lifecycle:
-
-```text
-SUBMITTED
-→ IN_PRODUCTION
-→ COMPLETED
-```
-
-Confirmed backward transitions:
-
-```text
-COMPLETED
-→ IN_PRODUCTION
-
-IN_PRODUCTION
-→ SUBMITTED
-```
-
-There is no direct:
-
-```text
-COMPLETED
-→ SUBMITTED
-```
-
-### Readiness
-
-For a Lab Slip where:
-
-```text
-scanRequired = false
-```
-
-Production may start after submission.
-
-For:
-
-```text
-scanRequired = true
-```
-
-Production may start only when the related Scan Booking is:
-
-```text
-COMPLETED
-```
-
-Scan completion does not automatically start Production.
-
-### Permissions
-
-Forward transitions:
-
-```text
-Cera Admin
-Cera Staff
-```
-
-Backward transitions:
-
-```text
-Cera Admin only
-```
-
-Doctor, Clinic Staff, and Scanning Staff cannot mutate Production status.
-
-Backward transitions require a reason.
-
-Forward transitions may include an optional note.
-
-### History
-
-Every Production transition appends history containing:
-
-```text
-previousStatus
-newStatus
-changedByUserId
-changedAt
-optional note/reason
-```
-
-Production creation itself is not treated as a status transition and therefore begins with empty transition history.
-
-### Timestamps
-
-`SUBMITTED → IN_PRODUCTION`:
-
-```text
-startedAt = now
-completedAt = null
-```
-
-`IN_PRODUCTION → COMPLETED`:
-
-```text
-startedAt preserved
-completedAt = now
-```
-
-`COMPLETED → IN_PRODUCTION`:
-
-```text
-startedAt preserved
-completedAt = null
-```
-
-`IN_PRODUCTION → SUBMITTED`:
-
-```text
-startedAt = null
-completedAt = null
-```
-
-History remains preserved during backward movement.
-
-### Lab Slip Editing
-
-Normal Lab Slip editing locks when Production reaches `IN_PRODUCTION`.
-
-The lock remains in effect for `COMPLETED`.
-
-Cera Admin may intentionally override the lock with a mandatory reason.
-
-Admin Lab Slip edit overrides are audited on the Lab Slip and are not recorded as Production status transitions.
-
-Cera Staff cannot override the lock.
-
-### Visibility
-
-Doctor and Clinic Staff see simplified wording:
-
-```text
-SUBMITTED      → Submitted
-IN_PRODUCTION  → In Progress
-COMPLETED      → Completed
-```
-
-Cera Admin and Cera Staff use internal wording:
-
-```text
-Submitted
-In Production
-Completed
-```
-
-Scanning Staff do not receive general Production access.
-
-### Completion
-
-`COMPLETED` means:
-
-```text
-fabrication completed
-+
-final internal check completed
-```
-
-It does not mean delivered, dispatched, or handed over.
-
-### Assignment
-
-V1 has no Production assignee.
+- production statuses
+- production permissions
+- Lab Slip edit lock
+- readiness conditions
+- history
+- whether production lives directly on LabSlip or as a separate entity
+- what Doctor/Clinic can see
+- completion semantics
 
 ## Consequence
 
-Lab Slip status and Production status remain separate concepts.
-
-Production owns manufacturing lifecycle/history.
-
-Corrections, delivery/logistics, notifications, attachments, billing, inventory, and scanner integration remain separate concerns.
-
-The previous undecided-production restriction in this ADR is superseded by these confirmed Module 4D rules.
+No chatbot session may invent a production state machine or production persistence structure before these decisions are approved.
 
 ---
 
@@ -1436,6 +1250,116 @@ It reduces repeated questioning without weakening the project's no-assumption ru
 
 ---
 
+# ADR-052 — Disabled Users Invalidate Existing Sessions Immediately
+
+Status: **ACCEPTED**
+
+## Context
+
+Checking user status only during refresh allows a previously issued access token to remain usable until it expires after an account is disabled.
+
+## Decision
+
+Operational users carry an `authVersion`. Access tokens include the version, and authentication compares it to the current user record.
+
+Disabling a user increments `authVersion` and revokes that user's refresh-session records.
+
+## Reason
+
+Disabling an operational account is a security action and should take effect immediately rather than waiting for access-token expiry.
+
+## Consequence
+
+- old access tokens stop authenticating after the account version changes
+- refresh sessions are revoked on disable
+- re-enabling a user does not make old tokens valid again
+
+---
+
+# ADR-053 — Invitation Tokens Use a Dedicated Secret
+
+Status: **ACCEPTED**
+
+## Context
+
+Invitation token hashing previously depended on refresh-token secret material, coupling two separate security domains.
+
+## Decision
+
+Invitation hashing uses `INVITATION_TOKEN_SECRET`, which must be configured separately and must differ from `REFRESH_TOKEN_SECRET`.
+
+A temporary legacy verification fallback is permitted only for already-issued invitations during migration.
+
+## Reason
+
+Separating secrets reduces cross-feature coupling and limits the blast radius of secret rotation or exposure.
+
+## Consequence
+
+- production configuration must provide a dedicated invitation secret
+- environment validation rejects reuse of the refresh-token secret
+- legacy compatibility must be removed after the maximum old invitation lifetime has elapsed after rollout
+
+---
+
+# ADR-054 — V1 Browser CSRF Protection Uses Exact Trusted Origin Validation
+
+Status: **ACCEPTED**
+
+## Context
+
+The operational browser API uses credentialed HttpOnly cookies, so unsafe cross-origin browser requests require CSRF protection.
+
+The V1 authenticated browser client is the Cera React frontend only.
+
+## Decision
+
+For unsafe HTTP methods, require a valid `Origin` header whose normalized origin exactly matches the configured `CLIENT_URL` origin.
+
+Safe methods (`GET`, `HEAD`, `OPTIONS`) pass without this check.
+
+Future webhook/provider routes must use provider-specific authentication/signatures and an explicit scoped bypass where necessary.
+
+## Reason
+
+The single trusted browser-origin model provides a simple, explicit CSRF boundary without introducing a second token protocol for V1.
+
+## Consequence
+
+- missing, malformed, `null`, lookalike, or untrusted origins are rejected on unsafe browser requests
+- CORS remains an exact credentialed allowlist
+- deployment must keep `CLIENT_URL` accurate
+- future non-browser integrations must not silently inherit this browser assumption
+
+---
+
+# ADR-055 — Attachment Capacity Is Enforced Atomically in MongoDB
+
+Status: **ACCEPTED**
+
+## Context
+
+A simple `count -> upload -> insert` flow can exceed the maximum attachment count when simultaneous uploads observe the same pre-insert count.
+
+## Decision
+
+New attachment records reserve an internal `capacitySlot`. A partial unique compound index on the parent resource ID plus `capacitySlot` makes MongoDB the final concurrency arbiter.
+
+Existing legacy attachment records without a slot remain valid and still consume capacity.
+
+## Reason
+
+This prevents count-limit races without requiring a distributed lock or a MongoDB transaction around external object-storage operations.
+
+## Consequence
+
+- concurrent requests cannot persist more than the configured attachment maximum
+- a losing request recalculates capacity and fails with the existing attachment-limit error when full
+- any already-uploaded object from the losing request is cleaned up
+- `capacitySlot` remains internal and is not part of the public API contract
+
+---
+
 # 3. Adding a New ADR
 
 When a new permanent decision is made, add an entry using this structure:
@@ -1485,7 +1409,7 @@ This preserves project history.
 
 # 5. Current Decision Boundary
 
-The architecture is locked through:
+The implemented architecture/decision boundary now extends through:
 
 ```text
 Foundation
@@ -1495,12 +1419,16 @@ Users
 Clinics
 Catalogue
 Digital Lab Slip
-Scan Booking
-Scan Rescheduling
+Scan Booking / Rescheduling
+Lab Production
+Private Attachments
+Corrections
+Notifications / operational refinements
+Module 7 Security & Cross-Module Hardening
 ```
 
-The next major decision set belongs to:
+The next project phase is:
 
-**Module 4D — Lab Production Workflow**
+**Module 8 — End-to-End Regression Testing**
 
-Those decisions must be resolved before implementation begins.
+Module 8 should validate the integrated system without inventing new business architecture. Production topology decisions remain deferred to Module 9.

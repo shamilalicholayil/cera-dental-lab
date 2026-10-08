@@ -12,6 +12,7 @@ import {
   deleteLabSlipAttachment,
   getLabSlipAttachmentAccess,
   listLabSlipAttachments,
+  preflightLabSlipAttachmentUpload,
 } from "./labSlipAttachment.service.js";
 
 import { serializeLabSlipAttachment } from "./labSlipAttachment.serializer.js";
@@ -140,6 +141,19 @@ export async function listAttachments(req, res, next) {
         ),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function preflightAttachmentUpload(req, res, next) {
+  try {
+    await preflightLabSlipAttachmentUpload({
+      user: req.user,
+      labSlipId: req.params.labSlipId,
+    });
+
+    next();
   } catch (error) {
     next(error);
   }

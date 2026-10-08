@@ -480,7 +480,10 @@ export async function getLabSlip({ user, labSlipId }) {
   if (user.role === USER_ROLES.SCANNING_STAFF) {
     const assignedBooking = await ScanBooking.exists({
       labSlipId: labSlip._id,
+
       assignedScanningStaffId: user._id,
+
+      status: SCAN_BOOKING_STATUS.ASSIGNED,
     });
 
     if (!assignedBooking) {

@@ -1,242 +1,215 @@
 # Cera Dental Lab — Session Handoff
 
-> **Current implementation baseline — 2026-10-08**  
-> Current completed feature boundary is Module 6C; Modules 5A/5B remain planned; Module 7 is NEXT.
+## 1. Purpose
 
-> **Updated: 2026-10-08**
+This file captures the current cross-session handoff state. Current repository/code remains the highest implementation source of truth.
 
-## 1. Current Handoff Summary
+---
 
-Last completed module:
+# 2. Current Handoff Summary
 
-```text
-Module 6C — Scanning Staff Mobile Workflow Refinement
-```
-
-Next module:
+Last completed implementation module:
 
 ```text
 Module 7 — Security & Cross-Module Hardening
 ```
 
-Last reported Git boundary:
+Next module after source-control closeout:
 
 ```text
-working tree clean
-master == origin/master
-253178a feat: refine scanning staff mobile workflow
+Module 8 — End-to-End Regression Testing
 ```
 
-Always verify dynamic Git state again before new changes.
+Development mode remains:
+
+```text
+Normal chatbot
+Manual VS Code copy/paste workflow
+User runs commands/tests locally
+```
+
+Do not start Module 8 until Module 7 documentation is committed/pushed and the working tree is verified clean/synced.
 
 ---
 
-## 2. Current Completed Functional Boundary
+# 3. Functional Boundary
+
+The integrated product now includes the implemented workflow through:
 
 ```text
-Authentication / invitations / roles
+Authentication / invitations / user administration
 ↓
-Clinics + memberships
+Clinics and memberships
 ↓
 Catalogue
 ↓
 Digital Lab Slip
 ↓
-Scan Booking + scheduling + assignment + rescheduling + completion
+Scan Booking and rescheduling
 ↓
 Lab Production
 ↓
 Private supporting attachments
 ↓
-Corrections / clarification / resolution
+Corrections / issues
 ↓
-Doctor Dashboard
+Notifications and operational UI refinements
 ↓
-Cera Operations Dashboard
-↓
-Scanning Staff Mobile Workflow
+Module 7 cross-system security hardening
 ```
 
-Modules 5A/5B notifications remain planned and are not implemented merely because later UX refinement modules are complete.
+Module 8 is an integrated regression/edge-case pass, not a new business workflow.
 
 ---
 
-## 3. Module 6C — What Was Added
+# 4. Module 7 — Completed Hardening
 
-### Backend privacy boundary
+Module 7 completed these verified areas:
 
-Scan Booking serialization is role-aware for Scanning Staff. Scanner responses retain only visit information required for the assigned visit and avoid unrelated Doctor/user contact exposure.
-
-### Scanner dashboard
-
-`/portal` now provides Scanning Staff with:
-
-- today's assigned visits
-- chronological visit order
-- confirmed time
-- patient identity/reference
-- clinic and address
-- urgency
-- read-only reschedule warning
-- loading/empty/failure/retry states
-- link to all assigned visits
-
-### My Visits
-
-`/portal/scans` now has a mobile-first Scanner experience with:
-
-- all assigned visit history/future visits
-- scanner-relevant filters only
-- assigned/completed/cancelled views
-- confirmed-time-first cards
-- patient/clinic emphasis
-- urgent/reschedule indicators
-- pagination and retry states
-
-### Visit detail
-
-Scanner detail now prioritizes:
-
-```text
-confirmed time
-→ patient
-→ clinic/address
-→ reschedule notice
-→ completion action
-```
-
-Scanner cannot manage reschedules. Attachments remain read-only. Assigned Scanner can mark an `ASSIGNED` visit completed.
+- disabled-user access/session invalidation via `authVersion`
+- refresh-session revocation on disable
+- dedicated invitation-token secret
+- temporary legacy invitation-hash migration fallback
+- invitation preview/accept rate limiting
+- resource-authorization/data-exposure review across Clinics, Catalogue, Lab Slips, Scan Bookings, Production, Corrections, and attachments
+- Scanning Staff stale-access removal
+- atomic Production and Correction transitions
+- private-upload preflight authorization and state checks before buffering
+- attachment type/signature validation, private storage, short-lived signed access, uploader-only deletion where applicable
+- concurrent max-attachment enforcement via database capacity slots
+- exact credentialed CORS
+- Origin-based CSRF protection for unsafe browser requests
+- security-header/input-size review
+- production-safe logging/error/lifecycle metadata
+- query-string/patient-data privacy logging hardening
+- dependency audit and removal of vulnerable dev-only nodemon dependency chain
+- centralized R2/environment validation
+- secrets/tracked-file audit
+- Clinic/Catalogue authorization regression tests
 
 ---
 
-## 4. Module 6C Verification
+# 5. Module 7 — Security Decisions
 
-Reported passing before commit:
+## Disabled users
 
-```text
-npm run test:web
-npm run test:api
-npm run lint:web
-npm run lint:api
-npm run build:web
-```
+Disabling an operational user must invalidate existing access behavior immediately and revoke refresh sessions. Access tokens carry `authVersion`; authentication compares the token version to the current user record.
 
-Focused tests were added/updated for:
+## Invitations
 
-- Scanner dashboard
-- Scan Bookings list
-- Scan Booking detail
-- backend Scan Booking serializer/privacy behavior
+Invitation token hashing uses `INVITATION_TOKEN_SECRET`, distinct from `REFRESH_TOKEN_SECRET`.
 
-Module 6C was committed and pushed.
+A temporary legacy verification fallback may accept hashes derived from the old refresh secret during migration. Remove that compatibility only after at least the maximum old invitation lifetime has elapsed after rollout (current maximum: 168 hours / 7 days).
 
----
+## Browser CSRF
 
-## 5. Current Module Status
+V1 authenticated operational browser traffic comes only from the Cera React frontend. Unsafe methods require the request `Origin` to exactly match the configured `CLIENT_URL` origin.
 
-Complete:
+Future provider/webhook routes must use provider-specific signature/authentication and explicit CSRF bypass only where appropriate.
 
-```text
-0, 1A, 1B, 1C, 1D
-2A, 2B
-3A, 3B
-4A, 4B, 4C, 4D, 4E, 4F
-6A, 6B, 6C
-```
+## Attachments
 
-Still planned:
+Attachment count limits are enforced under concurrency with database capacity slots and unique compound indexes. Legacy slotless attachment records remain valid and still consume capacity.
 
-```text
-5A In-App Notifications
-5B WhatsApp Notifications
-```
+## Production deployment
 
-Next:
-
-```text
-7 Security & Cross-Module Hardening
-```
-
-Later:
-
-```text
-8 End-to-End Regression
-9 Production Deployment
-10 Final Documentation & Monitoring
-```
+Do not blindly configure Express `trust proxy`. Final HTTPS, reverse-proxy topology, `Secure` cookie behavior, and SameSite review belong to Module 9.
 
 ---
 
-## 6. Module 7 — Start Here
-
-Module 7 is a system-wide hardening pass, not a new business-feature module.
-
-Start source-first by inventorying the current repository before editing code. Review:
-
-1. authentication/session boundaries
-2. route role guards vs service resource authorization
-3. serializers and patient/contact data exposure
-4. CSRF strategy for cookie-based auth
-5. CORS and browser security
-6. invitation/reset/session revocation hardening
-7. upload type/size/private-access enforcement
-8. rate-limit coverage
-9. logging/privacy and request IDs
-10. dependency/security audit
-11. environment/secrets handling
-12. cross-module state-transition authorization
-
-Do not assume a vulnerability exists merely because an area is listed for review. Inspect current code first.
-
----
-
-## 7. Permanent Development Rules
-
-- React + Vite + JavaScript frontend.
-- Node.js + Express ESM backend.
-- MongoDB/Mongoose.
-- REST under `/api/v1`.
-- Modular monolith.
-- Frontend/backend developed together by vertical slice.
-- UI/UX is part of each module, not deferred.
-- Route definitions stay outside `App.jsx`.
-- Redux Toolkit only for suitable app-wide state.
-- Backend is the security boundary; frontend role checks are UX only.
-- Inspect the current source before proposing edits.
-- Give exact file path and targeted edit vs full replacement.
-- User manually copies code into VS Code.
-- Test normal, permission, validation, failure and edge cases.
-- Run relevant tests/lint/build before completion.
-- Commit and push a completed module before starting the next one.
-- Do not invent business rules, statuses, roles, permissions or integrations.
-
----
-
-## 8. Scope Locks
-
-Do not add without explicit scope change:
-
-- online payments/billing ERP
-- inventory/ecommerce
-- direct intraoral scanner integration
-- large raw scanner-file website storage
-- public operational signup
-- unconfirmed notification behavior
-
----
-
-## 9. Source of Truth
-
-Use this order:
+# 6. Intentional Deferrals
 
 ```text
-1. current repository/code
-2. confirmed requirements
-3. current project/design docs
-4. architecture decisions
-5. MODULE_STATUS / SESSION_HANDOFF
-6. Git history
-7. chat context/memory
+Cera Admin MFA
+→ deferred until required
+
+Final HTTPS / reverse proxy trust / cookie topology
+→ Module 9
 ```
 
-If current code and a confirmed requirement conflict, identify the conflict instead of silently choosing.
+These are not Module 7 completion blockers.
+
+---
+
+# 7. Verification Completed
+
+At the final Module 7 checkpoint the user reported:
+
+```text
+npm run test                PASS
+npm run lint                PASS
+npm run build:web           PASS
+npm audit --workspaces      PASS / 0 vulnerabilities
+```
+
+Final review also reported:
+
+```text
+git diff --check            clean
+tracked secret scan         no matches
+added console.log/debugger  no matches
+```
+
+Do not claim these commands were run by the assistant; they were run and reported by the user.
+
+---
+
+# 8. Current Source-Control Boundary
+
+Module 7 implementation changes and documentation updates must be committed together before moving to Module 8.
+
+After commit/push verify:
+
+```bash
+git status
+git log -1 --oneline
+git status -sb
+```
+
+Expected handoff condition:
+
+```text
+working tree clean
+branch synchronized with remote
+```
+
+---
+
+# 9. Module 8 — Next Scope
+
+Module 8 is **End-to-End Regression & Edge-Case Testing**.
+
+It should validate complete journeys for:
+
+- Doctor
+- Clinic Staff
+- Cera Admin
+- Cera Staff
+- Scanning Staff
+
+Coverage should include:
+
+- authentication/session behavior
+- role isolation/resource authorization
+- disabled users/resources
+- Clinics/memberships
+- Catalogue selection visibility
+- Lab Slip creation/editing/search/detail
+- Scan Booking lifecycle/rescheduling/assignment/completion
+- Production transitions and visibility
+- private attachments
+- Corrections
+- notifications
+- responsive, loading, empty, failure, and edge-case behavior
+
+Module 8 should find integration regressions; do not invent new business workflows merely to expand test coverage.
+
+---
+
+# 10. Handoff State
+
+```text
+MODULE 7 IMPLEMENTATION + VERIFICATION COMPLETE
+DOCUMENTATION/SOURCE-CONTROL CLOSEOUT IN PROGRESS
+NEXT: MODULE 8 AFTER CLEAN PUSH
+```

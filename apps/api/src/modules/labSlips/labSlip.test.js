@@ -61,6 +61,11 @@ import { LabSlipCounter } from "./labSlipCounter.model.js";
 
 import { LabSlipAttachment } from "./labSlipAttachment.model.js";
 
+import {
+  deleteLabSlipAttachmentObject,
+  storeLabSlipAttachment,
+} from "./labSlipAttachment.storage.js";
+
 const password = "StrongPass123";
 
 const VALID_PNG = Buffer.from(
@@ -1915,6 +1920,7 @@ describe("Digital Lab Slips", () => {
       {
         $set: {
           assignedScanningStaffId: scanner._id,
+          status: SCAN_BOOKING_STATUS.ASSIGNED,
         },
       },
     );
@@ -2056,6 +2062,95 @@ describe("Digital Lab Slips", () => {
     ).toBe(5);
   });
 
+  it("prevents concurrent uploads from exceeding the Lab Slip attachment limit", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    /*
+     * Leave exactly one attachment slot available.
+     */
+    for (let index = 1; index <= 4; index += 1) {
+      await uploadTestAttachment({
+        agent: doctorAgent,
+        labSlipId: labSlip.id,
+        filename: `existing-${index}.png`,
+      });
+    }
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(4);
+
+    vi.clearAllMocks();
+
+    /*
+     * Hold both R2 uploads until both HTTP requests have passed
+     * authorization/state/count preflight.
+     *
+     * Without the database capacity-slot guard, both requests
+     * would then persist and the Lab Slip would end with 6 files.
+     */
+    let waitingUploads = 0;
+    let releaseUploads;
+
+    const uploadGate = new Promise((resolve) => {
+      releaseUploads = resolve;
+    });
+
+    storeLabSlipAttachment.mockImplementation(async () => {
+      waitingUploads += 1;
+
+      if (waitingUploads === 2) {
+        releaseUploads();
+      }
+
+      await uploadGate;
+    });
+
+    try {
+      const firstRequest = doctorAgent
+        .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+        .attach("attachment", VALID_PNG, {
+          filename: "concurrent-a.png",
+          contentType: "image/png",
+        });
+
+      const secondRequest = doctorAgent
+        .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+        .attach("attachment", VALID_PNG, {
+          filename: "concurrent-b.png",
+          contentType: "image/png",
+        });
+
+      const responses = await Promise.all([firstRequest, secondRequest]);
+
+      const statuses = responses.map((response) => response.status).sort();
+
+      expect(statuses).toEqual([201, 409]);
+
+      const rejectedResponse = responses.find(
+        (response) => response.status === 409,
+      );
+
+      expect(rejectedResponse.body.error.code).toBe("ATTACHMENT_LIMIT_REACHED");
+
+      expect(
+        await LabSlipAttachment.countDocuments({
+          labSlipId: labSlip.id,
+        }),
+      ).toBe(5);
+
+      /*
+       * The losing request already placed its object in storage,
+       * so it must clean that object up.
+       */
+      expect(deleteLabSlipAttachmentObject).toHaveBeenCalledTimes(1);
+    } finally {
+      storeLabSlipAttachment.mockResolvedValue(undefined);
+    }
+  });
+
   it("allows creating a Lab Slip without attachments", async () => {
     const { labSlip } = await createDoctorLabSlipFixture();
 
@@ -2066,5 +2161,87 @@ describe("Digital Lab Slips", () => {
         labSlipId: labSlip.id,
       }),
     ).toBe(0);
+  });
+
+  it("rejects an unrelated Doctor before processing the attachment body", async () => {
+    const { admin, clinic, labSlip } = await createDoctorLabSlipFixture();
+
+    const otherDoctor = await createUser({
+      name: "Other Doctor",
+      phone: "9876543212",
+      role: USER_ROLES.DOCTOR,
+    });
+
+    await addMembership({
+      clinic,
+      user: otherDoctor,
+      admin,
+    });
+
+    const otherAgent = request.agent(app);
+
+    await login(otherAgent, otherDoctor.phone);
+
+    const response = await otherAgent
+      .post(`/api/v1/lab-slips/${labSlip.id}/attachments`)
+      .attach("attachment", VALID_PNG, {
+        filename: "reference.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
+
+    expect(
+      await LabSlipAttachment.countDocuments({
+        labSlipId: labSlip.id,
+      }),
+    ).toBe(0);
+  });
+
+  it("removes Scanning Staff attachment access after the assigned scan is completed", async () => {
+    const { doctorAgent, labSlip } = await createDoctorLabSlipFixture();
+
+    const attachment = await uploadTestAttachment({
+      agent: doctorAgent,
+      labSlipId: labSlip.id,
+    });
+
+    const scanner = await createUser({
+      name: "Scanner",
+      phone: "9876543213",
+      role: USER_ROLES.SCANNING_STAFF,
+    });
+
+    const bookingResponse = await doctorAgent
+      .post("/api/v1/scan-bookings")
+      .send({
+        labSlipId: labSlip.id,
+        requestedStartAt: new Date(
+          Date.now() + 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      });
+
+    await ScanBooking.findByIdAndUpdate(
+      bookingResponse.body.data.scanBooking.id,
+      {
+        $set: {
+          assignedScanningStaffId: scanner._id,
+          status: SCAN_BOOKING_STATUS.COMPLETED,
+          completedAt: new Date(),
+        },
+      },
+    );
+
+    const scannerAgent = request.agent(app);
+
+    await login(scannerAgent, scanner.phone);
+
+    const response = await scannerAgent.get(
+      `/api/v1/lab-slips/${labSlip.id}/attachments/${attachment.id}/access`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("LAB_SLIP_NOT_FOUND");
   });
 });

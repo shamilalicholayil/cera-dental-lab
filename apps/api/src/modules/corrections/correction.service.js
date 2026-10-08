@@ -142,11 +142,11 @@ async function populateCorrection(correction) {
     },
     {
       path: "createdByUserId",
-      select: "name phone email role status",
+      select: "name",
     },
     {
       path: "history.changedByUserId",
-      select: "name phone email role status",
+      select: "name",
     },
   ]);
 
@@ -199,33 +199,67 @@ function assertCorrectionStatus(correction, allowedStatuses) {
   }
 }
 
-async function saveCorrectionTransition({
+async function applyCorrectionTransition({
   correction,
   user,
+  expectedStatus,
   newStatus,
   note = null,
   outcome,
 }) {
-  const previousStatus = correction.status;
   const changedAt = new Date();
 
-  correction.history.push({
-    previousStatus,
-    newStatus,
-    changedByUserId: user._id,
-    note,
-    changedAt,
-  });
-
-  correction.status = newStatus;
+  const set = {
+    status: newStatus,
+  };
 
   if (outcome !== undefined) {
-    correction.outcome = outcome;
+    set.outcome = outcome;
   }
 
-  await correction.save();
+  const updatedCorrection = await Correction.findOneAndUpdate(
+    {
+      _id: correction._id,
+      status: expectedStatus,
+    },
+    {
+      $set: set,
 
-  return correction;
+      $push: {
+        history: {
+          previousStatus: expectedStatus,
+          newStatus,
+          changedByUserId: user._id,
+          note,
+          changedAt,
+        },
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  );
+
+  if (updatedCorrection) {
+    return updatedCorrection;
+  }
+
+  /*
+   * Another request changed the Correction after this
+   * request originally read it.
+   */
+  const currentCorrection = await Correction.findById(correction._id);
+
+  if (!currentCorrection) {
+    throw new AppError("Correction not found", 404, "CORRECTION_NOT_FOUND");
+  }
+
+  throw new AppError(
+    `Correction cannot transition from ${currentCorrection.status}`,
+    409,
+    "INVALID_CORRECTION_TRANSITION",
+  );
 }
 
 function normalizeDescription(value) {
@@ -358,7 +392,7 @@ export async function listCorrections({ user, query }) {
         select:
           "reference patient status urgency scanRequired clinicId doctorId createdAt",
       })
-      .populate("createdByUserId", "name phone email role status")
+      .populate("createdByUserId", "name")
       .sort({
         updatedAt: -1,
       })
@@ -514,9 +548,10 @@ export async function startCorrectionReview({ user, correctionId, note }) {
 
   assertCorrectionStatus(correction, [CORRECTION_STATUS.OPEN]);
 
-  return saveCorrectionTransition({
+  return applyCorrectionTransition({
     correction,
     user,
+    expectedStatus: CORRECTION_STATUS.OPEN,
     newStatus: CORRECTION_STATUS.UNDER_REVIEW,
     note: normalizeOptionalNote(note),
   });
@@ -539,9 +574,10 @@ export async function requestCorrectionClarification({
     "Clarification request is required",
   );
 
-  return saveCorrectionTransition({
+  return applyCorrectionTransition({
     correction,
     user,
+    expectedStatus: CORRECTION_STATUS.UNDER_REVIEW,
     newStatus: CORRECTION_STATUS.AWAITING_CLARIFICATION,
     note: clarificationRequest,
   });
@@ -576,9 +612,10 @@ export async function respondToCorrectionClarification({
     "Clarification response is required",
   );
 
-  return saveCorrectionTransition({
+  return applyCorrectionTransition({
     correction,
     user,
+    expectedStatus: CORRECTION_STATUS.AWAITING_CLARIFICATION,
     newStatus: CORRECTION_STATUS.UNDER_REVIEW,
     note: clarificationResponse,
   });
@@ -593,9 +630,10 @@ export async function resolveCorrection({ user, correctionId, outcome, note }) {
 
   assertCorrectionOutcome(outcome);
 
-  return saveCorrectionTransition({
+  return applyCorrectionTransition({
     correction,
     user,
+    expectedStatus: CORRECTION_STATUS.UNDER_REVIEW,
     newStatus: CORRECTION_STATUS.RESOLVED,
     note: normalizeOptionalNote(note),
     outcome,
@@ -609,9 +647,10 @@ export async function rejectCorrection({ user, correctionId, note }) {
 
   assertCorrectionStatus(correction, [CORRECTION_STATUS.UNDER_REVIEW]);
 
-  return saveCorrectionTransition({
+  return applyCorrectionTransition({
     correction,
     user,
+    expectedStatus: CORRECTION_STATUS.UNDER_REVIEW,
     newStatus: CORRECTION_STATUS.REJECTED,
     note: normalizeOptionalNote(note),
     outcome: null,

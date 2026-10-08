@@ -236,38 +236,113 @@ function buildObjectKey({ correctionId, detectedExtension }) {
   ].join("/");
 }
 
+function createAttachmentLimitError() {
+  return new AppError(
+    `A Correction can have a maximum of ${CORRECTION_ATTACHMENT_MAX_COUNT} attachments`,
+    409,
+    "ATTACHMENT_LIMIT_REACHED",
+  );
+}
+
 async function assertAttachmentLimit(correctionId) {
   const attachmentCount = await CorrectionAttachment.countDocuments({
     correctionId,
   });
 
   if (attachmentCount >= CORRECTION_ATTACHMENT_MAX_COUNT) {
-    throw new AppError(
-      `A Correction can have a maximum of ${CORRECTION_ATTACHMENT_MAX_COUNT} attachments`,
-      409,
-      "ATTACHMENT_LIMIT_REACHED",
-    );
+    throw createAttachmentLimitError();
   }
 }
 
-export async function createCorrectionAttachment({ user, correctionId, file }) {
+function isCapacitySlotDuplicate(error) {
+  if (error?.code !== 11000) {
+    return false;
+  }
+
+  return (
+    error?.keyPattern?.capacitySlot === 1 ||
+    Object.prototype.hasOwnProperty.call(error?.keyValue ?? {}, "capacitySlot")
+  );
+}
+
+async function getAvailableCapacitySlot(correctionId) {
+  const attachments = await CorrectionAttachment.find({
+    correctionId,
+  })
+    .select({
+      capacitySlot: 1,
+    })
+    .lean();
+
+  if (attachments.length >= CORRECTION_ATTACHMENT_MAX_COUNT) {
+    throw createAttachmentLimitError();
+  }
+
+  const legacyAttachmentCount = attachments.filter(
+    (attachment) => !Number.isInteger(attachment.capacitySlot),
+  ).length;
+
+  const usableSlotCount =
+    CORRECTION_ATTACHMENT_MAX_COUNT - legacyAttachmentCount;
+
+  const occupiedSlots = new Set(
+    attachments
+      .filter((attachment) => Number.isInteger(attachment.capacitySlot))
+      .map((attachment) => attachment.capacitySlot),
+  );
+
+  for (let slot = 0; slot < usableSlotCount; slot += 1) {
+    if (!occupiedSlots.has(slot)) {
+      return slot;
+    }
+  }
+
+  throw createAttachmentLimitError();
+}
+
+async function createAttachmentMetadataWithCapacity({
+  correctionId,
+  objectKey,
+  originalFilename,
+  contentType,
+  sizeBytes,
+  uploadedByUserId,
+}) {
+  for (
+    let attempt = 0;
+    attempt < CORRECTION_ATTACHMENT_MAX_COUNT;
+    attempt += 1
+  ) {
+    const capacitySlot = await getAvailableCapacitySlot(correctionId);
+
+    try {
+      return await CorrectionAttachment.create({
+        correctionId,
+        capacitySlot,
+        objectKey,
+        originalFilename,
+        contentType,
+        sizeBytes,
+        uploadedByUserId,
+      });
+    } catch (error) {
+      if (isCapacitySlotDuplicate(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw createAttachmentLimitError();
+}
+
+export async function preflightCorrectionAttachmentUpload({
+  user,
+  correctionId,
+}) {
   assertUploadRole(user);
 
-  /*
-   * Reuse Correction retrieval authorization:
-   *
-   * Doctor:
-   *   own Correction only
-   *
-   * Clinic Staff:
-   *   active clinic membership
-   *
-   * Cera Staff/Admin:
-   *   operational access
-   *
-   * Scanning Staff:
-   *   forbidden
-   */
   const correction = await getCorrection({
     user,
     correctionId,
@@ -277,11 +352,22 @@ export async function createCorrectionAttachment({ user, correctionId, file }) {
 
   await assertAttachmentLimit(correction._id);
 
+  return correction;
+}
+
+export async function createCorrectionAttachment({ user, correctionId, file }) {
   /*
-   * Multer checks extension, claimed MIME type, and size.
+   * The route performs this preflight before Multer buffers
+   * the request body.
    *
-   * This second validation checks the actual file bytes.
+   * Revalidate here because authorization/state/count may
+   * theoretically change before persistence completes.
    */
+  const correction = await preflightCorrectionAttachmentUpload({
+    user,
+    correctionId,
+  });
+
   const detectedType = await validateAttachmentContent(file);
 
   const objectKey = buildObjectKey({
@@ -296,21 +382,12 @@ export async function createCorrectionAttachment({ user, correctionId, file }) {
   });
 
   try {
-    return await CorrectionAttachment.create({
+    return await createAttachmentMetadataWithCapacity({
       correctionId: correction._id,
-
       objectKey,
-
-      /*
-       * The original filename is metadata only.
-       * It is never used as the private R2 object key.
-       */
       originalFilename: file.originalname,
-
       contentType: detectedType.mime,
-
       sizeBytes: file.size,
-
       uploadedByUserId: user._id,
     });
   } catch (error) {

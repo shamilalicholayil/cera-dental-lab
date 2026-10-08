@@ -5,6 +5,39 @@ function isInvalidJsonError(err) {
   return err instanceof SyntaxError && err.status === 400 && "body" in err;
 }
 
+export function buildErrorLogMetadata({
+  err,
+  requestId,
+  code,
+  statusCode,
+  includeDebugDetails = env.NODE_ENV !== "production",
+}) {
+  const metadata = {
+    requestId,
+    code,
+    statusCode,
+    errorName: err.name,
+  };
+
+  /*
+   * Raw exception messages/stacks are valuable locally,
+   * but production exceptions can contain:
+   * - database/provider internals
+   * - file paths
+   * - connection details
+   * - unexpected sensitive values
+   */
+  if (includeDebugDetails) {
+    metadata.message = err.message;
+
+    if (statusCode >= 500) {
+      metadata.stack = err.stack;
+    }
+  }
+
+  return metadata;
+}
+
 export function errorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
@@ -32,19 +65,15 @@ export function errorHandler(err, req, res, next) {
     isOperational = false;
   }
 
-  const logMetadata = {
+  const logMetadata = buildErrorLogMetadata({
+    err,
     requestId: req.id,
     code,
     statusCode,
-    errorName: err.name,
-    message: err.message,
-  };
+  });
 
   if (statusCode >= 500) {
-    logger.error("Unhandled application error", {
-      ...logMetadata,
-      stack: err.stack,
-    });
+    logger.error("Unhandled application error", logMetadata);
   } else {
     logger.warn("Application error", logMetadata);
   }

@@ -1,8 +1,5 @@
 # Cera Dental Lab — Chat Context
 
-> **Current implementation baseline — 2026-10-08**  
-> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
-
 ## 1. Purpose
 
 This file is the compact context pack for starting a fresh chatbot session.
@@ -862,87 +859,93 @@ Do not invent logo/typeface/branding.
 
 ---
 
-# 28. Completed Modules
+# 27A. Module 7 Security Hardening Snapshot
 
-```text
-Module 0   Foundation                              COMPLETE
-Module 1A  User + Password                         COMPLETE
-Module 1B  Login                                   COMPLETE
-Module 1C  Persistent Authentication               COMPLETE
-Module 1D  Logout                                  COMPLETE
-Module 2A  Role Authorization                      COMPLETE
-Module 2B  Invitations & User Management           COMPLETE
-Module 3A  Clinics & Memberships                   COMPLETE
-Module 3B  Product Catalogue                       COMPLETE
-Module 4A  Digital Lab Slip Core                   COMPLETE
-Module 4B  Scan Booking + Lab Slip Editing         COMPLETE
-Module 4C  Scan Rescheduling                       COMPLETE
-Module 4D  Lab Production Workflow                 COMPLETE
-Module 4E  Private Attachments                     COMPLETE
-Module 4F  Corrections / Issues                    COMPLETE
-Module 6A  Doctor Dashboard                        COMPLETE
-Module 6B  Cera Operations Dashboard               COMPLETE
-Module 6C  Scanning Staff Mobile Workflow          COMPLETE
-```
+Current security baseline includes:
 
-Still planned:
+- short-lived access JWT + rotating opaque refresh token cookies
+- `authVersion` invalidation for disabled users
+- refresh-session revocation on user disable
+- dedicated invitation token secret + migration fallback
+- invitation preview/accept rate limits
+- exact credentialed CORS
+- Origin-based CSRF checks for unsafe V1 browser requests
+- Helmet and disabled `x-powered-by`
+- resource-level authorization as backend source of truth
+- private signed attachment access with type/signature validation
+- database-enforced concurrent attachment capacity
+- atomic Production/Correction transitions
+- production-safe logging and reduced patient/query exposure
+- centralized environment/R2 validation
+- clean dependency audit at the Module 7 checkpoint
 
-```text
-Module 5A  In-App Notifications
-Module 5B  WhatsApp Notifications
-```
-
-Last reported Git state:
-
-```text
-working tree clean
-master == origin/master
-253178a feat: refine scanning staff mobile workflow
-```
-
-A fresh session must still verify Git state.
+Admin MFA remains deferred. Final proxy/HTTPS/cookie topology review belongs to Module 9.
 
 ---
+
+# 28. Completed Modules
+
+Current implemented/verified module boundary:
+
+```text
+Module 0   Foundation                         COMPLETE
+Module 1A  User + Password                    COMPLETE
+Module 1B  Login                              COMPLETE
+Module 1C  Persistent Authentication          COMPLETE
+Module 1D  Logout                             COMPLETE
+Module 2A  Role Authorization                 COMPLETE
+Module 2B  Invitations & User Management      COMPLETE
+Module 3A  Clinics & Memberships              COMPLETE
+Module 3B  Product Catalogue                  COMPLETE
+Module 4A  Digital Lab Slip Core              COMPLETE
+Module 4B  Scan Booking + Lab Slip Editing    COMPLETE
+Module 4C  Scan Rescheduling                  COMPLETE
+Module 4D  Lab Production Workflow            COMPLETE
+Module 4E  Private Attachments                COMPLETE
+Module 4F  Corrections / Issues               COMPLETE
+Module 5A  In-App Notifications               COMPLETE
+Module 5B  WhatsApp Notifications             COMPLETE
+Module 6A  Doctor Dashboard Refinement        COMPLETE
+Module 6B  Cera Operations Dashboard          COMPLETE
+Module 6C  Scanning Staff Mobile Refinement   COMPLETE
+Module 7   Security & Cross-Module Hardening  COMPLETE
+```
+
+Module 7 has passed the full test/lint/build/audit checkpoint. Its documentation/source-control closeout must be completed before Module 8 starts.
 
 # 29. Next Module
 
 ```text
-Module 7 — Security & Cross-Module Hardening
+Module 8 — End-to-End Regression Testing
 ```
 
 Status:
 
 ```text
-NEXT
+NEXT (after Module 7 commit/push/clean-tree verification)
 ```
 
-Start with a source-first security inventory, not speculative rewrites.
+Purpose:
 
----
+- validate complete cross-role journeys
+- catch integration regressions and edge cases
+- verify role/resource isolation across modules
+- verify responsive/error/empty states before deployment
 
-# 30. Module 7 Focus
+Do not begin Module 9 deployment before Module 8 closes.
 
-Review the integrated system across:
+# 30. Historical Decision Sections
 
-```text
-auth/session security
-resource authorization
-role-aware serialization / patient-data minimization
-CSRF
-CORS
-rate limiting
-invitation/reset/session revocation
-private upload validation/access
-security headers
-logging/privacy
-dependencies
-secrets/environment
-state-transition authorization
-```
+Older Module 4D planning questions in previous snapshots are no longer the current handoff boundary because Modules 4D through 7 have since been implemented.
 
-Do not introduce unrelated business features during this pass.
+For current behavior:
 
----
+1. inspect the repository/code,
+2. use `MODULE_STATUS.md` and `SESSION_HANDOFF.md`,
+3. consult detailed project/design/decision docs,
+4. treat only still-open entries in `OPEN_QUESTIONS.md` as unresolved.
+
+Do not use an older `OPEN` label from a stale planning snapshot to override implemented repository behavior.
 
 # 31. No-Assumption Protocol
 
@@ -1193,26 +1196,26 @@ docs/progress/
 ```text
 We are continuing the Cera Dental Lab project.
 
-This session is only for Module 7 — Security & Cross-Module Hardening.
+Module 7 — Security & Cross-Module Hardening is implemented and verified.
+This session is for Module 8 — End-to-End Regression Testing.
 
-Start source-first. Do not change code immediately.
-First inventory the current repository security boundaries and identify concrete risks/gaps.
+First retrieve PROJECT_KNOWLEDGE_BASE.md, MODULE_STATUS.md,
+SESSION_HANDOFF.md, and current repository state.
 
-Review authentication/session handling, route/service authorization, serializers/data exposure, CSRF, CORS, rate limits, invitations, session revocation, private uploads, logging/privacy, dependencies, and secrets.
-
-Do not assume a vulnerability exists.
-Do not introduce new business features, roles, statuses, integrations, or architecture unless a verified security problem requires a justified change.
+Do not invent new business workflows just to create tests.
+Use current code and confirmed documentation as the source of truth.
 
 I manually run commands and copy/paste code into VS Code.
 Before modifying an existing file, inspect its current contents.
-Give the exact path and say targeted edit or full-file replacement.
-Work checkpoint by checkpoint and test each change.
+Work through role journeys and edge cases systematically.
 ```
-
----
 
 # 39. Current Handoff State
 
 ```text
-READY FOR MODULE 7 SECURITY INVENTORY
+MODULE 7 IMPLEMENTATION + VERIFICATION COMPLETE
+MODULE 7 DOCUMENTATION/SOURCE-CONTROL CLOSEOUT IN PROGRESS
+NEXT MODULE: 8 — END-TO-END REGRESSION TESTING
 ```
+
+Before Module 8 work begins, verify Module 7 has been committed/pushed and the working tree is clean.
