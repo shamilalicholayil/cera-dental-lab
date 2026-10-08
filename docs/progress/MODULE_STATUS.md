@@ -1,5 +1,8 @@
 # Cera Dental Lab — Module Status
 
+> **Current implementation baseline — 2026-10-08**  
+> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
+
 ## 1. Purpose of This Document
 
 This document tracks the current implementation status of each project module.
@@ -46,19 +49,30 @@ DEFERRED
 
 # 3. Current Project Position
 
-Current completed boundary:
+Current completed feature boundary:
 
 ```text
-Module 4F — Corrections / Issues
+Module 6C — Scanning Staff Mobile Workflow Refinement
+```
+
+Modules still planned and not yet implemented:
+
+```text
+Module 5A — In-App Notifications
+Module 5B — WhatsApp Notifications
 ```
 
 Next planned module:
 
 ```text
-Module 6A — Doctor Dashboard Refinement
+Module 7 — Security & Cross-Module Hardening
 ```
 
-Modules 4D, 4E, and 4F are implemented and verified. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment. Module 6A is the next development module and should begin by confirming which Doctor dashboard information is genuinely useful.
+Module 6C was fully tested, committed, and pushed. Last reported Git commit:
+
+```text
+253178a feat: refine scanning staff mobile workflow
+```
 
 ---
 
@@ -81,12 +95,12 @@ Modules 4D, 4E, and 4F are implemented and verified. Modules 5A and 5B are inten
 | 4D | Lab Production Workflow | COMPLETE |
 | 4E | Private Attachments | COMPLETE |
 | 4F | Corrections / Issues | COMPLETE |
-| 5A | In-App Notifications | DEFERRED |
-| 5B | WhatsApp Notifications | DEFERRED |
-| 6A | Doctor Dashboard Refinement | NEXT |
-| 6B | Cera Operations Dashboard | PLANNED |
-| 6C | Scanning Staff Mobile Refinement | PLANNED |
-| 7 | Security & Cross-Module Hardening | PLANNED |
+| 5A | In-App Notifications | PLANNED |
+| 5B | WhatsApp Notifications | PLANNED |
+| 6A | Doctor Dashboard Refinement | COMPLETE |
+| 6B | Cera Operations Dashboard | COMPLETE |
+| 6C | Scanning Staff Mobile Refinement | COMPLETE |
+| 7 | Security & Cross-Module Hardening | NEXT |
 | 8 | End-to-End Regression Testing | PLANNED |
 | 9 | Production Deployment | PLANNED |
 | 10 | Final Documentation & Monitoring | PLANNED |
@@ -612,23 +626,24 @@ Verification completed:
 
 Status: **COMPLETE**
 
-Implemented:
+Implemented production lifecycle:
 
-- separate `Production` entity linked to the Lab Slip
-- statuses: `SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`
-- Cera Staff/Admin may move production forward
-- Cera Admin alone may move production backward
-- backward transitions: `COMPLETED → IN_PRODUCTION` and `IN_PRODUCTION → SUBMITTED`
-- backward transition reason required
-- forward transition notes optional
-- scan-required cases cannot start production until a Scan Booking is `COMPLETED`
-- non-scan cases may start production without a scan
-- production history records previous/new status, actor, note/reason, and time
-- Doctor/Clinic-facing production labels are simplified
-- manufacturing-relevant Lab Slip editing is locked after production starts for Doctor/Clinic users; Admin retains controlled edit access
-- completed production may be moved backward by Admin without altering Correction history
+```text
+SUBMITTED
+→ IN_PRODUCTION
+→ COMPLETED
+```
 
-No production assignee or delivery/logistics state was introduced.
+Implemented rules include:
+
+- production is a separate record linked to a Lab Slip
+- Cera Staff/Admin can start and complete production
+- scan-required cases cannot start production until an associated scan is completed
+- production transition history is retained
+- Cera Admin may move production backward through the supported transitions with a required reason
+- Lab Slip editing is locked after production starts, with the implemented Admin override behavior
+- Doctor/Clinic-facing production visibility is read-only and simplified
+- active production queue defaults to `SUBMITTED` + `IN_PRODUCTION`
 
 ---
 
@@ -636,19 +651,15 @@ No production assignee or delivery/logistics state was introduced.
 
 Status: **COMPLETE**
 
-Implemented:
+Implemented direction:
 
 - private supporting attachments
-- JPEG/JPG, PNG, WEBP, and PDF
-- maximum 10 MB per file
-- maximum 5 attachments per supported record
-- private object storage through Cloudflare R2 / S3-compatible APIs
-- signed temporary access URLs instead of public object URLs
-- backend authorization follows access to the owning operational resource
-- upload/delete behavior is constrained by workflow state
-- large raw intraoral scan files remain explicitly out of scope
-
-The attachment infrastructure is reused by Module 4F for Correction evidence.
+- JPEG, PNG, WEBP, PDF validation
+- large raw intraoral scan files remain excluded
+- Lab Slip attachment listing/upload/access flows
+- private access is mediated by backend authorization/storage abstraction rather than exposing raw storage URLs
+- upload availability follows the implemented production/editability rules
+- attachment behavior is also reused by the correction workflow where permitted
 
 ---
 
@@ -656,143 +667,99 @@ The attachment infrastructure is reused by Module 4F for Correction evidence.
 
 Status: **COMPLETE**
 
-Implemented:
+Implemented correction lifecycle includes:
 
-- Corrections may be created only for a Lab Slip whose linked Production is `COMPLETED`
-- Doctor, permitted Clinic Staff, Cera Staff, and Cera Admin may create Corrections
-- Scanning Staff has no Correction access
-- multiple historical Corrections per Lab Slip are allowed
-- only one unresolved Correction may exist per Lab Slip at a time
-- required free-text description, optional affected Lab Slip item IDs, optional evidence attachments
-- lifecycle: `OPEN → UNDER_REVIEW → RESOLVED`
-- clarification branch: `UNDER_REVIEW → AWAITING_CLARIFICATION → UNDER_REVIEW`
-- rejection branch: `UNDER_REVIEW → REJECTED`
-- Cera Staff/Admin review, resolve, reject, and request clarification
-- Doctor/Clinic users may respond to clarification
-- clarification request/response notes are required; review/resolution/rejection notes are optional
-- resolution outcome required: `HANDLED`, `RESCAN_REQUIRED`, or `REPRODUCTION_REQUIRED`
-- outcome does not automatically create a Scan Booking or new Production record
-- original Lab Slip and completed Production remain historically intact
-- private evidence attachments reuse Module 4E and become read-only after terminal status
-- completed Lab Slip UI supports raising a Correction and prevents duplicate unresolved creation
+```text
+OPEN
+UNDER_REVIEW
+AWAITING_CLARIFICATION
+RESOLVED
+REJECTED
+```
 
-Verification completed:
+Implemented capabilities include:
 
-- focused Correction backend tests
-- focused Lab Slip/Correction frontend tests
-- full API regression
-- full web regression
-- `lint:api`
-- `lint:web`
-- web build
-- manual role/state/evidence QA
+- corrections can be raised only for completed production cases
+- Doctor, Clinic Staff, Cera Staff, and Cera Admin may create/read within resource scope
+- Cera Staff/Admin review corrections
+- Cera may request clarification; Doctor/Clinic Staff may respond
+- resolution outcomes include handled, rescan required, and reproduction required
+- resolved/rejected corrections are terminal
+- a later new correction may be opened after a previous terminal correction
+- correction history and supporting attachments are retained
+- the original completed case remains historically intact
 
 ---
 
 # 20. Module 5A — In-App Notifications
 
-Status: **DEFERRED**
+Status: **PLANNED**
 
-Scheduling decision:
-
-- intentionally postponed until after Module 9 — Production Deployment
-- complete Module 5A before Module 5B
-- notification-specific regression/security checks will run when this module is implemented
-
-Needs:
-
-- event definitions
-- recipient rules
-- read/unread behavior
-- retention
-- related-resource navigation
-- deduplication
+Still requires explicit event, recipient, read/unread, retention, deep-link, and deduplication decisions.
 
 ---
 
 # 21. Module 5B — WhatsApp Notifications
 
-Status: **DEFERRED**
+Status: **PLANNED**
 
-Scheduling decision:
-
-- intentionally postponed until after Module 9 — Production Deployment
-- follows Module 5A
-- remains before Module 10 — Final Documentation & Monitoring
-
-Confirmed direction:
-
-```text
-WhatsApp Business Cloud API
-```
-
-WhatsApp is the preferred external operational notification channel.
-
-Still open:
-
-- events
-- templates
-- recipients
-- retry behavior
-- delivery logging
-- safe message content
+Confirmed direction remains WhatsApp Business Cloud API as the preferred external operational channel. Event/template/recipient/compliance/retry/logging behavior is still to be designed.
 
 ---
 
 # 22. Module 6A — Doctor Dashboard Refinement
 
-Status: **NEXT**
+Status: **COMPLETE**
 
-Potential purpose:
+Implemented Doctor dashboard includes:
 
-- surface active work
-- scans requiring attention
-- upcoming scans
-- case progress
-- completed cases
-- corrections
-
-Actual cards/metrics must be based on real workflow needs.
+- needs-attention queue for scan confirmations and correction clarifications
+- upcoming confirmed/assigned scans
+- recent Lab Slips
+- quick actions
+- responsive loading/error/empty states
+- no unnecessary production-management controls
 
 ---
 
 # 23. Module 6B — Cera Operations Dashboard
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Potential operational views:
+Implemented operational queues include:
 
 - pending scan reviews
-- upcoming confirmed scans
-- unassigned scans
-- urgent work
-- production workload
-- correction queue
+- unassigned confirmed scans
+- today's scan visits
+- active production workload
+- urgent cases
+- open corrections
 
-Do not turn this into a generic ERP dashboard.
+Supporting API refinements include confirmed-time date filters, chronological date-filtered scan ordering, production urgency filtering, and active correction filtering.
 
 ---
 
 # 24. Module 6C — Scanning Staff Mobile Refinement
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Potential improvements:
+Implemented and verified:
 
-- today's visits
-- assigned visits
-- clearer visit detail
-- reschedule notice
-- completion flow
-- mobile usability
-
-No direct scanner integration.
-
----
+- role-aware Scan Booking serialization minimizes Scanner data exposure
+- `/portal` scanner dashboard shows today's assigned visits in chronological order
+- mobile-first `My Visits` list with scanner-relevant status filters
+- prominent confirmed visit time, patient, clinic/address, urgency and read-only reschedule notice
+- scanner cannot manage rescheduling
+- read-only attachment access remains resource-authorized
+- assigned Scanner can mark the visit completed
+- completed state removes the completion action
+- loading, empty, offline/failure and retry states
+- frontend/backend tests, lint and frontend build passed
+- committed and pushed as `253178a feat: refine scanning staff mobile workflow`
 
 # 25. Module 7 — Security & Cross-Module Hardening
 
-Status: **PLANNED**
+Status: **NEXT**
 
 Potential scope:
 
@@ -830,6 +797,7 @@ Will verify:
 - production
 - corrections
 - attachments
+- notifications
 - responsive/error/edge cases
 
 ---
@@ -856,8 +824,6 @@ Future areas:
 - production QA
 
 Do not assume provider/topology yet.
-
-Notifications are intentionally excluded from the initial production-deployment milestone. Modules 5A and 5B will be implemented after Module 9 and released as post-deployment feature work before Module 10.
 
 ---
 
@@ -949,44 +915,45 @@ Do not implement these opportunistically inside unrelated modules without discus
 
 # 31. Current Repository/Git Boundary
 
-Last known completed module:
+Last completed module:
 
 ```text
-Module 4C — Scan Rescheduling
+Module 6C — Scanning Staff Mobile Workflow Refinement
 ```
 
-Current implementation boundary:
+Last Git state reported by the user:
 
 ```text
-Modules 4D, 4E, and 4F are functionally complete and verified.
-Final Module 4F commit/push is the current source-control step.
+working tree clean
+master == origin/master
+253178a feat: refine scanning staff mobile workflow
 ```
 
-A fresh module session should still verify:
-
-```bash
-git status
-git log -1 --oneline
-```
-
-before starting new implementation.
-
-Do not assume the repository is still unchanged after this document was written.
+A fresh session must still verify dynamic Git state before changing code.
 
 ---
 
 # 32. Next Session Goal
 
-The next development chat should focus only on:
+The next development chat should focus on:
 
 ```text
-Module 6A — Doctor Dashboard Refinement
+Module 7 — Security & Cross-Module Hardening
 ```
 
-First task:
+Start source-first with a repository security inventory before changing code.
 
-```text
-define which Doctor dashboard information and actions are genuinely useful based on the implemented Lab Slip, Scan, Production, and Correction workflows
-```
+Priority review areas:
 
-Do not add vanity metrics or speculative dashboard cards. Modules 5A and 5B remain deferred until after Module 9 — Production Deployment.
+- cross-module authentication/resource authorization
+- patient-data and role-specific serialization exposure
+- CSRF strategy for cookie-based authentication
+- CORS and browser security
+- invitation/reset/session revocation hardening
+- upload validation/private file access
+- rate-limit coverage
+- logging/privacy
+- dependency audit
+- environment/secrets handling
+
+Do not introduce unrelated business features while performing the hardening pass.

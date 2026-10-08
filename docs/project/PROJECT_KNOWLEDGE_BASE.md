@@ -1,5 +1,8 @@
 # Cera Dental Lab — Project Knowledge Base
 
+> **Current implementation baseline — 2026-10-08**  
+> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
+
 ## Purpose
 
 This is a retrieval-oriented Q&A layer for new chatbot sessions. It is designed to behave like a small RAG knowledge base: each entry is an atomic question with a canonical answer, status, search keywords, and source-document pointers.
@@ -103,7 +106,7 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Module 4E private attachments are implemented for supporting JPEG/JPG, PNG, WEBP, and PDF files, up to 10 MB each and 5 per supported record. Storage is private Cloudflare R2/S3-compatible storage with signed temporary access. Large raw intraoral scan files remain out of scope.
+**Canonical answer:** Private supporting attachments are planned for JPEG, PNG, WEBP, and PDF. Ownership, permissions, deletion, limits, and storage provider remain deferred to Module 4E.
 
 **Keywords:** attachments, JPEG, PNG, WEBP, PDF
 
@@ -1111,7 +1114,7 @@ Status: **REPOSITORY-DERIVED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Complete through Module 4F: 0 Foundation; 1A User+Password; 1B Login; 1C Persistent Auth; 1D Logout; 2A Role Authorization; 2B Invitations/User Management; 3A Clinics/Memberships; 3B Product Catalogue; 4A Digital Lab Slip; 4B Scan Booking + Lab Slip Editing; 4C Scan Rescheduling; 4D Lab Production Workflow; 4E Private Attachments; 4F Corrections/Issues.
+**Canonical answer:** Complete: 0 Foundation; 1A User+Password; 1B Login; 1C Persistent Auth; 1D Logout; 2A Role Authorization; 2B Invitations/User Management; 3A Clinics/Memberships; 3B Product Catalogue; 4A Digital Lab Slip; 4B Scan Booking + Lab Slip Editing; 4C Scan Rescheduling; 4D Lab Production; 4E Private Attachments; 4F Corrections/Issues; 6A Doctor Dashboard; 6B Cera Operations Dashboard; 6C Scanning Staff Mobile Workflow Refinement. Modules 5A/5B notifications remain planned.
 
 **Keywords:** completed modules, progress
 
@@ -1123,179 +1126,179 @@ Status: **CONFIRMED**
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Module 6A — Doctor Dashboard Refinement. Confirm which Doctor dashboard cards, summaries, queues, and actions are genuinely useful before coding. Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment.
+**Canonical answer:** Module 7 — Security & Cross-Module Hardening. Start with a repository-wide security inventory; do not add unrelated business features.
 
-**Keywords:** next module, 6A, doctor dashboard
+**Keywords:** next module, Module 7, security hardening
 
 **Source docs:** MODULE_STATUS.md; MODULE_PLAN.md
 
 ---
 
-## KB-093 — What comes after Module 4D?
+## KB-093 — What remains after Module 7?
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Modules 4E Private Attachments and 4F Corrections/Issues are complete. Current execution order is 6A Doctor Dashboard → 6B Cera Operations Dashboard → 6C Scanning Staff refinement → 7 Security hardening → 8 End-to-End Regression → 9 Production Deployment → 5A In-App Notifications → 5B WhatsApp Notifications → 10 Final Documentation & Monitoring.
+**Canonical answer:** Module 8 end-to-end regression, Module 9 production deployment, and Module 10 final documentation/monitoring. Modules 5A/5B notifications are still planned and must be scheduled explicitly rather than assumed complete.
 
-**Keywords:** roadmap, after 4D
+**Keywords:** roadmap, remaining modules
 
-**Source docs:** MODULE_PLAN.md; MODULE_STATUS.md
+**Source docs:** MODULE_PLAN.md
 
 ---
 
-## KB-094 — Is the Module 4D production state machine defined?
+## KB-094 — What production lifecycle is implemented?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Yes. `SUBMITTED → IN_PRODUCTION → COMPLETED`. Cera Staff/Admin may move forward; Cera Admin alone may move backward via `COMPLETED → IN_PRODUCTION` or `IN_PRODUCTION → SUBMITTED`, with a required reason.
+**Canonical answer:** `SUBMITTED → IN_PRODUCTION → COMPLETED`. Production is a separate record linked to a Lab Slip.
 
-**Keywords:** 4D, production statuses, state machine
+**Keywords:** production statuses, 4D
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
+**Source docs:** current production module; MODULE_STATUS.md
 
 ---
 
-## KB-095 — Is production readiness defined?
+## KB-095 — When can production start?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Yes. A non-scan case may start production from `SUBMITTED`. If the Lab Slip requires Cera scanning, a `COMPLETED` Scan Booking must exist before production can start.
+**Canonical answer:** Cera operational users can start a `SUBMITTED` production. If the Lab Slip requires scanning, an associated Scan Booking must be `COMPLETED` first.
 
 **Keywords:** production ready, scan completed
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
+**Source docs:** current production service/tests
 
 ---
 
-## KB-096 — Who may start/change production status?
+## KB-096 — Who manages production?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Cera Staff and Cera Admin may perform forward production transitions. Only Cera Admin may perform approved backward transitions.
+**Canonical answer:** Cera Staff and Cera Admin can perform normal production transitions. Supported backward transitions are Admin-only and require a reason.
 
-**Keywords:** production permission, Cera Staff, Admin
+**Keywords:** production permissions, backward transition
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
-
----
-
-## KB-097 — When does Lab Slip editing lock?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** Doctor/Clinic manufacturing edits lock after Production leaves `SUBMITTED`. Cera Admin retains controlled edit access to a production-locked Lab Slip.
-
-**Keywords:** edit lock, production start
-
-**Source docs:** OPEN_QUESTIONS.md; current frontend/backend behavior
+**Source docs:** current production service/tests
 
 ---
 
-## KB-098 — Should production history be retained?
+## KB-097 — When is Lab Slip editing locked by production?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Yes. Production history records previous/new status, actor, timestamp, and optional note; backward movement requires a reason.
+**Canonical answer:** Manufacturing-relevant editing is allowed while production remains `SUBMITTED`; after production starts, the UI/service enforce the implemented lock behavior, with the current Cera Admin override.
 
-**Keywords:** production history, audit
+**Keywords:** edit lock, production
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
-
----
-
-## KB-099 — What production status should Doctor/Clinic users see?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** Doctor/Clinic-facing labels are simplified: Submitted, In Progress, Completed. Internal Cera UI may show In Production.
-
-**Keywords:** Doctor production status, Clinic visibility
-
-**Source docs:** OPEN_QUESTIONS.md; current frontend behavior
+**Source docs:** current Lab Slip detail/service implementation
 
 ---
 
-## KB-100 — What does production 'completed' mean?
+## KB-098 — Is production history retained?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** `COMPLETED` means lab production has been completed in the implemented workflow. It does not imply a separate delivery/logistics state.
+**Canonical answer:** Yes. Production transitions retain previous/new status, actor, timestamp and optional/required notes according to the transition.
 
-**Keywords:** completed, fabrication, production
+**Keywords:** production history
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
-
----
-
-## KB-101 — Is a production assignee required?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** No production assignee was introduced in V1. Production is managed by authorized Cera operational roles.
-
-**Keywords:** production assignee, technician
-
-**Source docs:** OPEN_QUESTIONS.md
+**Source docs:** current production model/service/tests
 
 ---
 
-## KB-102 — Should production live on LabSlip or a separate model?
+## KB-099 — How is production shown to Doctors/Clinic Staff?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Production is a separate entity linked to the Lab Slip.
+**Canonical answer:** Read-only case progress is exposed through the Lab Slip experience; `IN_PRODUCTION` is presented as an external-facing in-progress state rather than exposing production controls.
 
-**Keywords:** Production model, LabSlip, database
+**Keywords:** Doctor production visibility, Clinic Staff
 
-**Source docs:** OPEN_QUESTIONS.md; current production model
-
----
-
-## KB-103 — Can completed production reopen?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** Yes. Cera Admin may move `COMPLETED → IN_PRODUCTION` with a required reason. This production behavior is independent of the Correction lifecycle.
-
-**Keywords:** reopen, completed production
-
-**Source docs:** OPEN_QUESTIONS.md; current production code
+**Source docs:** current LabSlipDetailPage
 
 ---
 
-## KB-104 — Are production transition notes/reasons required?
+## KB-100 — Is there a production assignee?
 
-Status: **CONFIRMED**
+Status: **REPOSITORY-DERIVED**
 
-**Canonical answer:** Forward transition notes are optional. A reason is mandatory for backward production movement.
+**Canonical answer:** The current Production workflow does not use a production assignee field as part of the implemented core lifecycle. Do not add one without a new requirement.
 
-**Keywords:** production reason, transition note
+**Keywords:** production assignee
 
-**Source docs:** OPEN_QUESTIONS.md; current production code
-
----
-
-## KB-105 — Are attachment ownership/deletion/storage-provider rules decided?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** Yes for V1. Attachments are private, stored in Cloudflare R2/S3-compatible storage with signed access; supported types are JPEG/JPG, PNG, WEBP, PDF; max 10 MB each and 5 per supported record. Mutation follows resource authorization and workflow state.
-
-**Keywords:** 4E, attachment ownership, storage provider
-
-**Source docs:** OPEN_QUESTIONS.md; current attachment code
+**Source docs:** current production model/service
 
 ---
 
-## KB-106 — Are correction statuses/rescan/reproduction rules decided?
+## KB-101 — Where is production stored?
+
+Status: **REPOSITORY-DERIVED**
+
+**Canonical answer:** Production is a separate entity/module linked to the Lab Slip.
+
+**Keywords:** Production model, LabSlip
+
+**Source docs:** current production module
+
+---
+
+## KB-102 — Can completed production move backward?
+
+Status: **REPOSITORY-DERIVED**
+
+**Canonical answer:** Yes, through the implemented Admin-only backward transition from `COMPLETED` to `IN_PRODUCTION`; `IN_PRODUCTION` can also move back to `SUBMITTED`. A reason is required and history is preserved.
+
+**Keywords:** reopen, completed production, backward
+
+**Source docs:** current production service/tests
+
+---
+
+## KB-103 — What private attachments are implemented?
+
+Status: **REPOSITORY-DERIVED**
+
+**Canonical answer:** Authorized supporting attachments use private access flows and support JPEG, PNG, WEBP and PDF. Large raw intraoral scan files remain excluded. Lab Slip attachments are implemented and the correction workflow also supports private correction attachments.
+
+**Keywords:** attachments, private files, 4E
+
+**Source docs:** current attachment/correction modules
+
+---
+
+## KB-104 — What correction lifecycle is implemented?
+
+Status: **REPOSITORY-DERIVED**
+
+**Canonical answer:** `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`. Corrections are available only after production completion.
+
+**Keywords:** corrections, 4F, statuses
+
+**Source docs:** current correction module
+
+---
+
+## KB-105 — What correction outcomes are implemented?
+
+Status: **REPOSITORY-DERIVED**
+
+**Canonical answer:** `HANDLED`, `RESCAN_REQUIRED`, and `REPRODUCTION_REQUIRED`. The correction records the outcome; it does not silently rewrite the original completed case.
+
+**Keywords:** correction outcome, rescan, reproduction
+
+**Source docs:** current correction module/tests
+
+---
+
+## KB-106 — What dashboard refinements are complete?
 
 Status: **CONFIRMED**
 
-**Canonical answer:** Yes. Correction statuses are `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`. Resolved outcome must be `HANDLED`, `RESCAN_REQUIRED`, or `REPRODUCTION_REQUIRED`; these outcomes do not auto-create scan or production records.
+**Canonical answer:** Module 6A Doctor Dashboard, 6B Cera Operations Dashboard, and 6C Scanning Staff Mobile Workflow Refinement are complete.
 
-**Keywords:** 4F, correction, rescan, reproduction
+**Keywords:** dashboards, 6A, 6B, 6C
 
-**Source docs:** OPEN_QUESTIONS.md; current correction code
+**Source docs:** MODULE_STATUS.md; SESSION_HANDOFF.md
 
 ---
 
@@ -1303,7 +1306,7 @@ Status: **CONFIRMED**
 
 Status: **DEFERRED**
 
-**Canonical answer:** Not yet. Notification design is intentionally deferred until after Module 9 — Production Deployment. Module 5A will then define in-app notification events, recipients, read/unread behavior, retention, deep links, and deduplication; Module 5B will define WhatsApp templates and delivery behavior.
+**Canonical answer:** No. Modules 5A/5B remain planned. WhatsApp is still the preferred external operational channel, but events, recipients, templates, compliance, retries and logging must be explicitly designed before implementation.
 
 **Keywords:** Module 5, notifications, WhatsApp
 

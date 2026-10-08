@@ -1,5 +1,8 @@
 # Cera Dental Lab — Chat Context
 
+> **Current implementation baseline — 2026-10-08**  
+> The repository has progressed beyond some historical planning text in this document. Implemented and completed modules now include **4D Lab Production**, **4E Private Attachments**, **4F Corrections / Issues**, **6A Doctor Dashboard**, **6B Cera Operations Dashboard**, and **6C Scanning Staff Mobile Workflow Refinement**. **Modules 5A/5B Notifications remain planned**, and **Module 7 Security & Cross-Module Hardening is NEXT**. Where older text says Modules 4D/4E/4F/6A/6B/6C are future, open, or not implemented, treat that wording as historical and superseded by the current repository and the refreshed progress/knowledge documents.
+
 ## 1. Purpose
 
 This file is the compact context pack for starting a fresh chatbot session.
@@ -475,7 +478,7 @@ Current Lab Slip status:
 SUBMITTED
 ```
 
-Production lifecycle is implemented as a separate Production entity with `SUBMITTED`, `IN_PRODUCTION`, and `COMPLETED` states.
+Production lifecycle has not yet been defined.
 
 ---
 
@@ -571,7 +574,7 @@ Current immutable identity fields:
 
 `scanRequired` is handled through scan-booking behavior rather than normal Lab Slip editing.
 
-Doctor/Clinic manufacturing edits lock after Production leaves `SUBMITTED`; Cera Admin retains controlled edit access.
+The production edit-lock point is not yet defined.
 
 ---
 
@@ -729,21 +732,29 @@ Doctors continue using existing offline payment arrangements.
 
 # 24. Attachments
 
-Module 4E is **COMPLETE**.
+Attachments are planned but not yet implemented.
 
-Current implementation:
+Current direction:
 
 - private supporting files
-- JPEG/JPG, PNG, WEBP, PDF
-- maximum 10 MB per file
-- maximum 5 attachments
-- Cloudflare R2 / S3-compatible private object storage
-- signed temporary access URLs
-- resource-based authorization
-- state-aware mutation controls
+- JPEG
+- PNG
+- WEBP
+- PDF
+- external private object storage later
 - no large raw scan files
 
-Correction evidence reuses this attachment infrastructure.
+Open:
+
+- ownership
+- permissions
+- deletion
+- retention
+- size limit
+- provider
+- signed URL strategy
+
+Do not implement attachment behavior until Module 4E design.
 
 ---
 
@@ -792,7 +803,7 @@ Corrections
 Profile
 ```
 
-`Corrections` is implemented in Module 4F.
+`Corrections` is future functionality.
 
 ## Clinic Staff
 
@@ -854,28 +865,39 @@ Do not invent logo/typeface/branding.
 # 28. Completed Modules
 
 ```text
-Module 0   Foundation                         COMPLETE
-Module 1A  User + Password                    COMPLETE
-Module 1B  Login                              COMPLETE
-Module 1C  Persistent Authentication          COMPLETE
-Module 1D  Logout                             COMPLETE
-Module 2A  Role Authorization                 COMPLETE
-Module 2B  Invitations & User Management      COMPLETE
-Module 3A  Clinics & Memberships              COMPLETE
-Module 3B  Product Catalogue                  COMPLETE
-Module 4A  Digital Lab Slip Core              COMPLETE
-Module 4B  Scan Booking + Lab Slip Editing    COMPLETE
-Module 4C  Scan Rescheduling                  COMPLETE
-Module 4D  Lab Production Workflow             COMPLETE
-Module 4E  Private Attachments                 COMPLETE
-Module 4F  Corrections / Issues                COMPLETE
+Module 0   Foundation                              COMPLETE
+Module 1A  User + Password                         COMPLETE
+Module 1B  Login                                   COMPLETE
+Module 1C  Persistent Authentication               COMPLETE
+Module 1D  Logout                                  COMPLETE
+Module 2A  Role Authorization                      COMPLETE
+Module 2B  Invitations & User Management           COMPLETE
+Module 3A  Clinics & Memberships                   COMPLETE
+Module 3B  Product Catalogue                       COMPLETE
+Module 4A  Digital Lab Slip Core                   COMPLETE
+Module 4B  Scan Booking + Lab Slip Editing         COMPLETE
+Module 4C  Scan Rescheduling                       COMPLETE
+Module 4D  Lab Production Workflow                 COMPLETE
+Module 4E  Private Attachments                     COMPLETE
+Module 4F  Corrections / Issues                    COMPLETE
+Module 6A  Doctor Dashboard                        COMPLETE
+Module 6B  Cera Operations Dashboard               COMPLETE
+Module 6C  Scanning Staff Mobile Workflow          COMPLETE
 ```
 
-Current implementation boundary:
+Still planned:
 
 ```text
-Complete through Module 4F.
-Final Module 4F source-control review/commit is the current step.
+Module 5A  In-App Notifications
+Module 5B  WhatsApp Notifications
+```
+
+Last reported Git state:
+
+```text
+working tree clean
+master == origin/master
+253178a feat: refine scanning staff mobile workflow
 ```
 
 A fresh session must still verify Git state.
@@ -885,7 +907,7 @@ A fresh session must still verify Git state.
 # 29. Next Module
 
 ```text
-Module 6A — Doctor Dashboard Refinement
+Module 7 — Security & Cross-Module Hardening
 ```
 
 Status:
@@ -894,39 +916,31 @@ Status:
 NEXT
 ```
 
-Define useful Doctor dashboard information/actions before coding. Do not add vanity metrics. Modules 5A and 5B are deferred until after Module 9 — Production Deployment.
+Start with a source-first security inventory, not speculative rewrites.
 
 ---
 
-# 30. Locked Module 4D–4F Rules
+# 30. Module 7 Focus
 
-Production:
+Review the integrated system across:
 
-- statuses: `SUBMITTED`, `IN_PRODUCTION`, `COMPLETED`
-- Cera Staff/Admin move forward
-- Admin alone moves backward, with a required reason
-- scan-required production waits for a completed scan
-- production history retained
-- Production is a separate entity linked to Lab Slip
+```text
+auth/session security
+resource authorization
+role-aware serialization / patient-data minimization
+CSRF
+CORS
+rate limiting
+invitation/reset/session revocation
+private upload validation/access
+security headers
+logging/privacy
+dependencies
+secrets/environment
+state-transition authorization
+```
 
-Attachments:
-
-- private JPEG/JPG, PNG, WEBP, PDF
-- 10 MB/file, max 5
-- signed temporary access
-- raw intraoral scan storage excluded
-
-Corrections:
-
-- only for completed Production
-- Doctor, permitted Clinic Staff, Cera Staff, and Cera Admin may create
-- one unresolved Correction per Lab Slip
-- multiple historical Corrections allowed
-- lifecycle: `OPEN`, `UNDER_REVIEW`, `AWAITING_CLARIFICATION`, `RESOLVED`, `REJECTED`
-- resolution outcome required: `HANDLED`, `RESCAN_REQUIRED`, `REPRODUCTION_REQUIRED`
-- outcomes do not auto-create scans/production
-- original Lab Slip and Production remain intact
-- terminal evidence is read-only
+Do not introduce unrelated business features during this pass.
 
 ---
 
@@ -1179,18 +1193,20 @@ docs/progress/
 ```text
 We are continuing the Cera Dental Lab project.
 
-Module 4F — Corrections / Issues is complete and verified.
-The next module is Module 6A — Doctor Dashboard Refinement.
+This session is only for Module 7 — Security & Cross-Module Hardening.
 
-Do not write dashboard code yet.
-First define which Doctor dashboard information, queues, summaries, and actions are genuinely useful based on the implemented Lab Slip, Scan Booking, Production, and Correction workflows.
+Start source-first. Do not change code immediately.
+First inventory the current repository security boundaries and identify concrete risks/gaps.
 
-Do not add vanity metrics or duplicate existing list/detail screens without a clear reason.
-Modules 5A and 5B are intentionally deferred until after Module 9 — Production Deployment.
+Review authentication/session handling, route/service authorization, serializers/data exposure, CSRF, CORS, rate limits, invitations, session revocation, private uploads, logging/privacy, dependencies, and secrets.
 
-I am not using a coding agent.
+Do not assume a vulnerability exists.
+Do not introduce new business features, roles, statuses, integrations, or architecture unless a verified security problem requires a justified change.
+
 I manually run commands and copy/paste code into VS Code.
 Before modifying an existing file, inspect its current contents.
+Give the exact path and say targeted edit or full-file replacement.
+Work checkpoint by checkpoint and test each change.
 ```
 
 ---
@@ -1198,7 +1214,5 @@ Before modifying an existing file, inspect its current contents.
 # 39. Current Handoff State
 
 ```text
-MODULE 4F COMPLETE AND VERIFIED
-NEXT: MODULE 6A — DOCTOR DASHBOARD REFINEMENT
-EXECUTION ORDER: 6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10
+READY FOR MODULE 7 SECURITY INVENTORY
 ```

@@ -1,757 +1,242 @@
 # Cera Dental Lab — Session Handoff
 
-## 1. Purpose of This Document
+> **Current implementation baseline — 2026-10-08**  
+> Current completed feature boundary is Module 6C; Modules 5A/5B remain planned; Module 7 is NEXT.
 
-This document captures the current handoff state between chatbot development sessions.
+> **Updated: 2026-10-08**
 
-It should answer:
-
-- What was completed most recently?
-- What business rules are currently locked?
-- What was tested?
-- What is the Git boundary?
-- What is the next module?
-- What must the next session decide before coding?
-- Which files/areas are likely relevant next?
-
-This file should be updated at the end of every completed module session.
-
-It is not a substitute for the full project documentation.
-
----
-
-# 2. Current Handoff Summary
+## 1. Current Handoff Summary
 
 Last completed module:
 
 ```text
-Module 4F — Corrections / Issues
+Module 6C — Scanning Staff Mobile Workflow Refinement
 ```
 
-Current next module:
+Next module:
 
 ```text
-Module 6A — Doctor Dashboard Refinement
+Module 7 — Security & Cross-Module Hardening
 ```
 
-Current development mode:
-
-```text
-Normal chatbot only
-Manual copy/paste into VS Code
-No coding agent
-```
-
-The next module should begin by confirming which Doctor dashboard information and actions are useful based on the implemented workflows. Notifications are intentionally deferred until after Module 9 — Production Deployment.
-
----
-
-# 3. Last Completed Functional Boundary
-
-The implemented operational flow currently reaches:
-
-```text
-Authentication
-↓
-User / role authorization
-↓
-Clinic memberships
-↓
-Product catalogue
-↓
-Digital Lab Slip
-↓
-Optional Scan Booking
-↓
-Cera scan review
-↓
-Requested-time confirmation or alternate proposal
-↓
-Doctor / Clinic acceptance
-↓
-Scanning Staff assignment
-↓
-Rescheduling when needed
-↓
-Scan completion
-↓
-Lab Production
-↓
-Case completion
-↓
-Correction / Issue when required
-```
-
-The next missing core operational area is:
-
-```text
-Lab Production
-```
-
----
-
-# 4. Module 4C — What Was Added
-
-Module 4C introduced Scan Booking rescheduling.
-
-Confirmed business rules:
-
-- Doctor may request reschedule.
-- Clinic Staff may request reschedule for permitted clinic work.
-- Cera Staff may manage rescheduling.
-- Cera Admin may manage rescheduling.
-- Scanning Staff cannot manage rescheduling.
-- Rescheduling is allowed only when booking status is:
-  - `CONFIRMED`
-  - `ASSIGNED`
-- Reschedule negotiation does not replace the main booking status.
-- The old confirmed appointment remains operational until a replacement is accepted.
-- If the booking is already assigned, the same scanner remains assigned.
-- A confirmed booking with unresolved rescheduling cannot be newly assigned.
-- Finalized reschedules are retained in history.
-- Terminal bookings cannot be rescheduled.
-
----
-
-# 5. Module 4C — Reschedule States
-
-Shared reschedule states:
-
-```text
-REQUESTED
-AWAITING_CONFIRMATION
-```
-
-These are separate from the main Scan Booking states.
-
-Example:
-
-```text
-booking.status = ASSIGNED
-booking.rescheduleStatus = REQUESTED
-```
-
-This means the visit remains assigned while a schedule change is negotiated.
-
----
-
-# 6. Module 4C — Supported Flows
-
-## Doctor / Clinic Requests Reschedule
-
-```text
-CONFIRMED / ASSIGNED
-↓
-Doctor or Clinic Staff requests a new time
-↓
-Reschedule status = REQUESTED
-↓
-Cera reviews
-```
-
-Cera may:
-
-```text
-Confirm requested time
-```
-
-or:
-
-```text
-Propose another time
-↓
-Reschedule status = AWAITING_CONFIRMATION
-↓
-Doctor / Clinic accepts
-```
-
----
-
-## Cera Initiates Reschedule
-
-```text
-CONFIRMED / ASSIGNED
-↓
-Cera proposes new time
-↓
-AWAITING_CONFIRMATION
-↓
-Doctor / Clinic accepts
-```
-
----
-
-## Finalization
-
-When a reschedule is finalized:
-
-```text
-old confirmed time
-↓
-preserved in reschedule history
-
-new accepted time
-↓
-becomes confirmedStartAt
-
-active reschedule fields
-↓
-cleared
-```
-
----
-
-# 7. Module 4C — Backend Implementation Summary
-
-Shared package now includes:
-
-```text
-SCAN_RESCHEDULE_STATUS
-```
-
-Current values:
-
-```text
-REQUESTED
-AWAITING_CONFIRMATION
-```
-
-Scan Booking persistence includes active reschedule fields and:
-
-```text
-rescheduleHistory[]
-```
-
-History conceptually records:
-
-- previous confirmed time
-- requested time
-- proposed time
-- final confirmed time
-- requester
-- reviewer
-- reason
-- requested timestamp
-- confirmed timestamp
-
-Backend actions implemented:
-
-```text
-POST /:bookingId/reschedule-request
-POST /:bookingId/reschedule-confirm
-POST /:bookingId/reschedule-propose
-POST /:bookingId/reschedule-accept
-```
-
-Backend service includes reschedule eligibility, finalization, cleanup, authorization, and assignment protection.
-
----
-
-# 8. Module 4C — Important Regression Fix
-
-During Module 4C implementation, a temporary mistake affected Scan Booking terminal-state logic.
-
-The correct rule is:
-
-```text
-REJECTED
-CANCELLED
-```
-
-are the terminal states used for allowing a later new Scan Booking request.
-
-Do **not** treat:
-
-```text
-CONFIRMED
-ASSIGNED
-```
-
-as terminal for duplicate-booking logic.
-
-This was fixed and covered by regression tests.
-
----
-
-# 9. Module 4C — Frontend Implementation Summary
-
-Frontend Scan Booking API support includes:
-
-- request reschedule
-- confirm requested reschedule
-- propose reschedule
-- accept proposed reschedule
-
-The Scan Booking detail screen now includes, in this priority order:
-
-```text
-1. Booking summary
-2. Action error / important feedback
-3. Active reschedule notice
-4. Main booking workflow actions
-5. Reschedule actions
-6. Cancel booking
-7. Reschedule history
-```
-
-Important UX rule:
-
-The primary booking workflow remains more important than rescheduling.
-
----
-
-# 10. Module 4C — Scanning Staff UX
-
-Scanning Staff:
-
-- can see current confirmed time
-- can see relevant pending reschedule information
-- can see history where appropriate
-- can still complete assigned visits
-- cannot request/confirm/propose/accept reschedules
-
-Their access remains read-only for rescheduling.
-
----
-
-# 11. Module 4C — Verification Completed
-
-The last completed module was reported as fully passing.
-
-Known successful checks included:
-
-- backend Scan Booking regression tests
-- frontend Scan Booking detail tests
-- frontend test suite
-- backend tests relevant to the module
-- `lint:web`
-- `lint:api`
-- `build:web`
-- manual reschedule flows
-- permission checks
-- scanner-assignment preservation
-- terminal-state behavior
-
-The user reported the module was committed and pushed to GitHub.
-
-A new session should still verify the current Git state instead of assuming nothing changed afterward.
-
----
-
-# 12. Current Git Boundary
-
-Current state reported in this session:
-
-```text
-Module 4F implementation and verification are complete.
-The working tree still contains the Module 4F changes until the final commit/push.
-```
-
-Before starting Module 6A:
-
-```bash
-git status
-git diff --check
-git log -1 --oneline
-```
-
-Expected goal after the Module 4F commit/push:
+Last reported Git boundary:
 
 ```text
 working tree clean
+master == origin/master
+253178a feat: refine scanning staff mobile workflow
 ```
+
+Always verify dynamic Git state again before new changes.
 
 ---
 
-# 13. Important Locked Project Decisions
-
-The next session must preserve these decisions unless there is a concrete reason to change them:
+## 2. Current Completed Functional Boundary
 
 ```text
-✓ modular monolith
-✓ npm workspaces
-✓ React + Vite + JavaScript frontend
-✓ Node.js + Express + JavaScript ES modules backend
-✓ MongoDB + Mongoose
-✓ REST API under /api/v1
-✓ shared business constants in packages/shared
-✓ backend is authorization source of truth
-✓ 15-minute access JWT
-✓ 10-day rotating opaque refresh token
-✓ HttpOnly cookies
-✓ Argon2id passwords
-✓ invitation-based operational accounts
-✓ phone required, email optional
-✓ Indian mobile numbers only in V1
-✓ Digital Lab Slip is the central case/prescription record
-✓ Doctor may belong to multiple clinics
-✓ product/category snapshots preserved on Lab Slips
-✓ no online payment/billing
-✓ no direct scanner integration
-✓ large raw scan files are outside normal website uploads
-✓ Scan Booking is separate from Lab Slip
-✓ Scan Booking state machine is explicit
-✓ rescheduling is separate from main booking state
-✓ current confirmed time remains valid until replacement accepted
-✓ assigned scanner remains assigned during rescheduling
-✓ reschedule history retained
-✓ Production is a separate entity linked to Lab Slip
-✓ production statuses are SUBMITTED / IN_PRODUCTION / COMPLETED
-✓ Cera Staff/Admin move production forward; Admin alone moves backward
-✓ private supporting attachments use R2/S3-compatible storage with signed access
-✓ Corrections preserve the original Lab Slip/Production and enforce one unresolved Correction per Lab Slip
-✓ routes stay outside App.jsx
-✓ Redux Toolkit is for app-wide state, not every local state
-✓ one module per chat where practical
-✓ user manually copy/pastes code
-✓ no-assumption policy
-✓ module must be committed and pushed before next module
+Authentication / invitations / roles
+↓
+Clinics + memberships
+↓
+Catalogue
+↓
+Digital Lab Slip
+↓
+Scan Booking + scheduling + assignment + rescheduling + completion
+↓
+Lab Production
+↓
+Private supporting attachments
+↓
+Corrections / clarification / resolution
+↓
+Doctor Dashboard
+↓
+Cera Operations Dashboard
+↓
+Scanning Staff Mobile Workflow
 ```
+
+Modules 5A/5B notifications remain planned and are not implemented merely because later UX refinement modules are complete.
 
 ---
 
-# 14. Current Lab Slip Behavior
+## 3. Module 6C — What Was Added
 
-The Lab Slip currently acts as the central case record.
+### Backend privacy boundary
 
-Current status:
+Scan Booking serialization is role-aware for Scanning Staff. Scanner responses retain only visit information required for the assigned visit and avoid unrelated Doctor/user contact exposure.
 
-```text
-SUBMITTED
-```
+### Scanner dashboard
 
-Current editable content includes:
+`/portal` now provides Scanning Staff with:
 
+- today's assigned visits
+- chronological visit order
+- confirmed time
+- patient identity/reference
+- clinic and address
 - urgency
-- patient name/reference
-- products/items
-- teeth
-- shade
-- pontic/design information
-- design notes
-- general notes
+- read-only reschedule warning
+- loading/empty/failure/retry states
+- link to all assigned visits
 
-Current immutable identity fields include:
+### My Visits
 
-- reference
-- clinic
-- doctor
-- source
-- creator
-- created timestamp
+`/portal/scans` now has a mobile-first Scanner experience with:
 
-Doctor/Clinic manufacturing edits are locked after Production leaves `SUBMITTED`; Cera Admin retains controlled edit access.
+- all assigned visit history/future visits
+- scanner-relevant filters only
+- assigned/completed/cancelled views
+- confirmed-time-first cards
+- patient/clinic emphasis
+- urgent/reschedule indicators
+- pagination and retry states
+
+### Visit detail
+
+Scanner detail now prioritizes:
+
+```text
+confirmed time
+→ patient
+→ clinic/address
+→ reschedule notice
+→ completion action
+```
+
+Scanner cannot manage reschedules. Attachments remain read-only. Assigned Scanner can mark an `ASSIGNED` visit completed.
 
 ---
 
-# 15. Current Scan Booking Behavior
+## 4. Module 6C Verification
 
-Main states:
+Reported passing before commit:
 
 ```text
-PENDING_REVIEW
-AWAITING_CONFIRMATION
-CONFIRMED
-ASSIGNED
-COMPLETED
-REJECTED
-CANCELLED
+npm run test:web
+npm run test:api
+npm run lint:web
+npm run lint:api
+npm run build:web
 ```
 
-Important current rules:
+Focused tests were added/updated for:
 
-- late scan request is allowed
-- only one active/non-terminal Scan Booking per Lab Slip
-- rejected/cancelled history may allow a later new booking
-- completed booking does not automatically allow a rescan
-- scanning staff must be active and have Scanning Staff role
-- scanning staff see only assigned bookings
-- Doctor/Clinic cancellation is restricted after assignment
-- Cera can operationally handle assigned-booking cancellation
+- Scanner dashboard
+- Scan Bookings list
+- Scan Booking detail
+- backend Scan Booking serializer/privacy behavior
+
+Module 6C was committed and pushed.
 
 ---
 
-# 16. Current Product / Catalogue Rule
+## 5. Current Module Status
 
-When creating or newly selecting Lab Slip products:
+Complete:
 
 ```text
-Product must be ACTIVE
-Category must be ACTIVE
+0, 1A, 1B, 1C, 1D
+2A, 2B
+3A, 3B
+4A, 4B, 4C, 4D, 4E, 4F
+6A, 6B, 6C
 ```
 
-Existing historical Lab Slip items remain valid even if the product/category later becomes disabled.
-
-Do not rewrite historical snapshots.
-
-Do not invent official Cera catalogue products if real catalogue data is unavailable.
-
----
-
-# 17. Current UX Rules
-
-Doctor:
+Still planned:
 
 ```text
-mobile-first
-simple
-fast
-low-friction
-familiar
+5A In-App Notifications
+5B WhatsApp Notifications
 ```
 
-Cera Staff/Admin:
+Next:
 
 ```text
-desktop-oriented
-operational
-higher information density
-clear status/action priority
+7 Security & Cross-Module Hardening
 ```
 
-Scanning Staff:
+Later:
 
 ```text
-mobile-first
-assigned visits only
-minimal necessary information
-```
-
-Doctor navigation direction:
-
-```text
-Dashboard
-New Lab Slip
-My Slips
-Scans
-Corrections
-Profile
-```
-
-`Corrections` is implemented in Module 4F.
-
----
-
-# 18. Current Scope Exclusions
-
-Do not add:
-
-- online payments
-- payment gateway
-- billing/accounting
-- inventory ERP
-- ecommerce/cart
-- direct scanner integration
-- large scan-file upload/storage
-- arbitrary public operational signup
-
-These are not part of the current Cera system scope.
-
----
-
-# 19. Current Notification Direction
-
-Preferred external operational channel:
-
-```text
-WhatsApp
-```
-
-Planned provider direction:
-
-```text
-WhatsApp Business Cloud API
-```
-
-In-app notifications are also planned.
-
-However, notification events, recipients, templates, and retry behavior are not yet defined.
-
-Scheduling decision:
-
-```text
-Module 9 — Production Deployment
-↓
-Module 5A — In-App Notifications
-↓
-Module 5B — WhatsApp Notifications
-↓
-Module 10 — Final Documentation & Monitoring
-```
-
-Notifications are intentionally deferred until after the initial production deployment. Do not add notification or WhatsApp behavior while working on Modules 6–9 unless the roadmap is explicitly changed again.
-
----
-
-# 20. Current Attachment Direction
-
-Module 4E is **COMPLETE**.
-
-Implemented:
-
-```text
-JPEG/JPG
-PNG
-WEBP
-PDF
-max 10 MB per file
-max 5 attachments
-private Cloudflare R2 / S3-compatible storage
-signed temporary access URLs
-```
-
-Large raw scanner files remain excluded. Correction evidence reuses this private attachment infrastructure.
-
----
-
-# 21. Next Module — Module 6A
-
-Module:
-
-```text
-Doctor Dashboard Refinement
-```
-
-Status:
-
-```text
-NEXT
-```
-
-Before coding, define which Doctor dashboard cards, queues, summaries, and actions are genuinely useful based on the existing Lab Slip, Scan Booking, Production, and Correction workflows.
-
-Current execution sequence:
-
-```text
-6A → 6B → 6C → 7 → 8 → 9 → 5A → 5B → 10
+8 End-to-End Regression
+9 Production Deployment
+10 Final Documentation & Monitoring
 ```
 
 ---
 
-# 22. Modules 4D–4F Completion Summary
+## 6. Module 7 — Start Here
 
-## Module 4D — Lab Production Workflow
+Module 7 is a system-wide hardening pass, not a new business-feature module.
 
-Status: **COMPLETE**
+Start source-first by inventorying the current repository before editing code. Review:
 
-- `SUBMITTED → IN_PRODUCTION → COMPLETED` forward lifecycle
-- Cera Staff/Admin forward actions
-- Admin-only backward moves with required reason
-- scan-required production waits for completed scan
-- production history retained
-- Doctor/Clinic simplified production status
-- Lab Slip edit lock after production starts
+1. authentication/session boundaries
+2. route role guards vs service resource authorization
+3. serializers and patient/contact data exposure
+4. CSRF strategy for cookie-based auth
+5. CORS and browser security
+6. invitation/reset/session revocation hardening
+7. upload type/size/private-access enforcement
+8. rate-limit coverage
+9. logging/privacy and request IDs
+10. dependency/security audit
+11. environment/secrets handling
+12. cross-module state-transition authorization
 
-## Module 4E — Private Attachments
-
-Status: **COMPLETE**
-
-- private JPEG/JPG, PNG, WEBP, PDF
-- 10 MB/file, maximum 5
-- private R2/S3-compatible storage with signed access
-- large raw scan files excluded
-
-## Module 4F — Corrections / Issues
-
-Status: **COMPLETE**
-
-- completed-production-only creation
-- Doctor/Clinic/Cera creation subject to resource authorization
-- one unresolved Correction per Lab Slip
-- historical Corrections retained
-- strict review/clarification/resolve/reject state machine
-- required terminal resolution outcome for resolved Corrections
-- private evidence attachments
-- terminal evidence read-only
-- no automatic rescan/reproduction record creation
-- original Lab Slip and Production remain intact
+Do not assume a vulnerability exists merely because an area is listed for review. Inspect current code first.
 
 ---
 
-# 23. Module 4F Verification Boundary
+## 7. Permanent Development Rules
 
-Completed checks:
-
-- focused Correction backend tests
-- focused Lab Slip → Correction frontend tests
-- full API test suite
-- full web test suite
-- `lint:api`
-- `lint:web`
-- web build
-- manual lifecycle/role/evidence QA
-- route placement verified so both Correction routes remain inside the authenticated portal wrapper
-
-The user reported all requested tests/checks passed.
+- React + Vite + JavaScript frontend.
+- Node.js + Express ESM backend.
+- MongoDB/Mongoose.
+- REST under `/api/v1`.
+- Modular monolith.
+- Frontend/backend developed together by vertical slice.
+- UI/UX is part of each module, not deferred.
+- Route definitions stay outside `App.jsx`.
+- Redux Toolkit only for suitable app-wide state.
+- Backend is the security boundary; frontend role checks are UX only.
+- Inspect the current source before proposing edits.
+- Give exact file path and targeted edit vs full replacement.
+- User manually copies code into VS Code.
+- Test normal, permission, validation, failure and edge cases.
+- Run relevant tests/lint/build before completion.
+- Commit and push a completed module before starting the next one.
+- Do not invent business rules, statuses, roles, permissions or integrations.
 
 ---
 
-# 24. Locked Correction Rules
+## 8. Scope Locks
+
+Do not add without explicit scope change:
+
+- online payments/billing ERP
+- inventory/ecommerce
+- direct intraoral scanner integration
+- large raw scanner-file website storage
+- public operational signup
+- unconfirmed notification behavior
+
+---
+
+## 9. Source of Truth
+
+Use this order:
 
 ```text
-OPEN → UNDER_REVIEW
-UNDER_REVIEW → AWAITING_CLARIFICATION
-AWAITING_CLARIFICATION → UNDER_REVIEW
-UNDER_REVIEW → RESOLVED
-UNDER_REVIEW → REJECTED
+1. current repository/code
+2. confirmed requirements
+3. current project/design docs
+4. architecture decisions
+5. MODULE_STATUS / SESSION_HANDOFF
+6. Git history
+7. chat context/memory
 ```
 
-Invalid transitions are rejected. `RESOLVED` and `REJECTED` are terminal.
-
-Clarification request and response notes are required. Start-review, resolution, and rejection notes are optional.
-
-Resolution outcome is required and must be one of:
-
-```text
-HANDLED
-RESCAN_REQUIRED
-REPRODUCTION_REQUIRED
-```
-
-These outcomes are descriptive in Module 4F; they do not automatically create a new Scan Booking, Production cycle, or Lab Slip.
-
----
-
-# 25. Suggested Module 6A Session Start
-
-Start by resolving only Doctor-dashboard decisions that block Module 6A:
-
-```text
-1. What does a Doctor need to see immediately after login?
-2. Which active Lab Slips require attention?
-3. Which Scan Bookings require Doctor action or awareness?
-4. Which Production states are useful at dashboard level?
-5. Which Corrections require Doctor attention?
-6. Which shortcuts/actions should exist?
-7. Which information belongs on the dashboard versus existing list/detail pages?
-8. What empty/loading/error states are required?
-```
-
-Do not add vanity metrics or notification features during Module 6A. Notifications remain deferred until after Module 9 — Production Deployment.
-
----
-
-# 26. Manual Development Protocol
-
-The user is manually copying code into VS Code. Continue checkpoint-by-checkpoint:
-
-1. inspect current relevant file before modifying it
-2. give exact path and targeted/full replacement instruction
-3. run the smallest relevant test
-4. fix failures before continuing
-5. run full regression/lint/build before module completion
-6. perform manual browser QA
-7. review Git diff/status
-8. commit and push before beginning the next module
-
----
-
-# 27. Handoff State
-
-```text
-MODULE 4F FUNCTIONALLY COMPLETE AND VERIFIED
-NEXT: MODULE 6A — DOCTOR DASHBOARD REFINEMENT
-NOTIFICATIONS: DEFERRED UNTIL AFTER MODULE 9 — PRODUCTION DEPLOYMENT
-```
-
-Current source-control step: review the final Module 4F diff, then commit and push.
+If current code and a confirmed requirement conflict, identify the conflict instead of silently choosing.
