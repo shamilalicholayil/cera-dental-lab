@@ -298,8 +298,6 @@ export function LabSlipDetailPage() {
           {canUseCorrections && <CorrectionCreatePanel labSlip={slip} />}
 
           <ScanRequestPanel labSlip={slip} />
-
-          <ScanRequestPanel labSlip={slip} />
         </section>
       </div>
     </main>
