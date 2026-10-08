@@ -93,6 +93,7 @@ async function createLabSlip({
   doctor,
   createdBy = doctor,
   scanRequired = false,
+  urgency = LAB_SLIP_URGENCY.STANDARD,
 }) {
   slipSequence += 1;
 
@@ -103,7 +104,7 @@ async function createLabSlip({
 
     status: LAB_SLIP_STATUS.SUBMITTED,
 
-    urgency: LAB_SLIP_URGENCY.STANDARD,
+    urgency,
 
     clinicId: new mongoose.Types.ObjectId(),
 
@@ -142,10 +143,15 @@ async function createLabSlip({
   });
 }
 
-async function createProductionCase({ context, scanRequired = false }) {
+async function createProductionCase({
+  context,
+  scanRequired = false,
+  urgency = LAB_SLIP_URGENCY.STANDARD,
+}) {
   const labSlip = await createLabSlip({
     doctor: context.doctor,
     scanRequired,
+    urgency,
   });
 
   const production = await Production.create({
@@ -206,30 +212,35 @@ describe("Production Workflow", () => {
     await disconnectTestDatabase();
   });
 
-  it("lists only active production cases by default", async () => {
+  it("filters the active production queue by Lab Slip urgency", async () => {
     const context = await createContext();
 
-    const submittedCase = await createProductionCase({
+    const urgentSubmitted = await createProductionCase({
       context,
-      scanRequired: false,
+      urgency: LAB_SLIP_URGENCY.URGENT,
     });
 
-    const inProductionCase = await createProductionCase({
+    const urgentInProduction = await createProductionCase({
       context,
-      scanRequired: true,
+      urgency: LAB_SLIP_URGENCY.URGENT,
     });
 
-    const completedCase = await createProductionCase({
+    const urgentCompleted = await createProductionCase({
       context,
-      scanRequired: false,
+      urgency: LAB_SLIP_URGENCY.URGENT,
     });
 
-    await Production.findByIdAndUpdate(inProductionCase.production._id, {
+    const standardActive = await createProductionCase({
+      context,
+      urgency: LAB_SLIP_URGENCY.STANDARD,
+    });
+
+    await Production.findByIdAndUpdate(urgentInProduction.production._id, {
       status: PRODUCTION_STATUS.IN_PRODUCTION,
       startedAt: new Date(),
     });
 
-    await Production.findByIdAndUpdate(completedCase.production._id, {
+    await Production.findByIdAndUpdate(urgentCompleted.production._id, {
       status: PRODUCTION_STATUS.COMPLETED,
       startedAt: new Date(Date.now() - 60 * 60 * 1000),
       completedAt: new Date(),
@@ -237,52 +248,36 @@ describe("Production Workflow", () => {
 
     const agent = await loginAgent(context.ceraStaff);
 
-    const response = await agent.get("/api/v1/productions");
+    const response = await agent.get(
+      `/api/v1/productions?urgency=${LAB_SLIP_URGENCY.URGENT}`,
+    );
 
     expect(response.status).toBe(200);
 
     expect(response.body.data.productions).toHaveLength(2);
 
-    expect(response.body.data.pagination).toEqual({
-      page: 1,
-      limit: 20,
-      total: 2,
-      pages: 1,
-    });
+    expect(response.body.data.pagination.total).toBe(2);
 
     const ids = response.body.data.productions.map(
       (production) => production.id,
     );
 
-    expect(ids).toContain(submittedCase.production.id);
+    expect(ids).toContain(urgentSubmitted.production.id);
 
-    expect(ids).toContain(inProductionCase.production.id);
+    expect(ids).toContain(urgentInProduction.production.id);
 
-    expect(ids).not.toContain(completedCase.production.id);
+    expect(ids).not.toContain(urgentCompleted.production.id);
 
-    const statuses = response.body.data.productions.map(
-      (production) => production.status,
-    );
+    expect(ids).not.toContain(standardActive.production.id);
 
-    expect(statuses).toContain(PRODUCTION_STATUS.SUBMITTED);
+    for (const production of response.body.data.productions) {
+      expect(production.labSlip.urgency).toBe(LAB_SLIP_URGENCY.URGENT);
 
-    expect(statuses).toContain(PRODUCTION_STATUS.IN_PRODUCTION);
-
-    expect(statuses).not.toContain(PRODUCTION_STATUS.COMPLETED);
-
-    const submitted = response.body.data.productions.find(
-      (production) => production.id === submittedCase.production.id,
-    );
-
-    expect(submitted.labSlip.reference).toBe(submittedCase.labSlip.reference);
-
-    expect(submitted.labSlip.patient.name).toBe("Production Patient");
-
-    expect(submitted.labSlip.urgency).toBe(LAB_SLIP_URGENCY.STANDARD);
-
-    expect(submitted.labSlip.scanRequired).toBe(false);
-
-    expect(submitted.labSlip.createdAt).toBeTruthy();
+      expect([
+        PRODUCTION_STATUS.SUBMITTED,
+        PRODUCTION_STATUS.IN_PRODUCTION,
+      ]).toContain(production.status);
+    }
   });
 
   it("allows Cera Staff to filter production cases by completed status", async () => {

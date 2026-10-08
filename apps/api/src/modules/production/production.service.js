@@ -135,6 +135,16 @@ export async function listProductions({ user, query }) {
     filter.status = query.status;
   }
 
+  if (query.urgency) {
+    const labSlipIds = await LabSlip.distinct("_id", {
+      urgency: query.urgency,
+    });
+
+    filter.labSlipId = {
+      $in: labSlipIds,
+    };
+  }
+
   const skip = (query.page - 1) * query.limit;
 
   const [productions, total] = await Promise.all([

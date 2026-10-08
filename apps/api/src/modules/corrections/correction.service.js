@@ -326,7 +326,11 @@ export async function listCorrections({ user, query }) {
 
   const filter = {};
 
-  if (query.status && query.status !== "ALL") {
+  if (query.status === "ACTIVE") {
+    filter.status = {
+      $in: ACTIVE_CORRECTION_STATUSES,
+    };
+  } else if (query.status && query.status !== "ALL") {
     filter.status = query.status;
   }
 

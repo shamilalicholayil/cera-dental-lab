@@ -10,7 +10,7 @@ const optionalNote = z.string().trim().max(3000).optional().or(z.literal(""));
 const requiredNote = z.string().trim().min(1).max(3000);
 
 export const listCorrectionsQuerySchema = z.object({
-  status: z.enum([...CORRECTION_STATUS_VALUES, "ALL"]).optional(),
+  status: z.enum([...CORRECTION_STATUS_VALUES, "ALL", "ACTIVE"]).optional(),
 
   page: z.coerce.number().int().min(1).default(1),
 

@@ -11,6 +11,8 @@ export function getScanBookings({
   status,
   clinicId,
   labSlipId,
+  confirmedFrom,
+  confirmedTo,
   page = 1,
   limit = 20,
 } = {}) {
@@ -26,6 +28,14 @@ export function getScanBookings({
 
   if (labSlipId) {
     params.set("labSlipId", labSlipId);
+  }
+
+  if (confirmedFrom) {
+    params.set("confirmedFrom", confirmedFrom);
+  }
+
+  if (confirmedTo) {
+    params.set("confirmedTo", confirmedTo);
   }
 
   params.set("page", String(page));

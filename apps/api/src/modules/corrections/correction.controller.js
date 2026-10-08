@@ -1,5 +1,6 @@
 import {
   createCorrection,
+  getActiveCorrectionForLabSlip,
   getCorrection,
   listCorrections,
   rejectCorrection,
@@ -14,7 +15,6 @@ import {
   deleteCorrectionAttachment,
   getCorrectionAttachmentAccess,
   listCorrectionAttachments,
-  getActiveCorrectionForLabSlip,
 } from "./correctionAttachment.service.js";
 
 import {

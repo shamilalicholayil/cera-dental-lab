@@ -1768,18 +1768,70 @@ describe("Corrections", () => {
     });
   });
 
-  it("filters correction list by status", async () => {
+  it("lists only unresolved corrections with the ACTIVE status filter", async () => {
     const context = await createContext();
 
-    const firstCase = await createCase({
+    const openCase = await createCase({
+      context,
+    });
+
+    const openCorrection = await createCorrection({
+      user: context.doctor,
+      labSlipId: openCase.labSlip.id,
+      data: {
+        description: "Open correction",
+      },
+    });
+
+    const underReviewCase = await createCase({
+      context,
+    });
+
+    const underReviewCorrection = await createCorrection({
+      user: context.doctor,
+      labSlipId: underReviewCase.labSlip.id,
+      data: {
+        description: "Correction under review",
+      },
+    });
+
+    await startCorrectionReview({
+      user: context.ceraStaff,
+      correctionId: underReviewCorrection.id,
+    });
+
+    const clarificationCase = await createCase({
+      context,
+    });
+
+    const clarificationCorrection = await createCorrection({
+      user: context.doctor,
+      labSlipId: clarificationCase.labSlip.id,
+      data: {
+        description: "Correction awaiting clarification",
+      },
+    });
+
+    await startCorrectionReview({
+      user: context.ceraStaff,
+      correctionId: clarificationCorrection.id,
+    });
+
+    await requestCorrectionClarification({
+      user: context.ceraStaff,
+      correctionId: clarificationCorrection.id,
+      note: "Please provide additional details",
+    });
+
+    const resolvedCase = await createCase({
       context,
     });
 
     const resolvedCorrection = await createCorrection({
       user: context.doctor,
-      labSlipId: firstCase.labSlip.id,
+      labSlipId: resolvedCase.labSlip.id,
       data: {
-        description: "Resolved issue",
+        description: "Resolved correction",
       },
     });
 
@@ -1794,32 +1846,68 @@ describe("Corrections", () => {
       outcome: CORRECTION_OUTCOME.HANDLED,
     });
 
-    const secondCase = await createCase({
+    const rejectedCase = await createCase({
       context,
     });
 
-    await createCorrection({
+    const rejectedCorrection = await createCorrection({
       user: context.doctor,
-      labSlipId: secondCase.labSlip.id,
+      labSlipId: rejectedCase.labSlip.id,
       data: {
-        description: "Open issue",
+        description: "Rejected correction",
       },
     });
 
-    const result = await listCorrections({
+    await startCorrectionReview({
       user: context.ceraStaff,
-      query: {
-        status: CORRECTION_STATUS.RESOLVED,
-        page: 1,
-        limit: 20,
-      },
+      correctionId: rejectedCorrection.id,
     });
 
-    expect(result.corrections).toHaveLength(1);
+    await rejectCorrection({
+      user: context.ceraStaff,
+      correctionId: rejectedCorrection.id,
+      note: "No correction required",
+    });
 
-    expect(result.corrections[0].status).toBe(CORRECTION_STATUS.RESOLVED);
+    const ceraAgent = await loginAgent(context.ceraStaff);
 
-    expect(result.pagination.total).toBe(1);
+    const response = await ceraAgent.get("/api/v1/corrections?status=ACTIVE");
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.corrections).toHaveLength(3);
+
+    expect(response.body.data.pagination.total).toBe(3);
+
+    const returnedStatuses = response.body.data.corrections.map(
+      (correction) => correction.status,
+    );
+
+    expect(returnedStatuses).toEqual(
+      expect.arrayContaining([
+        CORRECTION_STATUS.OPEN,
+        CORRECTION_STATUS.UNDER_REVIEW,
+        CORRECTION_STATUS.AWAITING_CLARIFICATION,
+      ]),
+    );
+
+    expect(returnedStatuses).not.toContain(CORRECTION_STATUS.RESOLVED);
+
+    expect(returnedStatuses).not.toContain(CORRECTION_STATUS.REJECTED);
+
+    const returnedIds = response.body.data.corrections.map(
+      (correction) => correction.id,
+    );
+
+    expect(returnedIds).toContain(openCorrection.id);
+
+    expect(returnedIds).toContain(underReviewCorrection.id);
+
+    expect(returnedIds).toContain(clarificationCorrection.id);
+
+    expect(returnedIds).not.toContain(resolvedCorrection.id);
+
+    expect(returnedIds).not.toContain(rejectedCorrection.id);
   });
 
   it("only lists a Doctor's own corrections", async () => {

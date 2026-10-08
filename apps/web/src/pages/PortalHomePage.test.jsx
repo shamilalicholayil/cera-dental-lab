@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CORRECTION_STATUS,
+  LAB_SLIP_URGENCY,
+  PRODUCTION_STATUS,
   SCAN_BOOKING_STATUS,
   USER_ROLES,
 } from "@cera/shared";
@@ -22,6 +24,8 @@ import { getLabSlips } from "../api/labSlips";
 
 import { getScanBookings } from "../api/scanBookings";
 
+import { getProductions } from "../api/productions";
+
 vi.mock("../api/corrections", () => ({
   getCorrections: vi.fn(),
 }));
@@ -32,6 +36,10 @@ vi.mock("../api/labSlips", () => ({
 
 vi.mock("../api/scanBookings", () => ({
   getScanBookings: vi.fn(),
+}));
+
+vi.mock("../api/productions", () => ({
+  getProductions: vi.fn(),
 }));
 
 vi.mock("../components/portal/PortalHeader", () => ({
@@ -155,6 +163,188 @@ const clarification = {
     },
   },
 };
+
+const ceraStaff = {
+  id: "staff-1",
+  name: "Cera Staff",
+  role: USER_ROLES.CERA_STAFF,
+  status: "ACTIVE",
+};
+
+const pendingReviewScan = {
+  id: "scan-pending",
+  reference: "SCAN-PENDING",
+  status: SCAN_BOOKING_STATUS.PENDING_REVIEW,
+  requestedStartAt: "2099-10-10T09:00:00.000Z",
+
+  labSlip: {
+    patient: {
+      name: "Pending Patient",
+    },
+  },
+
+  clinic: {
+    id: "clinic-1",
+    name: "Pending Clinic",
+  },
+};
+
+const unassignedScan = {
+  id: "scan-unassigned",
+  reference: "SCAN-UNASSIGNED",
+  status: SCAN_BOOKING_STATUS.CONFIRMED,
+  confirmedStartAt: "2099-10-10T11:00:00.000Z",
+
+  labSlip: {
+    patient: {
+      name: "Unassigned Patient",
+    },
+  },
+
+  clinic: {
+    id: "clinic-2",
+    name: "Unassigned Clinic",
+  },
+};
+
+const todayAssignedScan = {
+  id: "scan-today-assigned",
+  reference: "SCAN-TODAY",
+  status: SCAN_BOOKING_STATUS.ASSIGNED,
+  confirmedStartAt: "2099-10-10T13:00:00.000Z",
+
+  labSlip: {
+    patient: {
+      name: "Today Patient",
+    },
+  },
+
+  clinic: {
+    id: "clinic-3",
+    name: "Today Clinic",
+  },
+
+  assignedScanningStaff: {
+    id: "scanner-1",
+    name: "Scanner One",
+  },
+};
+
+const activeProductionCase = {
+  id: "production-1",
+  status: PRODUCTION_STATUS.IN_PRODUCTION,
+
+  labSlip: {
+    reference: "CDL-PROD-001",
+    urgency: LAB_SLIP_URGENCY.STANDARD,
+
+    patient: {
+      name: "Production Patient",
+    },
+  },
+};
+
+const urgentProductionCase = {
+  id: "production-urgent",
+  status: PRODUCTION_STATUS.SUBMITTED,
+
+  labSlip: {
+    reference: "CDL-URGENT-001",
+    urgency: LAB_SLIP_URGENCY.URGENT,
+
+    patient: {
+      name: "Urgent Patient",
+    },
+  },
+};
+
+const activeCorrection = {
+  id: "correction-active",
+  status: CORRECTION_STATUS.UNDER_REVIEW,
+  description: "Adjustment requires review.",
+
+  labSlip: {
+    reference: "CDL-CORR-001",
+
+    patient: {
+      name: "Correction Queue Patient",
+    },
+  },
+};
+
+function mockCeraOperationsData({
+  pending = [pendingReviewScan],
+  unassigned = [unassignedScan],
+  todayConfirmed = [],
+  todayAssigned = [todayAssignedScan],
+  production = [activeProductionCase],
+  urgentProduction = [urgentProductionCase],
+  corrections = [activeCorrection],
+} = {}) {
+  getScanBookings.mockImplementation(({ status, confirmedFrom }) => {
+    if (status === SCAN_BOOKING_STATUS.PENDING_REVIEW) {
+      return Promise.resolve({
+        data: {
+          scanBookings: pending,
+          pagination: pagination(pending.length),
+        },
+      });
+    }
+
+    if (status === SCAN_BOOKING_STATUS.CONFIRMED && confirmedFrom) {
+      return Promise.resolve({
+        data: {
+          scanBookings: todayConfirmed,
+          pagination: pagination(todayConfirmed.length),
+        },
+      });
+    }
+
+    if (status === SCAN_BOOKING_STATUS.ASSIGNED && confirmedFrom) {
+      return Promise.resolve({
+        data: {
+          scanBookings: todayAssigned,
+          pagination: pagination(todayAssigned.length),
+        },
+      });
+    }
+
+    if (status === SCAN_BOOKING_STATUS.CONFIRMED) {
+      return Promise.resolve({
+        data: {
+          scanBookings: unassigned,
+          pagination: pagination(unassigned.length),
+        },
+      });
+    }
+
+    return Promise.resolve({
+      data: {
+        scanBookings: [],
+        pagination: pagination(0),
+      },
+    });
+  });
+
+  getProductions.mockImplementation(({ urgency }) => {
+    const cases =
+      urgency === LAB_SLIP_URGENCY.URGENT ? urgentProduction : production;
+
+    return Promise.resolve({
+      data: {
+        productions: cases,
+        pagination: pagination(cases.length),
+      },
+    });
+  });
+
+  getCorrections.mockResolvedValue({
+    data: {
+      corrections,
+      pagination: pagination(corrections.length),
+    },
+  });
+}
 
 function createTestStore(user) {
   return configureStore({
@@ -419,33 +609,203 @@ describe("PortalHomePage Doctor dashboard", () => {
     );
   });
 
-  it("keeps the existing generic portal for non-Doctor roles", () => {
-    const ceraStaff = {
-      id: "staff-1",
-      name: "Cera Staff",
-      role: USER_ROLES.CERA_STAFF,
+  it("keeps the generic portal for Clinic Staff", () => {
+    const clinicStaff = {
+      id: "clinic-staff-1",
+      name: "Clinic Staff",
+      role: USER_ROLES.CLINIC_STAFF,
     };
 
-    renderPortal(ceraStaff);
+    renderPortal(clinicStaff);
 
     expect(
       screen.getByRole("heading", {
-        name: "Welcome, Cera Staff",
+        name: "Welcome, Clinic Staff",
       }),
     ).toBeInTheDocument();
 
     expect(
       screen.getByRole("link", {
-        name: "Production",
+        name: "Lab Slips",
       }),
-    ).toHaveAttribute("href", "/portal/production");
+    ).toHaveAttribute("href", "/portal/lab-slips");
 
     expect(screen.queryByText("Doctor dashboard")).not.toBeInTheDocument();
 
+    expect(screen.queryByText("Cera operations")).not.toBeInTheDocument();
+
     expect(getLabSlips).not.toHaveBeenCalled();
-
     expect(getScanBookings).not.toHaveBeenCalled();
-
+    expect(getProductions).not.toHaveBeenCalled();
     expect(getCorrections).not.toHaveBeenCalled();
+  });
+
+  describe("PortalHomePage Cera operations dashboard", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      mockCeraOperationsData();
+    });
+
+    it("shows the Cera operations dashboard for Cera Staff", async () => {
+      renderPortal(ceraStaff);
+
+      expect(
+        screen.getByRole("heading", {
+          name: "Operations dashboard",
+        }),
+      ).toBeInTheDocument();
+
+      expect(screen.getByText("Cera operations")).toBeInTheDocument();
+
+      expect(
+        screen.getByRole("link", {
+          name: "+ New Lab Slip",
+        }),
+      ).toHaveAttribute("href", "/portal/lab-slips/new");
+
+      expect(await screen.findByText("Pending Patient")).toBeInTheDocument();
+
+      expect(screen.getByText("Unassigned Patient")).toBeInTheDocument();
+
+      expect(screen.getByText("Today Patient")).toBeInTheDocument();
+
+      expect(screen.getByText("Production Patient")).toBeInTheDocument();
+
+      expect(screen.getByText("Urgent Patient")).toBeInTheDocument();
+
+      expect(screen.getByText("Correction Queue Patient")).toBeInTheDocument();
+    });
+
+    it("requests the six operational queues using the supported filters", async () => {
+      renderPortal(ceraStaff);
+
+      await waitFor(() => {
+        expect(getScanBookings).toHaveBeenCalledWith({
+          status: SCAN_BOOKING_STATUS.PENDING_REVIEW,
+          page: 1,
+          limit: 5,
+        });
+      });
+
+      expect(getScanBookings).toHaveBeenCalledWith({
+        status: SCAN_BOOKING_STATUS.CONFIRMED,
+        page: 1,
+        limit: 5,
+      });
+
+      expect(getScanBookings).toHaveBeenCalledWith({
+        status: SCAN_BOOKING_STATUS.CONFIRMED,
+        confirmedFrom: expect.any(String),
+        confirmedTo: expect.any(String),
+        page: 1,
+        limit: 5,
+      });
+
+      expect(getScanBookings).toHaveBeenCalledWith({
+        status: SCAN_BOOKING_STATUS.ASSIGNED,
+        confirmedFrom: expect.any(String),
+        confirmedTo: expect.any(String),
+        page: 1,
+        limit: 5,
+      });
+
+      expect(getProductions).toHaveBeenCalledWith({
+        page: 1,
+        limit: 5,
+      });
+
+      expect(getProductions).toHaveBeenCalledWith({
+        urgency: LAB_SLIP_URGENCY.URGENT,
+        page: 1,
+        limit: 5,
+      });
+
+      expect(getCorrections).toHaveBeenCalledWith({
+        status: "ACTIVE",
+        page: 1,
+        limit: 5,
+      });
+    });
+
+    it("shows useful Cera operations empty states", async () => {
+      mockCeraOperationsData({
+        pending: [],
+        unassigned: [],
+        todayConfirmed: [],
+        todayAssigned: [],
+        production: [],
+        urgentProduction: [],
+        corrections: [],
+      });
+
+      renderPortal(ceraStaff);
+
+      expect(
+        await screen.findByText("No scan requests are waiting for review."),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText("No confirmed scans are waiting for assignment."),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText("No confirmed scan visits are scheduled today."),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText("No urgent production cases are active."),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText("There is no active production work."),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText("There are no unresolved corrections."),
+      ).toBeInTheDocument();
+    });
+
+    it("shows a dashboard error when Cera operations cannot be loaded", async () => {
+      getProductions.mockRejectedValue(new Error("Operations request failed."));
+
+      renderPortal(ceraStaff);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Operations request failed.",
+      );
+    });
+
+    it("shows admin management shortcuts only to Cera Admin", async () => {
+      const admin = {
+        id: "admin-1",
+        name: "Cera Admin",
+        role: USER_ROLES.CERA_ADMIN,
+      };
+
+      renderPortal(admin);
+
+      expect(
+        screen.getByRole("link", {
+          name: "People",
+        }),
+      ).toHaveAttribute("href", "/portal/admin/users");
+
+      expect(
+        screen.getByRole("link", {
+          name: "Clinics",
+        }),
+      ).toHaveAttribute("href", "/portal/admin/clinics");
+
+      expect(
+        screen.getByRole("link", {
+          name: "Catalogue",
+        }),
+      ).toHaveAttribute("href", "/portal/admin/catalog");
+
+      await waitFor(() => {
+        expect(getProductions).toHaveBeenCalled();
+      });
+    });
   });
 });

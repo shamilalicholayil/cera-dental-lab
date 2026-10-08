@@ -315,6 +315,7 @@ async function createPendingBooking({
   doctor = context.doctorA,
   clinic = context.clinicA,
   scanRequired = true,
+  requestedStartAt = futureIso(),
 }) {
   const labSlip = await createLabSlip({
     clinic,
@@ -328,6 +329,8 @@ async function createPendingBooking({
     agent: doctorAgent,
 
     labSlip,
+
+    requestedStartAt,
   });
 
   expect(response.status).toBe(201);
@@ -340,9 +343,13 @@ async function createPendingBooking({
   };
 }
 
-async function createConfirmedBooking({ context }) {
+async function createConfirmedBooking({
+  context,
+  requestedStartAt = futureIso(),
+}) {
   const pending = await createPendingBooking({
     context,
+    requestedStartAt,
   });
 
   const ceraAgent = await loginAgent(context.ceraStaff);
@@ -1297,44 +1304,56 @@ describe("Scan Bookings", () => {
     expect(response.body.error.code).toBe("INVALID_SCAN_RESCHEDULE_TRANSITION");
   });
 
-  it("allows Cera Staff to list all scan bookings", async () => {
+  it("filters confirmed scan visits by date range and returns them chronologically", async () => {
     const context = await createContext();
 
-    const slipA = await createLabSlip({
-      clinic: context.clinicA,
-
-      doctor: context.doctorA,
+    const first = await createConfirmedBooking({
+      context,
+      requestedStartAt: "2099-06-15T09:30:00.000Z",
     });
 
-    const slipB = await createLabSlip({
-      clinic: context.clinicB,
-
-      doctor: context.doctorB,
+    const second = await createConfirmedBooking({
+      context,
+      requestedStartAt: "2099-06-15T13:00:00.000Z",
     });
 
-    const ceraAgent = await loginAgent(context.ceraStaff);
-
-    await createBooking({
-      agent: ceraAgent,
-
-      labSlip: slipA,
-
-      requestedStartAt: futureIso(24),
+    const beforeRange = await createConfirmedBooking({
+      context,
+      requestedStartAt: "2099-06-14T23:59:59.000Z",
     });
 
-    await createBooking({
-      agent: ceraAgent,
-
-      labSlip: slipB,
-
-      requestedStartAt: futureIso(48),
+    const upperBoundary = await createConfirmedBooking({
+      context,
+      requestedStartAt: "2099-06-16T00:00:00.000Z",
     });
 
-    const response = await ceraAgent.get("/api/v1/scan-bookings");
+    const confirmedFrom = encodeURIComponent("2099-06-15T00:00:00.000Z");
+
+    const confirmedTo = encodeURIComponent("2099-06-16T00:00:00.000Z");
+
+    const response = await first.ceraAgent.get(
+      `/api/v1/scan-bookings?confirmedFrom=${confirmedFrom}&confirmedTo=${confirmedTo}`,
+    );
 
     expect(response.status).toBe(200);
 
     expect(response.body.data.scanBookings).toHaveLength(2);
+
+    expect(response.body.data.pagination.total).toBe(2);
+
+    const ids = response.body.data.scanBookings.map((booking) => booking.id);
+
+    expect(ids).toEqual([first.booking.id, second.booking.id]);
+
+    expect(ids).not.toContain(beforeRange.booking.id);
+
+    expect(ids).not.toContain(upperBoundary.booking.id);
+
+    expect(
+      response.body.data.scanBookings.map((booking) =>
+        new Date(booking.confirmedStartAt).toISOString(),
+      ),
+    ).toEqual(["2099-06-15T09:30:00.000Z", "2099-06-15T13:00:00.000Z"]);
   });
 
   it("lists only active Scanning Staff for Cera operations", async () => {

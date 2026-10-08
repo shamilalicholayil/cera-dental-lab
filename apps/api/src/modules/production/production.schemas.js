@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-import { PRODUCTION_STATUS, PRODUCTION_STATUS_VALUES } from "@cera/shared";
+import {
+  LAB_SLIP_URGENCY_VALUES,
+  PRODUCTION_STATUS,
+  PRODUCTION_STATUS_VALUES,
+} from "@cera/shared";
 
 const optionalNote = z.string().trim().max(500).optional().or(z.literal(""));
 
 export const listProductionsQuerySchema = z.object({
   status: z.enum([...PRODUCTION_STATUS_VALUES, "ALL"]).optional(),
+
+  urgency: z.enum(LAB_SLIP_URGENCY_VALUES).optional(),
 
   page: z.coerce.number().int().min(1).default(1),
 

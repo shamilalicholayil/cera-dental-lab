@@ -1,10 +1,14 @@
 import { apiRequest } from "../lib/apiClient";
 
-export function getProductions({ status, page = 1, limit = 20 } = {}) {
+export function getProductions({ status, urgency, page = 1, limit = 20 } = {}) {
   const params = new URLSearchParams();
 
   if (status) {
     params.set("status", status);
+  }
+
+  if (urgency) {
+    params.set("urgency", urgency);
   }
 
   params.set("page", String(page));

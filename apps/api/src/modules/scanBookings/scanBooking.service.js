@@ -326,6 +326,18 @@ export async function listScanBookings({ user, query }) {
     filter.labSlipId = query.labSlipId;
   }
 
+  if (query.confirmedFrom || query.confirmedTo) {
+    filter.confirmedStartAt = {};
+
+    if (query.confirmedFrom) {
+      filter.confirmedStartAt.$gte = new Date(query.confirmedFrom);
+    }
+
+    if (query.confirmedTo) {
+      filter.confirmedStartAt.$lt = new Date(query.confirmedTo);
+    }
+  }
+
   if (user.role === USER_ROLES.DOCTOR) {
     filter.doctorId = user._id;
   }
@@ -351,15 +363,23 @@ export async function listScanBookings({ user, query }) {
 
   const skip = (query.page - 1) * query.limit;
 
+  const sort =
+    query.confirmedFrom || query.confirmedTo
+      ? {
+          confirmedStartAt: 1,
+          createdAt: 1,
+        }
+      : {
+          createdAt: -1,
+        };
+
   const [bookings, total] = await Promise.all([
     ScanBooking.find(filter)
       .populate("labSlipId", "reference patient status urgency scanRequired")
       .populate("clinicId")
       .populate("doctorId", "name phone email role status")
       .populate("assignedScanningStaffId", "name phone email role status")
-      .sort({
-        createdAt: -1,
-      })
+      .sort(sort)
       .skip(skip)
       .limit(query.limit),
 

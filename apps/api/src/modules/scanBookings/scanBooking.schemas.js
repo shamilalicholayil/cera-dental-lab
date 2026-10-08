@@ -21,6 +21,10 @@ export const listScanBookingsQuerySchema = z.object({
 
   labSlipId: objectIdString.optional(),
 
+  confirmedFrom: dateTimeString.optional(),
+
+  confirmedTo: dateTimeString.optional(),
+
   page: z.coerce.number().int().min(1).default(1),
 
   limit: z.coerce.number().int().min(1).max(100).default(20),
