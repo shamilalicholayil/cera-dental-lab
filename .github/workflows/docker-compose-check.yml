@@ -155,16 +155,33 @@ jobs:
 
       - name: Verify API port is not published
         run: |
-          published="$(
+          api_container="$(
             docker compose \
               -f compose.production.yml \
               -f .github/compose.ci.yml \
-              port api 4000 2>/dev/null || true
+              ps -q api
           )"
 
-          if [ -n "$published" ]; then
-            echo "API port 4000 is unexpectedly published:"
-            echo "$published"
+          if [ -z "$api_container" ]; then
+            echo "API container was not found."
+            exit 1
+          fi
+
+          echo "=== API PORT STATE ==="
+
+          docker inspect \
+            --format='{{json .NetworkSettings.Ports}}' \
+            "$api_container"
+
+          published_port="$(
+            docker inspect \
+              --format='{{with (index .NetworkSettings.Ports "4000/tcp")}}{{range .}}{{.HostPort}}{{end}}{{end}}' \
+              "$api_container"
+          )"
+
+          if [ -n "$published_port" ]; then
+            echo "API port 4000 is unexpectedly published as host port:"
+            echo "$published_port"
             exit 1
           fi
 
