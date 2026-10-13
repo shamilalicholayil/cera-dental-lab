@@ -121,7 +121,7 @@ jobs:
             -f .github/compose.ci.yml \
             up -d \
             --no-build \
-            --pull never \
+            --pull missing \
             --wait \
             --wait-timeout 120
 
