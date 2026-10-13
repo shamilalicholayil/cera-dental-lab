@@ -33,7 +33,7 @@ permissions:
 jobs:
   build-web-image:
     name: Build web image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -55,9 +55,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Nginx resolves "api" while loading its configuration.
+      # Production Docker Compose will provide this hostname.
+      # CI creates a temporary placeholder with the same DNS name.
+      - name: Create CI Docker network
+        run: |
+          docker network create cera-ci
+
+          docker run -d \
+            --name api \
+            --network cera-ci \
+            nginx:1.30.5-alpine
+
       - name: Validate Nginx configuration
         run: |
           docker run --rm \
+            --network cera-ci \
             --entrypoint nginx \
             cera-web:ci \
             -t
@@ -66,6 +79,7 @@ jobs:
         run: |
           docker run -d \
             --name cera-web-ci \
+            --network cera-ci \
             -p 8080:80 \
             cera-web:ci
 
@@ -102,7 +116,17 @@ jobs:
           docker image inspect cera-web:ci \
             --format='{{json .Config.Healthcheck}}'
 
-      - name: Show container logs on failure
+      - name: Show logs on failure
         if: failure()
         run: |
+          echo "=== WEB LOGS ==="
           docker logs cera-web-ci || true
+
+          echo "=== PLACEHOLDER API LOGS ==="
+          docker logs api || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f cera-web-ci api 2>/dev/null || true
+          docker network rm cera-ci 2>/dev/null || true
