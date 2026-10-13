@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:8.0
+
+    restart: "no"
+
+    networks:
+      - cera-internal
+
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  api:
+    depends_on:
+      mongo:
+        condition: service_healthy

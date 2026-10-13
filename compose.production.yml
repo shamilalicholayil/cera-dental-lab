@@ -1,0 +1,44 @@
+services:
+  api:
+    image: ${CERA_API_IMAGE:?CERA_API_IMAGE is required}
+
+    restart: unless-stopped
+
+    init: true
+
+    env_file:
+      - path: ${CERA_API_ENV_FILE:-./deploy/api.production.env}
+        required: true
+
+    expose:
+      - "4000"
+
+    networks:
+      - cera-internal
+
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    image: ${CERA_WEB_IMAGE:?CERA_WEB_IMAGE is required}
+
+    restart: unless-stopped
+
+    init: true
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    ports:
+      - "${CERA_HTTP_PORT:-80}:80"
+
+    networks:
+      - cera-internal
+
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  cera-internal:
+    driver: bridge

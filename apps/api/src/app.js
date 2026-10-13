@@ -45,6 +45,18 @@ export const app = express();
 
 app.disable("x-powered-by");
 
+if (env.NODE_ENV === "production") {
+  /*
+   * Production has exactly one trusted reverse-proxy hop:
+   *
+   * browser -> Nginx -> Express
+   *
+   * The API container itself is not published to the host,
+   * so requests cannot bypass the trusted proxy.
+   */
+  app.set("trust proxy", 1);
+}
+
 app.use(requestId);
 
 app.use(requestLogger);
