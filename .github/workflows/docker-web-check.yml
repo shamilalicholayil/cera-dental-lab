@@ -1,0 +1,108 @@
+name: Web Docker Check
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - "Dockerfile.web"
+      - ".dockerignore"
+      - "docker/nginx/**"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/web/**"
+      - "packages/shared/**"
+      - ".github/workflows/docker-web-check.yml"
+
+  push:
+    branches:
+      - master
+    paths:
+      - "Dockerfile.web"
+      - ".dockerignore"
+      - "docker/nginx/**"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/web/**"
+      - "packages/shared/**"
+      - ".github/workflows/docker-web-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-web-image:
+    name: Build web image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile.web
+          push: false
+          load: true
+          tags: cera-web:ci
+          build-args: |
+            VITE_API_URL=/api/v1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate Nginx configuration
+        run: |
+          docker run --rm \
+            --entrypoint nginx \
+            cera-web:ci \
+            -t
+
+      - name: Start web container
+        run: |
+          docker run -d \
+            --name cera-web-ci \
+            -p 8080:80 \
+            cera-web:ci
+
+      - name: Wait for web health check
+        run: |
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8080/healthz; then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "Web container did not become healthy."
+          docker logs cera-web-ci
+          exit 1
+
+      - name: Verify React entry point
+        run: |
+          curl --fail \
+            --silent \
+            http://127.0.0.1:8080/ \
+            | grep -qi '<div id="root">'
+
+      - name: Verify SPA fallback
+        run: |
+          curl --fail \
+            --silent \
+            http://127.0.0.1:8080/non-existent-react-route \
+            | grep -qi '<div id="root">'
+
+      - name: Inspect image health check
+        run: |
+          docker image inspect cera-web:ci \
+            --format='{{json .Config.Healthcheck}}'
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker logs cera-web-ci || true
