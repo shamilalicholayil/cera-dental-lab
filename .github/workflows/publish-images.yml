@@ -1,0 +1,70 @@
+name: Publish Production Images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-api
+  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-web
+
+jobs:
+  publish:
+    name: Publish production images
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish API image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile.api
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ github.sha }}
+            ${{ env.API_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Build and publish web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile.web
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VITE_API_URL=/api/v1
+          tags: |
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
+            ${{ env.WEB_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Show published release
+        run: |
+          echo "Release commit: $GITHUB_SHA"
+          echo "API: $API_IMAGE:$GITHUB_SHA"
+          echo "WEB: $WEB_IMAGE:$GITHUB_SHA"
