@@ -1,0 +1,38 @@
+FROM node:26.10.0-bookworm-slim
+
+ENV NODE_ENV=production
+ENV PORT=4000
+
+WORKDIR /app
+
+# Copy workspace manifests first so dependency installation
+# remains cached when application source code changes.
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+
+# Install only the production dependencies needed by the API
+# and its shared workspace package.
+RUN npm ci \
+    --omit=dev \
+    --workspace=@cera/api \
+    --workspace=@cera/shared \
+    --include-workspace-root=false \
+    && npm cache clean --force
+
+# Copy only runtime source required by the API.
+COPY apps/api ./apps/api
+COPY packages/shared ./packages/shared
+
+# Run as the unprivileged user provided by the official Node image.
+USER node
+
+EXPOSE 4000
+
+# Node's built-in fetch avoids installing curl only for a health probe.
+# The existing endpoint returns 503 when MongoDB is unavailable.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["npm", "run", "start", "--workspace=@cera/api"]

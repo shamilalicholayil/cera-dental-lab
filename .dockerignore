@@ -1,0 +1,53 @@
+# Git
+
+.git
+.gitignore
+
+# Dependencies
+
+node_modules
+\*\*/node_modules
+
+# Local environment files / secrets
+
+.env
+.env._
+**/.env
+**/.env._
+
+# Build output
+
+dist
+**/dist
+build
+**/build
+
+# Tests / generated reports
+
+coverage
+\*\*/coverage
+playwright-report
+test-results
+
+# Logs
+
+\*.log
+logs
+\*\*/logs
+
+# Editor / OS
+
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Temporary files
+
+_.tmp
+_.temp
+
+# Project documentation is not required inside runtime images
+
+docs
+README.md

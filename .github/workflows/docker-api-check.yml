@@ -1,0 +1,91 @@
+name: API Docker Check
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - "Dockerfile.api"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/api/**"
+      - "packages/shared/**"
+      - ".github/workflows/docker-api-check.yml"
+
+  push:
+    branches:
+      - master
+    paths:
+      - "Dockerfile.api"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/api/**"
+      - "packages/shared/**"
+      - ".github/workflows/docker-api-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-api-image:
+    name: Build API image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build API image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: false
+          load: true
+          tags: cera-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image configuration
+        run: |
+          echo "=== IMAGE ==="
+          docker image inspect cera-api:ci \
+            --format='User={{.Config.User}} ExposedPorts={{json .Config.ExposedPorts}}'
+
+          echo "=== NODE ==="
+          docker run --rm \
+            --entrypoint node \
+            cera-api:ci \
+            --version
+
+          echo "=== NPM ==="
+          docker run --rm \
+            --entrypoint npm \
+            cera-api:ci \
+            --version
+
+          echo "=== HEALTHCHECK ==="
+          docker image inspect cera-api:ci \
+            --format='{{json .Config.Healthcheck}}'
+
+      - name: Enforce expected runtime configuration
+        run: |
+          USER_VALUE="$(docker image inspect cera-api:ci --format='{{.Config.User}}')"
+          PORT_VALUE="$(docker image inspect cera-api:ci --format='{{json .Config.ExposedPorts}}')"
+
+          if [ "$USER_VALUE" != "node" ]; then
+            echo "Expected container user to be node, got: $USER_VALUE"
+            exit 1
+          fi
+
+          echo "$PORT_VALUE" | grep -q '"4000/tcp"' || {
+            echo "Expected port 4000/tcp to be exposed"
+            exit 1
+          }
+
+          echo "API image checks passed."
