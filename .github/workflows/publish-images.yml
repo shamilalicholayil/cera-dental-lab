@@ -3,43 +3,45 @@ name: Publish Production Images
 on:
   workflow_dispatch:
 
-  push:
-    branches:
-      - master
-    paths:
-      - "Dockerfile.api"
-      - "Dockerfile.web"
-      - ".dockerignore"
-      - "compose.production.yml"
-      - "docker/**"
-      - "apps/api/**"
-      - "apps/web/**"
-      - "packages/shared/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/publish-images.yml"
+  workflow_run:
+    workflows:
+      - Production Compose Check
+    types:
+      - completed
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: publish-images-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-api
-  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-web
+  group: production-release
+  cancel-in-progress: false
 
 jobs:
   publish:
     name: Publish production images
+
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.event == 'push'
+      )
+
     runs-on: ubuntu-24.04
 
+    env:
+      REGISTRY: ghcr.io
+      API_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-api
+      WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/cera-dental-lab-web
+      RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
     steps:
-      - name: Checkout repository
+      - name: Checkout release commit
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -59,7 +61,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.API_IMAGE }}:${{ github.sha }}
+            ${{ env.API_IMAGE }}:${{ env.RELEASE_SHA }}
             ${{ env.API_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -76,17 +78,141 @@ jobs:
           build-args: |
             VITE_API_URL=/api/v1
           tags: |
-            ${{ env.WEB_IMAGE }}:${{ github.sha }}
+            ${{ env.WEB_IMAGE }}:${{ env.RELEASE_SHA }}
             ${{ env.WEB_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
 
-      - name: Show published image tags
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
         run: |
-          echo "Commit SHA: $GITHUB_SHA"
-          echo "API image: $API_IMAGE:$GITHUB_SHA"
-          echo "API image: $API_IMAGE:latest"
-          echo "WEB image: $WEB_IMAGE:$GITHUB_SHA"
-          echo "WEB image: $WEB_IMAGE:latest"
+          install -m 700 -d ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cera-production
+          chmod 600 ~/.ssh/cera-production
+
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload production Compose definition
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp \
+            -i ~/.ssh/cera-production \
+            compose.production.yml \
+            "${EC2_USER}@${EC2_HOST}:/opt/cera/compose.production.yml"
+
+      - name: Deploy release to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh \
+            -i ~/.ssh/cera-production \
+            "${EC2_USER}@${EC2_HOST}" \
+            "RELEASE_SHA='${RELEASE_SHA}' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd /opt/cera
+
+          API_REPOSITORY="ghcr.io/shamilalicholayil/cera-dental-lab-api"
+          WEB_REPOSITORY="ghcr.io/shamilalicholayil/cera-dental-lab-web"
+
+          NEW_API_IMAGE="${API_REPOSITORY}:${RELEASE_SHA}"
+          NEW_WEB_IMAGE="${WEB_REPOSITORY}:${RELEASE_SHA}"
+
+          OLD_API_IMAGE="$(
+            grep '^CERA_API_IMAGE=' .env |
+              cut -d= -f2-
+          )"
+
+          OLD_WEB_IMAGE="$(
+            grep '^CERA_WEB_IMAGE=' .env |
+              cut -d= -f2-
+          )"
+
+          echo "Current API image: ${OLD_API_IMAGE}"
+          echo "Current web image: ${OLD_WEB_IMAGE}"
+          echo "Release SHA: ${RELEASE_SHA}"
+
+          echo "Pulling release images..."
+
+          docker pull "${NEW_API_IMAGE}"
+          docker pull "${NEW_WEB_IMAGE}"
+
+          cp .env .env.before-deploy
+
+          sed -i \
+            "s|^CERA_API_IMAGE=.*|CERA_API_IMAGE=${NEW_API_IMAGE}|" \
+            .env
+
+          sed -i \
+            "s|^CERA_WEB_IMAGE=.*|CERA_WEB_IMAGE=${NEW_WEB_IMAGE}|" \
+            .env
+
+          deploy_failed=0
+
+          docker compose \
+            --env-file .env \
+            -f compose.production.yml \
+            config --quiet \
+            || deploy_failed=1
+
+          if [ "$deploy_failed" -eq 0 ]; then
+            docker compose \
+              --env-file .env \
+              -f compose.production.yml \
+              up -d \
+              --wait \
+              --wait-timeout 120 \
+              || deploy_failed=1
+          fi
+
+          if [ "$deploy_failed" -eq 0 ]; then
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1:8080/api/v1/health \
+              >/tmp/cera-health.json \
+              || deploy_failed=1
+          fi
+
+          if [ "$deploy_failed" -ne 0 ]; then
+            echo "Deployment failed. Rolling back."
+
+            mv .env.before-deploy .env
+
+            docker pull "${OLD_API_IMAGE}" || true
+            docker pull "${OLD_WEB_IMAGE}" || true
+
+            docker compose \
+              --env-file .env \
+              -f compose.production.yml \
+              up -d \
+              --wait \
+              --wait-timeout 120
+
+            echo "Rollback completed."
+            exit 1
+          fi
+
+          rm -f .env.before-deploy
+
+          echo "Deployment healthy:"
+          cat /tmp/cera-health.json
+          echo
+
+          docker compose \
+            --env-file .env \
+            -f compose.production.yml \
+            ps
+
+          docker image prune -f
+          REMOTE
