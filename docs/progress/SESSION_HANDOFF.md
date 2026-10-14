@@ -2,214 +2,279 @@
 
 ## 1. Purpose
 
-This file captures the current cross-session handoff state. Current repository/code remains the highest implementation source of truth.
+This file records the latest project state for the next chatbot/development session.
+
+Current handoff date: **2026-10-14**
 
 ---
 
-# 2. Current Handoff Summary
+## 2. Current Project Position
 
-Last completed implementation module:
+The Cera Dental Lab application is **live in production**.
 
-```text
-Module 7 — Security & Cross-Module Hardening
-```
+Current public address:
 
-Next module after source-control closeout:
+`https://16.16.51.55`
 
-```text
-Module 8 — End-to-End Regression Testing
-```
+Completed project boundary:
 
-Development mode remains:
+**Module 9 — Production Deployment**
 
-```text
-Normal chatbot
-Manual VS Code copy/paste workflow
-User runs commands/tests locally
-```
+Current active module:
 
-Do not start Module 8 until Module 7 documentation is committed/pushed and the working tree is verified clean/synced.
+**Module 10 — Final Documentation & Monitoring**
 
 ---
 
-# 3. Functional Boundary
-
-The integrated product now includes the implemented workflow through:
+## 3. Production Topology
 
 ```text
-Authentication / invitations / user administration
-↓
-Clinics and memberships
-↓
-Catalogue
-↓
-Digital Lab Slip
-↓
-Scan Booking and rescheduling
-↓
-Lab Production
-↓
-Private supporting attachments
-↓
-Corrections / issues
-↓
-Notifications and operational UI refinements
-↓
-Module 7 cross-system security hardening
+Internet
+  ↓ HTTPS
+AWS EC2 host Nginx
+  ↓
+127.0.0.1:8080
+  ↓
+Docker web/Nginx container
+  ↓ /api/*
+Docker API container :4000
+  ↓
+MongoDB Atlas
+Cloudflare R2
 ```
 
-Module 8 is an integrated regression/edge-case pass, not a new business workflow.
+Important boundaries:
+
+- EC2 is the production compute host.
+- MongoDB is not self-hosted on EC2; production uses MongoDB Atlas.
+- Redis is not used by the current production runtime.
+- Cloudflare R2 stores private supporting attachments.
+- The API's port `4000` is not published to the EC2 host.
+- Docker web is bound to `127.0.0.1:8080`, so it is not directly public.
+- Host Nginx is the public entry point.
+- HTTP redirects to HTTPS.
+- The current IP-address HTTPS certificate is managed through Certbot. Renewal/reload configuration should be verified as part of Module 10 operational checks.
 
 ---
 
-# 4. Module 7 — Completed Hardening
+## 4. Production Environment
 
-Module 7 completed these verified areas:
+Production API environment file on EC2:
 
-- disabled-user access/session invalidation via `authVersion`
-- refresh-session revocation on disable
-- dedicated invitation-token secret
-- temporary legacy invitation-hash migration fallback
-- invitation preview/accept rate limiting
-- resource-authorization/data-exposure review across Clinics, Catalogue, Lab Slips, Scan Bookings, Production, Corrections, and attachments
-- Scanning Staff stale-access removal
-- atomic Production and Correction transitions
-- private-upload preflight authorization and state checks before buffering
-- attachment type/signature validation, private storage, short-lived signed access, uploader-only deletion where applicable
-- concurrent max-attachment enforcement via database capacity slots
-- exact credentialed CORS
-- Origin-based CSRF protection for unsafe browser requests
-- security-header/input-size review
-- production-safe logging/error/lifecycle metadata
-- query-string/patient-data privacy logging hardening
-- dependency audit and removal of vulnerable dev-only nodemon dependency chain
-- centralized R2/environment validation
-- secrets/tracked-file audit
-- Clinic/Catalogue authorization regression tests
+`/opt/cera/deploy/api.production.env`
 
----
+Production Compose environment file:
 
-# 5. Module 7 — Security Decisions
+`/opt/cera/.env`
 
-## Disabled users
+Important rules:
 
-Disabling an operational user must invalidate existing access behavior immediately and revoke refresh sessions. Access tokens carry `authVersion`; authentication compares the token version to the current user record.
+- Never commit the real production environment file.
+- Do not paste production secrets into chat.
+- `NODE_ENV=production`.
+- `PORT=4000`.
+- `CLIENT_URL` must match the public HTTPS origin.
+- Atlas/R2/auth secrets remain only in the production environment.
 
-## Invitations
+Current public origin:
 
-Invitation token hashing uses `INVITATION_TOKEN_SECRET`, distinct from `REFRESH_TOKEN_SECRET`.
+`https://16.16.51.55`
 
-A temporary legacy verification fallback may accept hashes derived from the old refresh secret during migration. Remove that compatibility only after at least the maximum old invitation lifetime has elapsed after rollout (current maximum: 168 hours / 7 days).
-
-## Browser CSRF
-
-V1 authenticated operational browser traffic comes only from the Cera React frontend. Unsafe methods require the request `Origin` to exactly match the configured `CLIENT_URL` origin.
-
-Future provider/webhook routes must use provider-specific signature/authentication and explicit CSRF bypass only where appropriate.
-
-## Attachments
-
-Attachment count limits are enforced under concurrency with database capacity slots and unique compound indexes. Legacy slotless attachment records remain valid and still consume capacity.
-
-## Production deployment
-
-Do not blindly configure Express `trust proxy`. Final HTTPS, reverse-proxy topology, `Secure` cookie behavior, and SameSite review belong to Module 9.
+When a real domain is adopted, update `CLIENT_URL` and TLS/reverse-proxy configuration to that domain.
 
 ---
 
-# 6. Intentional Deferrals
+## 5. Containers and Registry
+
+Production images are published to GHCR:
+
+- `ghcr.io/shamilalicholayil/cera-dental-lab-api`
+- `ghcr.io/shamilalicholayil/cera-dental-lab-web`
+
+Production releases use exact commit-SHA tags.
+
+`latest` may also be published, but the deployed release should be pinned to the release SHA for traceability and rollback.
+
+Production Compose file:
+
+`/opt/cera/compose.production.yml`
+
+---
+
+## 6. CI/CD
+
+Current release flow:
 
 ```text
-Cera Admin MFA
-→ deferred until required
-
-Final HTTPS / reverse proxy trust / cookie topology
-→ Module 9
+push to master
+↓
+Production Compose Check
+↓ success
+Publish Production Images
+↓
+GHCR SHA-tagged API/web images
+↓
+SSH deployment to EC2
+↓
+docker compose pull/up
+↓
+health verification
+↓
+success OR rollback
 ```
 
-These are not Module 7 completion blockers.
+Security characteristics:
+
+- GitHub Actions uses the configured EC2 SSH private key.
+- EC2 SSH host identity is pinned.
+- Do not disable SSH host-key checking.
+- The workflow deploys only after the production gate succeeds.
+- Deployment health is checked through the actual Nginx → API path.
+- Failed deployments restore previous image references and restart the previous release.
 
 ---
 
-# 7. Verification Completed
+## 7. Verification Completed
 
-At the final Module 7 checkpoint the user reported:
-
-```text
-npm run test                PASS
-npm run lint                PASS
-npm run build:web           PASS
-npm audit --workspaces      PASS / 0 vulnerabilities
-```
-
-Final review also reported:
+The deployment gate included:
 
 ```text
-git diff --check            clean
-tracked secret scan         no matches
-added console.log/debugger  no matches
+npm run test:api
+npm run test:web
+npm run lint:web
+npm run lint:api
+npm run build:web
+npm run test:e2e
 ```
 
-Do not claim these commands were run by the assistant; they were run and reported by the user.
+The user reported all of these passing before deployment.
+
+Production container/image/Compose CI checks also passed.
+
+The live deployment was verified healthy through:
+
+`/api/v1/health`
+
+with MongoDB reporting connected/ready.
 
 ---
 
-# 8. Current Source-Control Boundary
+## 8. Reverse Proxy / Trust Boundary
 
-Module 7 implementation changes and documentation updates must be committed together before moving to Module 8.
+There are two Nginx layers:
 
-After commit/push verify:
+1. host Nginx on EC2 — public HTTP/HTTPS entry point
+2. Docker web/Nginx — serves React and proxies `/api/*` to the API container
+
+The API enables Express `trust proxy` in production for the controlled proxy path.
+
+Forwarded client/protocol headers must be preserved across the Docker Nginx layer so rate limiting, secure-origin behavior, and logging see the intended client/protocol information.
+
+---
+
+## 9. Authentication Production Notes
+
+Current architecture remains:
+
+- access JWT: 15 minutes
+- rotating opaque refresh token: 10 days
+- HttpOnly cookies
+- Secure cookies in production
+- SameSite=Lax
+- Argon2id password hashing
+- backend authorization is the security boundary
+- CSRF origin checking for unsafe requests
+
+Because production cookies are Secure, public production must remain HTTPS.
+
+---
+
+## 10. Production Admin
+
+The first/required production admin is created using the existing workspace command inside the running API container:
 
 ```bash
-git status
-git log -1 --oneline
-git status -sb
+cd /opt/cera
+
+docker compose \
+  --env-file .env \
+  -f compose.production.yml \
+  exec api npm run create:admin
 ```
 
-Expected handoff condition:
-
-```text
-working tree clean
-branch synchronized with remote
-```
+Do not store an admin password in documentation or Git.
 
 ---
 
-# 9. Module 8 — Next Scope
+## 11. Current Storage Boundaries
 
-Module 8 is **End-to-End Regression & Edge-Case Testing**.
+MongoDB Atlas:
 
-It should validate complete journeys for:
+- application data
+- production database is external to EC2
 
-- Doctor
-- Clinic Staff
-- Cera Admin
-- Cera Staff
-- Scanning Staff
+Cloudflare R2:
 
-Coverage should include:
+- private supporting attachments
+- application uses S3-compatible API
 
-- authentication/session behavior
-- role isolation/resource authorization
-- disabled users/resources
-- Clinics/memberships
-- Catalogue selection visibility
-- Lab Slip creation/editing/search/detail
-- Scan Booking lifecycle/rescheduling/assignment/completion
-- Production transitions and visibility
-- private attachments
-- Corrections
-- notifications
-- responsive, loading, empty, failure, and edge-case behavior
-
-Module 8 should find integration regressions; do not invent new business workflows merely to expand test coverage.
+Raw intraoral scan files remain outside ordinary website attachment storage/integration.
 
 ---
 
-# 10. Handoff State
+## 12. Current Public-Network Boundary
+
+Intended public ports:
+
+- `80` — HTTP redirect / ACME challenge
+- `443` — HTTPS application traffic
+- `22` — SSH only as required by the chosen deployment/administration model and security-group policy
+
+Must not be publicly exposed:
+
+- API `4000`
+- Docker web `8080`
+- MongoDB `27017`
+
+---
+
+## 13. Remaining Module 10 Work
+
+Still to finish:
+
+1. confirm/document MongoDB Atlas backup and restore behavior for the actual Atlas tier
+2. define R2 retention/backup/recovery expectations
+3. select uptime monitoring
+4. select application error monitoring if desired
+5. decide log retention/centralization requirements
+6. write final troubleshooting/runbook instructions
+7. record final production QA
+8. document domain migration when a domain is selected
+
+The final domain is not yet selected. The IP-based HTTPS launch is intentionally temporary.
+
+---
+
+## 14. Development Rules That Still Apply
+
+- Do not assume missing business rules.
+- Inspect current repository/code before implementation changes.
+- Keep route definitions outside `App.jsx`.
+- Use Redux Toolkit only for appropriate app-wide state.
+- Keep local UI/form state local where practical.
+- Test normal flows, permissions, validation, failures, and edge cases.
+- Keep UI/UX, security, cleanup, logging, and error handling continuous.
+- After a completed development module/change with passing checks, commit and push before starting unrelated work.
+- Never commit production secrets.
+
+---
+
+## 15. Next Session Start
+
+Start from:
 
 ```text
-MODULE 7 IMPLEMENTATION + VERIFICATION COMPLETE
-DOCUMENTATION/SOURCE-CONTROL CLOSEOUT IN PROGRESS
-NEXT: MODULE 8 AFTER CLEAN PUSH
+Module 10 — Final Documentation & Monitoring
 ```
+
+Do not return to Module 4D discovery. The application has already progressed through production deployment and is live.

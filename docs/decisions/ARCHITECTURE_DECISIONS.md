@@ -1250,113 +1250,95 @@ It reduces repeated questioning without weakening the project's no-assumption ru
 
 ---
 
-# ADR-052 — Disabled Users Invalidate Existing Sessions Immediately
+# ADR-052 — Production Runs on AWS EC2 with Docker Compose
 
 Status: **ACCEPTED**
 
-## Context
-
-Checking user status only during refresh allows a previously issued access token to remain usable until it expires after an account is disabled.
-
 ## Decision
 
-Operational users carry an `authVersion`. Access tokens include the version, and authentication compares it to the current user record.
-
-Disabling a user increments `authVersion` and revokes that user's refresh-session records.
-
-## Reason
-
-Disabling an operational account is a security action and should take effect immediately rather than waiting for access-token expiry.
+Use AWS EC2 as the production compute host. Run the web and API as Docker Compose services. Use host Nginx as the public HTTP/HTTPS reverse proxy while keeping Docker web bound to `127.0.0.1:8080` and the API port private to the Docker network.
 
 ## Consequence
 
-- old access tokens stop authenticating after the account version changes
-- refresh sessions are revoked on disable
-- re-enabling a user does not make old tokens valid again
+- Do not publish API port `4000` on the EC2 host.
+- Do not expose Docker web `8080` publicly.
+- Host Nginx is the public ingress/TLS boundary.
 
 ---
 
-# ADR-053 — Invitation Tokens Use a Dedicated Secret
+# ADR-053 — Production MongoDB Uses MongoDB Atlas
 
 Status: **ACCEPTED**
 
-## Context
-
-Invitation token hashing previously depended on refresh-token secret material, coupling two separate security domains.
-
 ## Decision
 
-Invitation hashing uses `INVITATION_TOKEN_SECRET`, which must be configured separately and must differ from `REFRESH_TOKEN_SECRET`.
-
-A temporary legacy verification fallback is permitted only for already-issued invitations during migration.
-
-## Reason
-
-Separating secrets reduces cross-feature coupling and limits the blast radius of secret rotation or exposure.
+Use MongoDB Atlas for the production database rather than self-hosting MongoDB in the EC2 Compose stack.
 
 ## Consequence
 
-- production configuration must provide a dedicated invitation secret
-- environment validation rejects reuse of the refresh-token secret
-- legacy compatibility must be removed after the maximum old invitation lifetime has elapsed after rollout
+- No production MongoDB container is required.
+- Database network access and backup/recovery must be managed through Atlas configuration/tier capabilities.
 
 ---
 
-# ADR-054 — V1 Browser CSRF Protection Uses Exact Trusted Origin Validation
+# ADR-054 — Cloudflare R2 Is the Production Private Attachment Store
 
 Status: **ACCEPTED**
 
-## Context
-
-The operational browser API uses credentialed HttpOnly cookies, so unsafe cross-origin browser requests require CSRF protection.
-
-The V1 authenticated browser client is the Cera React frontend only.
-
 ## Decision
 
-For unsafe HTTP methods, require a valid `Origin` header whose normalized origin exactly matches the configured `CLIENT_URL` origin.
-
-Safe methods (`GET`, `HEAD`, `OPTIONS`) pass without this check.
-
-Future webhook/provider routes must use provider-specific authentication/signatures and an explicit scoped bypass where necessary.
-
-## Reason
-
-The single trusted browser-origin model provides a simple, explicit CSRF boundary without introducing a second token protocol for V1.
+Use Cloudflare R2 for private supporting attachments through its S3-compatible API.
 
 ## Consequence
 
-- missing, malformed, `null`, lookalike, or untrusted origins are rejected on unsafe browser requests
-- CORS remains an exact credentialed allowlist
-- deployment must keep `CLIENT_URL` accurate
-- future non-browser integrations must not silently inherit this browser assumption
+- R2 credentials/bucket configuration are production secrets.
+- Raw intraoral scan files remain outside ordinary website attachment handling.
 
 ---
 
-# ADR-055 — Attachment Capacity Is Enforced Atomically in MongoDB
+# ADR-055 — Redis Is Not Part of the Current Production Runtime
 
 Status: **ACCEPTED**
 
-## Context
-
-A simple `count -> upload -> insert` flow can exceed the maximum attachment count when simultaneous uploads observe the same pre-insert count.
-
 ## Decision
 
-New attachment records reserve an internal `capacitySlot`. A partial unique compound index on the parent resource ID plus `capacitySlot` makes MongoDB the final concurrency arbiter.
-
-Existing legacy attachment records without a slot remain valid and still consume capacity.
-
-## Reason
-
-This prevents count-limit races without requiring a distributed lock or a MongoDB transaction around external object-storage operations.
+Do not deploy Redis for the current application because the implemented runtime has no Redis dependency.
 
 ## Consequence
 
-- concurrent requests cannot persist more than the configured attachment maximum
-- a losing request recalculates capacity and fails with the existing attachment-limit error when full
-- any already-uploaded object from the losing request is cleaned up
-- `capacitySlot` remains internal and is not part of the public API contract
+Any future Redis adoption requires a concrete feature need and a fresh architecture/security decision.
+
+---
+
+# ADR-056 — Production Releases Use GHCR Commit-SHA Images and Automatic SSH Deployment
+
+Status: **ACCEPTED**
+
+## Decision
+
+GitHub Actions publishes API/web images to GHCR and deploys exact commit-SHA image tags to EC2 over SSH after the production integration gate succeeds. The deployment verifies health and rolls back to the previous image references on failure.
+
+## Consequence
+
+- Release identity is tied to a Git commit.
+- Do not deploy only an unpinned `latest` reference.
+- Do not disable SSH host-key verification; the EC2 host identity is pinned.
+
+---
+
+# ADR-057 — Temporary Production Launch Uses HTTPS on the EC2 Public IP
+
+Status: **ACCEPTED — TEMPORARY**
+
+## Decision
+
+Until the final Cera domain is selected, expose production at `https://16.16.51.55` using host Nginx and a trusted IP-address TLS certificate.
+
+## Consequence
+
+- `CLIENT_URL` must match the current HTTPS IP origin.
+- Secure cookies remain enabled.
+- When a domain is selected, migrate DNS/TLS/origin configuration without changing the internal Docker/Atlas/R2 architecture.
 
 ---
 
@@ -1409,26 +1391,21 @@ This preserves project history.
 
 # 5. Current Decision Boundary
 
-The implemented architecture/decision boundary now extends through:
+The architecture is locked through the current production deployment, including:
 
 ```text
 Foundation
-Authentication
-Authorization
-Users
-Clinics
-Catalogue
-Digital Lab Slip
-Scan Booking / Rescheduling
-Lab Production
-Private Attachments
-Corrections
-Notifications / operational refinements
-Module 7 Security & Cross-Module Hardening
+Authentication / Authorization
+Clinics / Catalogue
+Digital Lab Slip / Scan workflows
+Production / Attachments / Corrections
+Security hardening / regression gate
+AWS EC2 production hosting
+Docker Compose runtime
+MongoDB Atlas
+Cloudflare R2
+GHCR + GitHub Actions deployment
+Public HTTPS reverse proxy
 ```
 
-The next project phase is:
-
-**Module 8 — End-to-End Regression Testing**
-
-Module 8 should validate the integrated system without inventing new business architecture. Production topology decisions remain deferred to Module 9.
+The current open architecture/operations area is Module 10 monitoring, recovery/runbook completion, and the later domain cutover.

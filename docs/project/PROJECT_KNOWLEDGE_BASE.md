@@ -99,17 +99,15 @@ Status: **CONFIRMED**
 
 ---
 
-## KB-007 — What supporting attachment types are planned?
+## KB-007 — What supporting attachment types are supported?
 
-Status: **CONFIRMED**
+**Status:** CONFIRMED
 
-**Canonical answer:** Private supporting attachments are planned for JPEG, PNG, WEBP, and PDF. Ownership, permissions, deletion, limits, and storage provider remain deferred to Module 4E.
+**Canonical answer:** Private supporting attachments are implemented for the normal JPEG, PNG, WEBP, and PDF boundary, with a 10 MiB application limit and private Cloudflare R2 production storage. Large raw intraoral scan files remain outside the normal attachment workflow.
 
-**Keywords:** attachments, JPEG, PNG, WEBP, PDF
+**Keywords:** attachments, JPEG, PNG, WEBP, PDF, R2, 10 MiB
 
-**Source docs:** REQUIREMENTS.md; OPEN_QUESTIONS.md
-
----
+**Source docs:** REQUIREMENTS.md; SYSTEM_DESIGN.md; SESSION_HANDOFF.md
 
 ## KB-008 — Is the user using a coding agent?
 
@@ -953,13 +951,15 @@ Status: **CONFIRMED**
 
 ## KB-078 — Are CSRF protection and Admin MFA complete?
 
-Status: **CONFIRMED**
+Status: **DEFERRED**
 
-**Canonical answer:** V1 browser CSRF protection is implemented using exact trusted-Origin validation for unsafe methods. Cera Admin MFA is intentionally deferred until required and does not block Module 7 completion.
+**Canonical answer:** No. They are future hardening concerns. Do not claim they exist or interrupt unrelated modules to implement them unless scope changes.
 
-**Keywords:** CSRF, Origin, MFA, security hardening
+**Keywords:** CSRF, MFA, hardening
 
-**Source docs:** SECURITY_DESIGN.md; ARCHITECTURE_DECISIONS.md; OPEN_QUESTIONS.md
+**Source docs:** OPEN_QUESTIONS.md; MODULE_STATUS.md
+
+---
 
 ## KB-079 — What is the Doctor UI priority?
 
@@ -1107,23 +1107,23 @@ Status: **REPOSITORY-DERIVED**
 
 ## KB-091 — What modules are complete?
 
-Status: **CONFIRMED**
+**Status:** CONFIRMED
 
-**Canonical answer:** Implementation is complete through Module 7 — Security & Cross-Module Hardening. Module 8 is next after Module 7 documentation is committed/pushed and the working tree is verified clean.
+**Canonical answer:** The project has progressed through Module 9 — Production Deployment. Module 7 security hardening, Module 8 regression testing, and Module 9 deployment are complete. The application is live on the temporary HTTPS public IP.
 
-**Keywords:** completed modules, current status, Module 7
+**Keywords:** modules complete, current status, deployed, live
 
-**Source docs:** MODULE_STATUS.md; SESSION_HANDOFF.md
+**Sources:** `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-092 — What is the next planned module?
 
-Status: **CONFIRMED**
+**Status:** CONFIRMED
 
-**Canonical answer:** Module 8 — End-to-End Regression Testing. It should validate integrated role journeys and edge cases rather than introduce new business workflows.
+**Canonical answer:** Module 10 — Final Documentation & Monitoring.
 
-**Keywords:** next module, Module 8, regression
+**Keywords:** next module, current module, monitoring, documentation
 
-**Source docs:** MODULE_PLAN.md; MODULE_STATUS.md; SESSION_HANDOFF.md
+**Sources:** `MODULE_PLAN.md`, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-093 — What comes after Module 4D?
 
@@ -1139,181 +1139,153 @@ Status: **CONFIRMED**
 
 ## KB-094 — Is the Module 4D production state machine defined?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** No. Do not invent states such as IN_PRODUCTION, QUALITY_CHECK, or READY. Resolve from Cera's real workflow.
+**Canonical answer:** Yes in the current repository. Module 4D is no longer an open design phase. For exact statuses/transitions, inspect the current production module/shared constants and the latest module documentation rather than using the historical pre-4D assumptions in older text.
 
 **Keywords:** 4D, production statuses, state machine
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-095 — Is production readiness defined?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** No. Module 4D must decide readiness for scan-required and non-scan cases, whether completed scan is mandatory, and whether Cera can override.
+**Canonical answer:** Yes in the implemented production workflow. Retrieve the current production service/validation/shared constants for the exact readiness conditions; do not infer them from historical pre-implementation notes.
 
 **Keywords:** production ready, scan completed
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-096 — Who may start/change production status?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Do not assume Cera Staff/Admin have identical production-transition rights and do not invent a technician role.
+**Canonical answer:** The current repository enforces the implemented production permissions. Inspect current production routes/service authorization for the exact role/transition matrix; do not reuse the historical open-question wording.
 
 **Keywords:** production permission, Cera Staff, Admin
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-097 — When does Lab Slip editing lock?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Current pre-production edits are allowed. Module 4D must define the lock point and any controlled exception.
+**Canonical answer:** The current repository contains the implemented edit-lock behavior. Inspect current Lab Slip/production services for the exact lock point before changing it.
 
 **Keywords:** edit lock, production start
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-098 — Should production history be retained?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Module 4D must decide whether transitions retain old/new state, actor, timestamp, and reason.
+**Canonical answer:** Production history behavior is implemented. Treat the current production model/service as authoritative for the exact retained transition/audit data.
 
 **Keywords:** production history, audit
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-099 — What production status should Doctor/Clinic users see?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Do not automatically expose every internal lab state. Module 4D must define external visibility.
+**Canonical answer:** Doctor/Clinic production visibility is implemented in the current product. Inspect the current serializers/API/UI for the exact public-facing status mapping before changing it.
 
 **Keywords:** Doctor production status, Clinic visibility
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-100 — What does production 'completed' mean?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. It could mean fabrication complete, quality check complete, ready for pickup/dispatch, or another Cera milestone. Do not tie it to logistics without approval.
+**Canonical answer:** Completion semantics are implemented in the current production workflow. Retrieve the current production service/state machine for the exact rule.
 
-**Keywords:** completed, fabrication, quality check
+**Keywords:** production completed, completion semantics
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-101 — Is a production assignee required?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Do not add technician/user/team assignment until the real workflow confirms ownership.
+**Canonical answer:** This is no longer an unanswered design question. Use the current production model/API as the source of truth for whether assignment exists and how it behaves.
 
 **Keywords:** production assignee, technician
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-102 — Should production live on LabSlip or a separate model?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet decided. Make this architecture choice only after the production lifecycle is understood. Do not create a production module/model prematurely.
+**Canonical answer:** The persistence choice is already implemented. Inspect the current repository production module/model and database design before making changes; do not redesign from the historical pre-implementation question.
 
-**Keywords:** Production model, LabSlip, database
+**Keywords:** production model, LabSlip, persistence
 
-**Source docs:** OPEN_QUESTIONS.md; FOLDER_STRUCTURE.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-103 — Can completed production reopen?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Align this later with historical integrity and the correction workflow.
+**Canonical answer:** The current transition rules are implemented. Retrieve them from the production service/shared state definitions rather than assuming either reopening or terminal completion.
 
 **Keywords:** reopen, completed production
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-104 — Are production transition notes/reasons required?
 
-Status: **OPEN**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** Not yet confirmed. Do not require notes for every transition unless Cera's workflow needs them.
+**Canonical answer:** The current request validation/service behavior is authoritative for transition notes/reasons. This is no longer an open pre-implementation decision.
 
 **Keywords:** production reason, transition note
 
-**Source docs:** OPEN_QUESTIONS.md
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
----
+## KB-105 — Are attachment ownership/deletion/storage-provider rules decided?
 
-## KB-105 — What are the current private-attachment security rules?
+**Status:** REPOSITORY-DERIVED
 
-Status: **CONFIRMED**
+**Canonical answer:** Yes. Private supporting attachments are implemented, and Cloudflare R2 is the production storage provider. Retrieve current attachment authorization/service rules for exact ownership/deletion behavior.
 
-**Canonical answer:** Supporting attachments are private JPEG/PNG/WEBP/PDF files with size/type/signature validation, resource/state authorization, short-lived signed access, object-key hiding, and uploader-only deletion where applicable. Maximum attachment count is enforced under concurrency with internal database capacity slots. Large raw intraoral scan files remain excluded.
+**Keywords:** attachments, R2, ownership, delete
 
-**Keywords:** attachments, private upload, R2, capacity slot, signed URL
-
-**Source docs:** SECURITY_DESIGN.md; DATABASE_DESIGN.md; ARCHITECTURE_DECISIONS.md
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-106 — Are correction statuses/rescan/reproduction rules decided?
 
-Status: **DEFERRED**
+**Status:** REPOSITORY-DERIVED
 
-**Canonical answer:** No. They belong to Module 4F. Confirmed principle only: the original completed case remains historically intact.
+**Canonical answer:** The corrections/issues workflow is implemented in the current repository. Retrieve current correction constants/services/UI for exact statuses and rescan/reproduction behavior.
 
 **Keywords:** 4F, correction, rescan, reproduction
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-107 — Are notification event/recipient/template rules decided?
 
-Status: **DEFERRED**
+**Status:** REPOSITORY-DERIVED / DEFERRED WHERE NOT IMPLEMENTED
 
-**Canonical answer:** No. They belong to Module 5. Do not ask during Module 4D unless scope changes.
+**Canonical answer:** Do not infer notification behavior from the old Module 4D timeline. Inspect the current repository first to determine what in-app notification behavior exists. WhatsApp remains the preferred external operational channel, but provider/event/template behavior must not be invented where it is not implemented or explicitly approved.
 
-**Keywords:** Module 5, notifications, WhatsApp
+**Keywords:** notifications, WhatsApp, in-app, templates, recipients
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** current repository; REQUIREMENTS.md; OPEN_QUESTIONS.md
 
 ## KB-108 — Is the production hosting provider decided?
 
-Status: **DEFERRED**
+**Status:** CONFIRMED
 
-**Canonical answer:** No. Do not assume AWS, Oracle, or another provider. Deployment topology belongs to Module 9.
+**Canonical answer:** Yes. Production runs on AWS EC2. Host Nginx is the public HTTPS reverse proxy; Docker Compose runs the web and API containers; MongoDB Atlas is the production database; Cloudflare R2 is private attachment storage; Redis is not used by the current runtime. The temporary public address is `https://16.16.51.55`.
 
-**Keywords:** hosting, AWS, Oracle, deployment
+**Keywords:** hosting, AWS, EC2, deployment, Atlas, R2, Redis, HTTPS
 
-**Source docs:** OPEN_QUESTIONS.md
-
----
+**Sources:** `SYSTEM_DESIGN.md`, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ## KB-109 — Where should the chatbot look for project purpose and requirements?
 
@@ -1411,39 +1383,99 @@ Status: **CONFIRMED**
 
 ---
 
-## KB-117 — What happens to sessions when a user is disabled?
+## KB-117 — How is production deployed?
 
-Status: **CONFIRMED**
+**Status:** CONFIRMED
 
-**Canonical answer:** Disabling an operational user increments `authVersion` and revokes refresh-session records. Existing access tokens with the old version stop authenticating; re-enabling the user does not restore those old tokens.
+**Canonical answer:** GitHub Actions publishes API/web images to GHCR and automatically deploys exact commit-SHA tags to AWS EC2 over SSH after the production Compose gate succeeds. Deployment waits for health checks and rolls back image references on failure.
 
-**Keywords:** disable user, authVersion, revoke sessions
+**Keywords:** CI/CD, GitHub Actions, GHCR, SSH, deploy, rollback
 
-**Source docs:** SECURITY_DESIGN.md; ARCHITECTURE_DECISIONS.md
-
----
-
-## KB-118 — Which secret hashes invitation tokens?
-
-Status: **CONFIRMED**
-
-**Canonical answer:** `INVITATION_TOKEN_SECRET`, which must differ from `REFRESH_TOKEN_SECRET`. A temporary legacy hash fallback may remain only for the migration window and should be removed after at least the maximum old invitation lifetime (168 hours / 7 days) after rollout.
-
-**Keywords:** invitation secret, token hash, migration
-
-**Source docs:** SECURITY_DESIGN.md; ARCHITECTURE_DECISIONS.md
+**Sources:** `SESSION_HANDOFF.md`, `MODULE_STATUS.md`
 
 ---
 
-## KB-119 — How is the attachment count race prevented?
+## KB-118 — Is the API publicly exposed on port 4000?
 
-Status: **CONFIRMED**
+**Status:** CONFIRMED
 
-**Canonical answer:** New attachments reserve an internal `capacitySlot`, and MongoDB enforces a partial unique compound index on parent ID + slot. Concurrent losers recalculate/fail at the configured limit, and any losing uploaded object is cleaned up. Legacy slotless records remain valid and consume capacity.
+**Canonical answer:** No. The API container exposes `4000` only on the internal Docker network. Public traffic reaches host Nginx, then Docker web/Nginx, then the API.
 
-**Keywords:** attachment race, capacitySlot, concurrency, unique index
+**Keywords:** port 4000, public API, firewall, Docker network
 
-**Source docs:** DATABASE_DESIGN.md; ARCHITECTURE_DECISIONS.md
+**Sources:** `SYSTEM_DESIGN.md`, `SECURITY_DESIGN.md`, `SESSION_HANDOFF.md`
+
+---
+
+## KB-119 — What is the current production URL?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** `https://16.16.51.55`. It is a temporary IP-based launch URL until a real domain is selected.
+
+**Keywords:** production URL, live site, IP, domain
+
+**Sources:** `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
+
+---
+
+## KB-120 — Does production currently use Redis?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** No. Redis is not part of the current production runtime and should not be added without a concrete requirement.
+
+**Keywords:** Redis, production runtime, cache, sessions
+
+**Sources:** `SYSTEM_DESIGN.md`, `SESSION_HANDOFF.md`
+
+---
+
+## KB-121 — Where are production attachments stored?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** Private supporting attachments use Cloudflare R2 through its S3-compatible API. Large raw intraoral scan files remain outside ordinary website attachment storage.
+
+**Keywords:** R2, attachments, object storage, scan files
+
+**Sources:** `PROJECT_OVERVIEW.md`, `SYSTEM_DESIGN.md`, `SESSION_HANDOFF.md`
+
+---
+
+## KB-122 — Where does production MongoDB run?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** MongoDB Atlas. MongoDB is not self-hosted in the production EC2 Compose stack.
+
+**Keywords:** MongoDB, Atlas, database, EC2
+
+**Sources:** `SYSTEM_DESIGN.md`, `SESSION_HANDOFF.md`
+
+---
+
+## KB-123 — How is the first production admin created?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** Run the repository's existing `create:admin` workspace script inside the running production API container. Never store the admin password in documentation or Git.
+
+**Keywords:** admin seed, create admin, production admin
+
+**Sources:** `SESSION_HANDOFF.md`
+
+---
+
+## KB-124 — What remains after production deployment?
+
+**Status:** CONFIRMED
+
+**Canonical answer:** Module 10: final documentation, monitoring/error visibility, backup/recovery confirmation, troubleshooting/runbook work, final production QA, and later domain cutover.
+
+**Keywords:** after deployment, module 10, monitoring, backup, domain
+
+**Sources:** `MODULE_PLAN.md`, `MODULE_STATUS.md`, `SESSION_HANDOFF.md`
 
 ---
 

@@ -46,19 +46,23 @@ DEFERRED
 
 # 3. Current Project Position
 
-Current completed implementation boundary:
+Current completed boundary:
 
 ```text
-Module 7 — Security & Cross-Module Hardening
+Module 9 — Production Deployment
 ```
 
-Next planned module:
+Current active module:
 
 ```text
-Module 8 — End-to-End Regression Testing
+Module 10 — Final Documentation & Monitoring
 ```
 
-Module 7 implementation and repository-wide verification are complete. Documentation/source-control closeout is the final checkpoint before Module 8 begins.
+Production is live at:
+
+`https://16.16.51.55`
+
+The final production domain remains deferred; the current IP-based HTTPS launch is intentional.
 
 # 4. Module Summary
 
@@ -79,17 +83,17 @@ Module 7 implementation and repository-wide verification are complete. Documenta
 | 4D | Lab Production Workflow | COMPLETE |
 | 4E | Private Attachments | COMPLETE |
 | 4F | Corrections / Issues | COMPLETE |
-| 5A | In-App Notifications | COMPLETE |
-| 5B | WhatsApp Notifications | COMPLETE |
-| 6A | Doctor Dashboard Refinement | COMPLETE |
-| 6B | Cera Operations Dashboard | COMPLETE |
-| 6C | Scanning Staff Mobile Refinement | COMPLETE |
+| 5A | In-App Notifications | PLANNED / VERIFY CURRENT REPO BEFORE CHANGING |
+| 5B | WhatsApp Notifications | PLANNED |
+| 6A | Doctor Dashboard Refinement | PLANNED / VERIFY CURRENT REPO BEFORE CHANGING |
+| 6B | Cera Operations Dashboard | PLANNED / VERIFY CURRENT REPO BEFORE CHANGING |
+| 6C | Scanning Staff Mobile Refinement | PLANNED / VERIFY CURRENT REPO BEFORE CHANGING |
 | 7 | Security & Cross-Module Hardening | COMPLETE |
-| 8 | End-to-End Regression Testing | NEXT |
-| 9 | Production Deployment | PLANNED |
-| 10 | Final Documentation & Monitoring | PLANNED |
+| 8 | End-to-End Regression Testing | COMPLETE |
+| 9 | Production Deployment | COMPLETE / LIVE |
+| 10 | Final Documentation & Monitoring | IN PROGRESS |
 
----
+Where a module is marked `VERIFY CURRENT REPO`, this documentation does not claim implementation details that were not re-audited during the deployment documentation pass.
 
 # 5. Module 0 — Foundation
 
@@ -608,85 +612,37 @@ Verification completed:
 
 # 17. Module 4D — Lab Production Workflow
 
-Status: **NEXT**
+Status: **COMPLETE — REPOSITORY-DERIVED**
 
-Implementation has **not started**.
+The production workflow is implemented in the current repository.
 
-This module is blocked from coding until production business rules are resolved.
+Important documentation rule:
 
-Required decisions include:
-
-- production statuses
-- production readiness
-- who starts production
-- who changes status
-- allowed transitions
-- backward transitions
-- edit-lock point
-- production history
-- Doctor visibility
-- Clinic Staff visibility
-- meaning of completion
-- whether a production assignee exists
-- whether production belongs directly on LabSlip or a separate entity
-- whether completed production can reopen
-- whether transitions need notes/reasons
-
-See:
-
-```text
-docs/decisions/OPEN_QUESTIONS.md
-```
-
-No production state machine should be invented before those decisions are approved.
-
----
+- do not use the historical pre-Module-4D open questions as current behavior
+- inspect the current production module, shared constants, validators, serializers, and tests for the exact state machine, permissions, readiness, edit-lock, visibility, history, and completion semantics
+- changes to production behavior require current-code inspection and a new business decision where behavior would change
 
 # 18. Module 4E — Private Attachments
 
-Status: **PLANNED**
+Status: **COMPLETE**
 
-Confirmed direction:
+Current implementation facts:
 
-- supporting files only
-- private access
-- JPEG
-- PNG
-- WEBP
-- PDF
-- large raw intraoral scan files excluded
-
-Open:
-
-- ownership
-- permissions
-- deletion/retention
-- max size
-- object-storage provider
-- signed access
-- security validation
-
----
+- private supporting attachments are implemented
+- Cloudflare R2 is the production object store
+- storage is accessed through the S3-compatible API
+- normal attachment limit is 10 MiB
+- supported normal attachment direction remains JPEG, PNG, WEBP, and PDF
+- access is authorization-controlled
+- raw intraoral scan files remain outside ordinary website attachment storage
 
 # 19. Module 4F — Corrections / Issues
 
-Status: **PLANNED**
+Status: **COMPLETE — REPOSITORY-DERIVED**
 
-Confirmed principle:
+Corrections/issues are implemented in the current repository.
 
-The original completed case must remain historically intact.
-
-Still open:
-
-- correction statuses
-- who creates/reviews
-- rescan behavior
-- reproduction behavior
-- relationship to Lab Slip
-- relationship to production
-- attachment needs
-
----
+For exact correction statuses, permissions, rescan/reproduction behavior, attachment behavior, and lifecycle transitions, inspect the current correction module/shared constants/tests rather than relying on historical pre-implementation questions.
 
 # 20. Module 5A — In-App Notifications
 
@@ -781,125 +737,77 @@ No direct scanner integration.
 
 Status: **COMPLETE**
 
-Implemented and verified:
+The completed hardening boundary includes the production-oriented authentication/authorization, browser-origin/CSRF, proxy, validation, error/logging, and cross-module review required before the regression/deployment gate.
 
-- immediate disabled-user access/session invalidation through `authVersion`
-- refresh-session revocation when an operational user is disabled
-- dedicated invitation-token secret, distinct from the refresh-token secret
-- temporary legacy invitation-hash compatibility for migration
-- invitation preview/accept rate limiting
-- cross-module role/resource authorization regression hardening
-- Scanning Staff access limited to currently assigned scan work; stale sensitive access removed
-- atomic Production state transitions with stale-state conflict handling
-- atomic Correction state transitions with stale-state conflict handling
-- private attachment authorization/state preflight before multipart buffering
-- JPEG/PNG/WEBP/PDF signature/type validation and private signed access
-- attachment uploader-only deletion rules and terminal-state locking where applicable
-- attachment maximum-count enforcement under concurrent uploads using database capacity slots
-- exact credentialed CORS allowlist behavior for the React client
-- Origin-based CSRF protection for unsafe browser requests
-- Helmet / `x-powered-by` / JSON payload-size review
-- production-safe request, error, and lifecycle logging
-- query-string/patient-data logging exposure reduction
-- dependency audit; vulnerable dev-only `nodemon -> chokidar -> braces` chain removed
-- API development now uses Node's built-in `--watch`
-- centralized secrets/environment validation, including R2 configuration
-- tracked-secret and debug-output review
-- Clinic and Catalogue authorization regression coverage
+The last known security-hardening commit before Module 8 was reported as:
 
-Verification completed at the Module 7 checkpoint:
+`568ecc5 security: complete module 7 hardening`
 
-- full API tests pass
-- full web tests pass
-- API/web lint pass
-- web production build passes
-- `npm audit --workspaces` passes with zero vulnerabilities
-- `git diff --check` clean
-- tracked-secret pattern scan clean
-- added debug-output scan clean
-
-Intentional deferrals:
-
-- Cera Admin MFA remains deferred until required
-- final HTTPS, reverse-proxy trust, secure-cookie/SameSite topology review belongs to Module 9
-
-Security remains continuous after this module; Module 7 is the system-wide hardening checkpoint.
+Future security work may still occur during monitoring/operations, but Module 7 itself is complete.
 
 # 26. Module 8 — End-to-End Regression Testing
 
-Status: **NEXT**
+Status: **COMPLETE**
 
-Will verify:
+Verified before deployment:
 
-- complete Doctor journeys
-- complete Clinic Staff journeys
-- Cera Admin journeys
-- Cera Staff journeys
-- Scanning Staff journeys
-- role isolation
-- state transitions
-- disabled resources
-- auth/session behavior
-- scan flows
-- production
-- corrections
-- attachments
-- notifications
-- responsive/error/edge cases
+- `npm run test:api`
+- `npm run test:web`
+- `npm run lint:web`
+- `npm run lint:api`
+- `npm run build:web`
+- `npm run test:e2e`
+- production API image CI check
+- production web image CI check
+- production Compose integration check
 
----
+The user reported the full regression gate passing before Module 9 continued.
 
 # 27. Module 9 — Production Deployment
 
-Status: **PLANNED**
+Status: **COMPLETE — LIVE**
 
-Deployment architecture/provider is not yet locked.
+Current public address:
 
-Future areas:
+`https://16.16.51.55`
 
-- production environment
-- HTTPS
-- reverse proxy
-- database
-- Redis
-- object storage
-- CI/CD
-- health checks
-- backups
-- rollback
-- secrets
-- production QA
+Verified production state:
 
-Do not assume provider/topology yet.
+- AWS EC2 hosts the production runtime.
+- Host Nginx terminates public HTTP/HTTPS and proxies to the Docker web listener.
+- Docker web is bound to `127.0.0.1:8080` only.
+- Docker API exposes port `4000` only to the internal Docker network; it is not published on the EC2 host.
+- MongoDB Atlas is the production database.
+- Cloudflare R2 is the private supporting-attachment store.
+- Redis is not used by the current production application.
+- GitHub Actions publishes API/web images to GHCR.
+- Production releases use exact commit-SHA image tags.
+- GitHub Actions automatically deploys to EC2 over SSH after the production gate succeeds.
+- EC2 SSH host identity is pinned in the workflow.
+- Deployment waits for container health and checks `/api/v1/health` through the web/Nginx path.
+- Failed releases restore the previous image references and bring the previous Compose deployment back up.
+- HTTPS is live on the public IP and HTTP redirects to HTTPS.
+- Production `CLIENT_URL` uses the public HTTPS origin.
+- Admin seeding uses the existing `create:admin` script inside the production API container.
 
----
+Deferred deployment item:
+
+- replace the temporary IP URL with the final Cera domain when the domain is selected.
 
 # 28. Module 10 — Final Documentation & Monitoring
 
-Status: **PLANNED**
+Status: **IN PROGRESS**
 
-Future documentation:
+Current work:
 
-- deployment guide
-- environment setup
-- user/admin guides
-- operations guide
-- troubleshooting
-- recovery/runbook
+- reconcile project documentation with the live production architecture
+- produce/maintain production runbook information
+- confirm backup/recovery behavior
+- select and configure monitoring/error visibility
+- record troubleshooting and rollback procedures
+- document later domain cutover
 
-Future monitoring:
-
-- uptime
-- application errors
-- logs
-- database health
-- infrastructure
-- notification failures
-- storage failures
-
-Monitoring stack is not yet chosen.
-
----
+Monitoring vendor/tooling is not yet locked.
 
 # 29. Current Architectural Locks
 
@@ -938,67 +846,80 @@ Do not casually reopen these:
 ✓ manual copy/paste development
 ✓ no-assumption policy
 ✓ commit/push before next module
+✓ AWS EC2 production host
+✓ Docker Compose production runtime
+✓ MongoDB Atlas production database
+✓ Cloudflare R2 private attachments
+✓ no Redis in current production runtime
+✓ GHCR production images
+✓ GitHub Actions automatic SSH deployment
+✓ commit-SHA production releases
+✓ health-checked rollback-capable deploys
+✓ API port 4000 not publicly published
+✓ Docker web bound to 127.0.0.1:8080 behind host Nginx
+✓ HTTPS required for public production access
 ```
 
 ---
 
 # 30. Current Known Technical Debt / Future Hardening
 
-Remaining future considerations after Module 7:
+These are known future considerations, not blockers for already completed modules:
 
-- Cera Admin MFA, intentionally deferred until required
-- final production HTTPS/reverse-proxy trust/cookie topology review in Module 9
-- final production database/network security in Module 9
-- production monitoring/error tracking in Module 10
-
-Resolved during Module 7 and no longer future debt:
-
-- invitation endpoint abuse protection
+- stronger invitation endpoint abuse protection
 - dedicated invitation secret
-- proactive disabled-user session invalidation
-- CSRF strategy for the V1 browser client
-- private upload security review
-- dependency audit
-- secrets/environment audit
-- logging/privacy hardening
+- proactive session revocation on user disable
+- CSRF strategy review
+- admin MFA
+- transaction review for cross-model operations
+- final production database/network security
+- private upload security
+- final monitoring/error tracking
 
-Do not reintroduce resolved hardening items as open work unless a new requirement or deployment topology changes the threat model.
+Do not implement these opportunistically inside unrelated modules without discussion.
+
+---
 
 # 31. Current Repository/Git Boundary
 
-Current implementation boundary:
+Current project boundary:
 
 ```text
-Module 7 — Security & Cross-Module Hardening
+Module 9 — Production Deployment complete and verified live
 ```
 
-At the final Module 7 checkpoint, the user reported the full test/lint/build/audit gates passing and the final diff/secret/debug scans clean.
+The production deployment pipeline now publishes and deploys exact commit-SHA container images.
 
-Module 7 source changes are not considered fully closed until the documentation changes are committed and pushed.
-
-A fresh session must still verify dynamic repository state with:
+A fresh session should still verify repository state before code changes:
 
 ```bash
 git status
 git log -1 --oneline
 ```
 
-Do not assume the working tree or remote sync state after this handoff.
+Do not assume a specific current SHA from this document; the deployment pipeline advances it on successful releases.
 
 # 32. Next Session Goal
 
-After Module 7 documentation is committed and pushed, the next development module is:
+The next project session should focus on:
 
 ```text
-Module 8 — End-to-End Regression Testing
+Module 10 — Final Documentation & Monitoring
 ```
 
-Primary purpose:
+Primary goals:
 
 ```text
-validate complete cross-role journeys and edge cases across the integrated product before production deployment
+Finalize documentation
+↓
+Confirm backup/recovery
+↓
+Select/implement monitoring and error visibility
+↓
+Run final production QA
+↓
+Document later domain cutover
 ```
 
-Module 8 should verify Doctor, Clinic Staff, Cera Admin, Cera Staff, and Scanning Staff journeys, role isolation, state transitions, disabled resources, auth/session behavior, scans, production, corrections, attachments, notifications, and responsive/error/edge-case behavior.
+Do not reopen completed deployment decisions unless a production requirement changes.
 
-Do not begin Module 9 deployment work until Module 8 is closed.
