@@ -88,7 +88,7 @@ jobs:
       - name: Prepare SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           set -Eeuo pipefail
 
@@ -97,14 +97,25 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cera-production
           chmod 600 ~/.ssh/cera-production
 
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s %s %s\n' \
+            "$EC2_HOST" \
+            "ssh-ed25519" \
+            "AAAAC3NzaC1lZDI1NTE5AAAAIAroUYhBoYcTme+Av/ovkrOnpo1h1so/lYZnujoZx+j6" \
+            > ~/.ssh/known_hosts
+
           chmod 600 ~/.ssh/known_hosts
 
-          echo "Known-host entry loaded for:"
-          ssh-keygen -F "${{ secrets.EC2_HOST }}" >/dev/null || {
-            echo "EC2 host is not present in known_hosts."
-            exit 1
-          }
+          echo "Verifying pinned EC2 host key..."
+
+          ssh-keygen \
+            -F "$EC2_HOST" \
+            -f ~/.ssh/known_hosts \
+            >/dev/null || {
+              echo "Pinned EC2 host key was not written correctly."
+              exit 1
+            }
+
+          echo "EC2 host key is pinned."
 
       - name: Upload production Compose definition
         env:
