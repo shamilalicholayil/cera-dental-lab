@@ -18,6 +18,7 @@ on:
       - "package-lock.json"
       - ".github/compose.ci.yml"
       - ".github/workflows/docker-compose-check.yml"
+      - ".github/workflows/publish-images.yml"
 
   push:
     branches:
@@ -36,6 +37,7 @@ on:
       - "package-lock.json"
       - ".github/compose.ci.yml"
       - ".github/workflows/docker-compose-check.yml"
+      - ".github/workflows/publish-images.yml"
 
 permissions:
   contents: read
