@@ -90,6 +90,8 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
         run: |
+          set -Eeuo pipefail
+
           install -m 700 -d ~/.ssh
 
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cera-production
@@ -97,6 +99,12 @@ jobs:
 
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+          echo "Known-host entry loaded for:"
+          ssh-keygen -F "${{ secrets.EC2_HOST }}" >/dev/null || {
+            echo "EC2 host is not present in known_hosts."
+            exit 1
+          }
 
       - name: Upload production Compose definition
         env:
